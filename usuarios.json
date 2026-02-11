@@ -1,6 +1,6 @@
 {
     "admin": {
-        "senha": "2803",
+        "senha": "isa@2026",
         "tipo": "admin",
         "permissoes": [
             "vendas",
@@ -8,8 +8,8 @@
             "usuarios"
         ]
     },
-    "isa": {
-        "senha": "isa2026",
+    "cliente": {
+        "senha": "cliente@2026",
         "tipo": "cliente",
         "permissoes": [
             "vendas"
