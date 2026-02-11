@@ -494,7 +494,7 @@ def montar_previa_caixa_por_dia(dia):
 # ================== USUÁRIOS INICIAIS ==================
 if not os.path.exists(ARQUIVO_USUARIOS):
     salvar_json(ARQUIVO_USUARIOS, {
-        "admin": {"senha": "2803", "tipo": "admin", "permissoes": []},
+        "admin": {"senha": "kelvin0800", "tipo": "admin", "permissoes": []},
         "isa": {"senha": "isa2026", "tipo": "funcionario", "permissoes": ["vendas"]}
     })
 
