@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:1200px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:#ff1493 }
+
+.top-actions{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.busca-wrap{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.busca-wrap input{
+  padding:8px 10px;
+  border-radius:8px;
+  border:1px solid #ffb6c1;
+  background:white;
+  min-width:260px;
+}
+
+table { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
+th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
+th { background:#ff69b4; color:white }
+tr:nth-child(even) { background:#ffe6f0 }
+
+.alerta { color:#b00020; font-weight:bold; background:#ffe6e6; border:1px solid #ff9aa9; padding:10px; border-radius:8px; margin-bottom:10px; }
+
+.btn-acao{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:8px;
+  text-decoration:none;
+  font-weight:bold;
+  border:1px solid #ff69b4;
+  color:#ff1493;
+  background:white;
+}
+.btn-acao:hover{ opacity:0.9; }
+.btn-principal{
+  background:#ff69b4;
+  color:white;
+  border:1px solid #ff69b4;
+}
+</style>
+
+<div class="container">
+  <h2>Gerenciar Estoque</h2>
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+
+  <div class="top-actions">
+    <div class="busca-wrap">
+      <input id="buscaProduto" type="text" placeholder="Digite para filtrar produtos..." autocomplete="off">
+    </div>
+
+    <a class="btn-acao btn-principal" href="{{ url_for('estoque_novo') }}">Cadastrar Produto</a>
+  </div>
+
+  <table id="tabelaEstoque">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Nome</th>
+        <th>Custo médio</th>
+        <th>Venda</th>
+        <th>Quantidade</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tbodyEstoque">
+      {% for p in estoque %}
+      <tr class="linha-produto" data-nome="{{ (p.nome or '')|lower }}">
+        <td>{{ p.data|br_date }}</td>
+        <td class="col-nome">{{ p.nome }}</td>
+        <td>R$ {{ "%.2f"|format(p.valor_investido) }}</td>
+        <td>R$ {{ "%.2f"|format(p.valor_venda) }}</td>
+        <td>{{ p.quantidade }}</td>
+        <td>
+          <a class="btn-acao" href="{{ url_for('estoque_produto', pid=p.pid) }}">Lotes</a>
+          <a class="btn-acao" href="{{ url_for('editar_produto', pid=p.pid) }}">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" style="padding:14px;">Nenhum produto no estoque.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_paginas and total_paginas > 1 %}
+    <div style="display:flex; justify-content:center; margin-top:16px;">
+      <div style="
+        background:white;
+        padding:8px 12px;
+        border-radius:12px;
+        box-shadow:0 3px 8px rgba(0,0,0,0.15);
+        display:flex;
+        gap:6px;
+        align-items:center;
+        flex-wrap:wrap;
+        justify-content:center;
+      ">
+
+        {% for p in range(1, total_paginas + 1) %}
+          {% if p == pagina %}
+            <span class="btn-acao" style="background:#ff69b4; color:white; border:1px solid #ff69b4;">{{ p }}</span>
+          {% else %}
+            <a class="btn-acao" href="{{ url_for('estoque', pagina=p) }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+
+        {% if pagina < total_paginas %}
+          <a class="btn-acao" href="{{ url_for('estoque', pagina=pagina+1) }}">Próximo</a>
+        {% endif %}
+
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+<script>
+(function(){
+  const input = document.getElementById("buscaProduto");
+  const linhas = Array.from(document.querySelectorAll("#tbodyEstoque .linha-produto"));
+
+  function normaliza(s){
+    return (s || "")
+      .toString()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function filtrar(){
+    const termo = normaliza(input.value);
+    if(!termo){
+      linhas.forEach(tr => tr.style.display = "");
+      return;
+    }
+    linhas.forEach(tr => {
+      const nome = normaliza(tr.getAttribute("data-nome") || tr.querySelector(".col-nome")?.textContent);
+      tr.style.display = nome.includes(termo) ? "" : "none";
+    });
+  }
+
+  input.addEventListener("input", filtrar);
+})();
+</script>
+
+{% endblock %}

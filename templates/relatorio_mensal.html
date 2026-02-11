@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Relatório Mensal</title>
+
+<style>
+body { font-family: Arial; background:#fff0f5; padding:20px }
+h2, h3 { color:#ff1493; text-align:center }
+.box { background:#fff; padding:15px; border-radius:10px; margin-bottom:15px; text-align:center }
+table { width:100%; border-collapse:collapse; margin-top:15px }
+th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
+th { background:#ff69b4; color:white }
+</style>
+</head>
+
+<body>
+
+<h2>Relatório Mensal</h2>
+
+<form method="get" style="text-align:center;margin-bottom:20px;">
+    <input type="month" name="mes" value="{{ mes }}">
+    <button type="submit">Filtrar</button>
+</form>
+
+<div class="box">
+    <p><strong>Total Vendido:</strong> R$ {{ "%.2f"|format(total_vendas) }}</p>
+    <p><strong>Total Investido:</strong> R$ {{ "%.2f"|format(total_investido) }}</p>
+    <p><strong>Lucro do Mês:</strong> R$ {{ "%.2f"|format(lucro) }}</p>
+</div>
+
+<!-- 📊 GRÁFICO DE LUCRO MENSAL -->
+<h3>Lucro Mensal</h3>
+<div class="box">
+    <canvas
+        id="graficoLucro"
+        data-labels='{{ lucro_mensal.keys() | list | tojson }}'
+        data-values='{{ lucro_mensal.values() | list | tojson }}'>
+    </canvas>
+</div>
+
+<!-- 📋 TABELA DE VENDAS -->
+<table>
+<thead>
+<tr>
+    <th>Data</th>
+    <th>Nome</th>
+    <th>Código</th>
+    <th>Venda</th>
+    <th>Investido</th>
+    <th>Qtd</th>
+</tr>
+</thead>
+<tbody>
+{% for v in vendas %}
+<tr>
+    <td>{{ v.data }}</td>
+    <td>{{ v.nome }}</td>
+    <td>{{ v.codigo }}</td>
+    <td>{{ "%.2f"|format(v.valor_venda) }}</td>
+    <td>{{ "%.2f"|format(v.valor_investido) }}</td>
+    <td>{{ v.quantidade }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const canvas = document.getElementById('graficoLucro');
+
+const labels = JSON.parse(canvas.dataset.labels);
+const values = JSON.parse(canvas.dataset.values);
+
+new Chart(canvas, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Lucro Mensal (R$)',
+            data: values,
+            fill: true,
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+</script>
+
+</body>
+</html>

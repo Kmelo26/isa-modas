@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container{max-width:900px;margin:auto;padding:20px}
+select,input{padding:8px;border-radius:6px;border:1px solid #ccc}
+.btn{background:#ff69b4;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+table{width:100%;border-collapse:collapse;margin-top:15px;background:white}
+th,td{border:1px solid #ffb6c1;padding:6px;text-align:center}
+th{background:#ff69b4;color:white}
+.total{font-weight:bold;color:#ff1493;text-align:right;margin-top:10px}
+.alerta{background:#ffe6e6;border:1px solid #ff9aa2;padding:10px;border-radius:8px;margin:10px 0}
+.btn-x{background:#fff;color:#ff1493;border:1px solid #ffb6c1;padding:4px 10px;border-radius:6px;cursor:pointer}
+</style>
+
+<div class="container">
+  <h2>Cadastrar Venda</h2>
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+
+  <form method="post" action="/cadastrar_venda">
+
+    <div style="margin-bottom:12px">
+      <label><strong>Data da Venda</strong></label>
+      <input type="date" name="data" id="data_venda" value="{{ hoje }}" required>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <select id="produto">
+        <option value="">Produto</option>
+        {% for p in estoque %}
+          <option
+            value="{{ p.pid }}"
+            data-nome="{{ p.nome }}"
+            data-preco="{{ '%.2f'|format(p.valor_venda|float) }}">
+            {{ p.nome }} - R$ {{ '%.2f'|format(p.valor_venda|float) }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <input id="qtd" type="number" placeholder="Qtd" min="1">
+      <button type="button" class="btn" onclick="add()">Adicionar</button>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>Forma de Pagamento</label>
+      <select name="forma_pagamento" id="forma_pagamento" required>
+        <option value="">Selecione</option>
+        <option value="dinheiro">Dinheiro</option>
+        <option value="pix">Pix</option>
+        <option value="cartao">Cartão</option>
+      </select>
+    </div>
+
+    <div id="box-dinheiro" style="display:none; margin-top:10px;">
+      <label>Valor recebido (R$)</label>
+      <input type="number" step="0.01" min="0" id="valor_recebido" name="valor_recebido" placeholder="Ex: 100.00">
+
+      <label>Troco (R$)</label>
+      <input type="text" id="troco" name="troco" readonly value="0.00">
+
+      <p id="msg-troco" style="margin:6px 0 0; font-weight:bold;"></p>
+    </div>
+
+    <div style="margin-top:10px">
+      <label>Total da Venda</label>
+      <input type="text" id="total_venda" name="total_venda" readonly value="0.00">
+    </div>
+
+    <table id="tabela">
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Qtd</th>
+          <th>Preço</th>
+          <th>Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="total">
+      Total venda: R$ <span id="total">0.00</span>
+    </div>
+
+    <button class="btn" style="margin-top:10px;width:100%" type="submit">
+      Finalizar Venda
+    </button>
+
+  </form>
+</div>
+
+<script>
+let total = 0;
+
+const forma = document.getElementById("forma_pagamento");
+const boxDinheiro = document.getElementById("box-dinheiro");
+const recebido = document.getElementById("valor_recebido");
+const totalSpan = document.getElementById("total");
+const totalEl = document.getElementById("total_venda");
+const trocoEl = document.getElementById("troco");
+const msg = document.getElementById("msg-troco");
+const form = document.querySelector("form");
+
+function format2(n){
+  return (Math.round(n * 100) / 100).toFixed(2);
+}
+
+function parsePreco(v){
+  return parseFloat(String(v || "").trim().replace(",", "."));
+}
+
+function recalcularTroco(){
+  const totalVenda = parseFloat(totalEl.value) || 0;
+  const vr = parseFloat(recebido.value) || 0;
+  const t = vr - totalVenda;
+
+  trocoEl.value = format2(Math.max(t, 0));
+
+  if (forma.value !== "dinheiro") {
+    msg.textContent = "";
+    return true;
+  }
+
+  if (!recebido.value) {
+    msg.textContent = "Informe o valor recebido.";
+    msg.style.color = "crimson";
+    return false;
+  }
+
+  if (t < 0) {
+    msg.textContent = `Falta R$ ${format2(Math.abs(t))} para completar.`;
+    msg.style.color = "crimson";
+    return false;
+  }
+
+  msg.textContent = `Troco: R$ ${format2(t)}`;
+  msg.style.color = "green";
+  return true;
+}
+
+function atualizarTotais(){
+  totalSpan.innerText = format2(total);
+  totalEl.value = format2(total);
+  if (forma.value === "dinheiro") recalcularTroco();
+}
+
+function add(){
+  const sel = document.getElementById("produto");
+  const opt = sel.options[sel.selectedIndex];
+
+  const pid = opt.value || "";
+  const nome = opt.dataset.nome || "";
+  const precoStr = opt.getAttribute("data-preco") || "";
+  const preco = parsePreco(precoStr);
+  const qtd = parseInt(document.getElementById("qtd").value, 10);
+
+  if(!pid || !qtd || qtd <= 0) return;
+
+  if (!precoStr || Number.isNaN(preco)) {
+    alert("Preço do produto não encontrado no estoque.");
+    console.log("DEBUG data-preco:", precoStr, "option:", opt);
+    return;
+  }
+
+  const subtotal = preco * qtd;
+  total += subtotal;
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${nome}</td>
+    <td>${qtd}</td>
+    <td>${format2(preco)}</td>
+    <td>${format2(subtotal)}</td>
+    <td>
+      <button type="button" class="btn-x" onclick="rem(this, ${subtotal})">X</button>
+      <input type="hidden" name="produto_pid[]" value="${pid}">
+      <input type="hidden" name="quantidade[]" value="${qtd}">
+    </td>
+  `;
+
+  document.querySelector("#tabela tbody").appendChild(tr);
+  atualizarTotais();
+  document.getElementById("qtd").value = "";
+}
+
+function rem(btn, val){
+  btn.closest("tr").remove();
+  total -= val;
+  atualizarTotais();
+}
+
+forma.addEventListener("change", () => {
+  const isDinheiro = forma.value === "dinheiro";
+  boxDinheiro.style.display = isDinheiro ? "block" : "none";
+
+  if (!isDinheiro) {
+    recebido.value = "";
+    trocoEl.value = "0.00";
+    msg.textContent = "";
+  }
+  recalcularTroco();
+});
+
+recebido.addEventListener("input", recalcularTroco);
+
+form.addEventListener("submit", (e) => {
+  const itens = document.querySelectorAll('input[name="produto_pid[]"]');
+  if (itens.length <= 0 || total <= 0) {
+    e.preventDefault();
+    alert("Adicione pelo menos 1 item na venda.");
+    return;
+  }
+
+  const ok = recalcularTroco();
+  if (!ok) e.preventDefault();
+});
+</script>
+
+{% endblock %}

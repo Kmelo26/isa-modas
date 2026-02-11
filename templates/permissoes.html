@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Permissões - Isa Modas</title>
+<style>
+body { font-family: Arial; background:#fff0f5; margin:0; }
+.header { display:flex; justify-content:space-between; align-items:center; padding:15px 30px; background:#ff69b4; color:white; }
+.logo { font-size:1.5em; font-weight:bold; }
+.btn { background:white; color:#ff69b4; border:none; padding:8px 16px; border-radius:20px; cursor:pointer; font-weight:bold; }
+.container { max-width:1100px; margin:20px auto; padding:20px; }
+h2 { text-align:center; color:#ff1493; }
+.card { background:white; padding:15px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.08); }
+.grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; margin-top:15px; }
+.userbox { background:white; padding:12px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.06); }
+.small { color:#666; font-size:0.95em; margin-top:6px; }
+label { display:flex; gap:10px; align-items:center; padding:6px 0; }
+select { width:100%; padding:10px; border-radius:8px; border:1px solid #ffb6c1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Isa Modas</div>
+  <div>
+    <a href="{{ url_for('vendas') }}"><button class="btn">Vendas</button></a>
+    <a href="{{ url_for('logout') }}"><button class="btn">Sair</button></a>
+  </div>
+</div>
+
+<div class="container">
+  <h2>Gerenciar Permissões</h2>
+
+  <div class="card">
+    <form method="post">
+      <p style="font-weight:bold; margin:0 0 8px;">Selecione o funcionário</p>
+
+      <select id="usuario_alvo" name="usuario_alvo" required>
+        {% for nome, info in usuarios.items() %}
+          {% if info.tipo != 'admin' %}
+            <option value="{{ nome }}">{{ nome }} ({{ info.tipo }})</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+
+      <div style="margin-top:15px;">
+        <p style="font-weight:bold; margin:0 0 8px;">Permissões</p>
+
+        {% for p in permissoes_disponiveis %}
+          <label>
+            <input class="permcheck" type="checkbox" name="permissoes" value="{{ p }}">
+            <span>{{ p|capitalize }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <button class="btn" type="submit" style="margin-top:15px;">Salvar</button>
+    </form>
+  </div>
+
+  <div style="margin-top:25px;">
+    <h2 style="font-size:1.3em;">Status Atual</h2>
+    <div class="grid">
+      {% for nome, info in usuarios.items() %}
+        <div class="userbox">
+          <div style="font-weight:bold;">{{ nome }}</div>
+          <div class="small">Tipo: {{ info.tipo }}</div>
+          <div class="small">
+            <strong>Permissões:</strong>
+            {% if info.tipo == 'admin' %}
+              todas
+            {% else %}
+              {{ info.permissoes|join(", ") if info.permissoes else "nenhuma" }}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

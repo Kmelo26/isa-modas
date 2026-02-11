@@ -1,0 +1,76 @@
+[
+    {
+        "id": "a2dfb86d158047c7b50b099b9a8891c0",
+        "dia": "2026-01-07",
+        "data_fechamento": "2026-02-10 19:17",
+        "pix": 0.0,
+        "dinheiro": 0.0,
+        "cartao": 44.0,
+        "total": 44.0,
+        "qtd_vendas": 2,
+        "vendas_uids": [
+            "30342c7834c64636a029f7aea2f5d2ef",
+            "d8db38a8950d43e8b9e17644e38cb0d1"
+        ]
+    },
+    {
+        "id": "273363b4317547b48391e5bbf5881e2c",
+        "dia": "2026-02-11",
+        "data_fechamento": "2026-02-11 00:32",
+        "pix": 0.0,
+        "dinheiro": 150.0,
+        "cartao": 0.0,
+        "total": 150.0,
+        "qtd_vendas": 6,
+        "vendas_uids": [
+            "5f1a83d8fcd84f969d9a20fe8c796580",
+            "abda5c683c74499eaa27c2d52923a744",
+            "70ca06293acf4c26a432fd2a80509cf8",
+            "8acb5ec0fd794ed8bc1b9405ccd0b4f4",
+            "6c04c4b0e67a4346b2184bda13679435",
+            "a2d8c023f37143c4bf8f1583daa81a7a"
+        ]
+    },
+    {
+        "id": "ab4f4ab048634e02aacaa7c3194df4d8",
+        "dia": "2026-02-11",
+        "data_fechamento": "2026-02-11 00:44",
+        "pix": 0.0,
+        "dinheiro": 48.0,
+        "cartao": 0.0,
+        "total": 48.0,
+        "qtd_vendas": 2,
+        "vendas_uids": [
+            "5f00bec6c5c8468aa81bc8dd1a31432b",
+            "c816232d3cfe4636838aa9c50f7e20c4"
+        ]
+    },
+    {
+        "id": "041b536e86414d1f87ce3f96d1d4d878",
+        "dia": "2026-02-11",
+        "data_fechamento": "2026-02-11 12:41",
+        "pix": 0.0,
+        "dinheiro": 70.0,
+        "cartao": 0.0,
+        "total": 70.0,
+        "qtd_vendas": 2,
+        "vendas_uids": [
+            "1f5a8d49824349da9562c70437bb3d26",
+            "149df1dfd0a84f33ae0abe0c883e4cbe"
+        ]
+    },
+    {
+        "id": "81161983f6cd49a986c32db32f526624",
+        "dia": "2026-02-11",
+        "data_fechamento": "2026-02-11 14:20",
+        "pix": 0.0,
+        "dinheiro": 41.0,
+        "cartao": 0.0,
+        "total": 41.0,
+        "qtd_vendas": 2,
+        "vendas_uids": [
+            "07811deba383470bb12b033daad65a53",
+            "a7d4c6e5f8c64b88b87fa2836c999510"
+        ]
+    }
+]

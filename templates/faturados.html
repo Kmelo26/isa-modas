@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Faturados em Aberto</title>
+</head>
+<body>
+
+<h2>Faturados em Aberto</h2>
+
+<table border="1">
+<tr>
+<th>Data</th>
+<th>Produto</th>
+<th>Código</th>
+<th>Quantidade</th>
+<th>Valor</th>
+<th>Vencimento</th>
+</tr>
+
+{% for v in faturados %}
+<tr>
+<td>{{ v.data }}</td>
+<td>{{ v.nome }}</td>
+<td>{{ v.codigo }}</td>
+<td>{{ v.quantidade }}</td>
+<td>R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
+<td>{{ v.vencimento }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<p><strong>Total em aberto:</strong>
+R$ {{ "%.2f"|format(total_aberto) }}</p>
+
+</body>
+</html>

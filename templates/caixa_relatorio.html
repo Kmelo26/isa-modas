@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:900px; margin:20px auto; padding:20px }
+h2,h3{ text-align:center; color:#ff1493; }
+.card{ background:white; padding:16px; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.08); margin-bottom:15px; }
+.list{ margin:0; padding-left:18px; }
+.list li{ padding:4px 0; }
+.grid{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.box{ flex:1 1 250px; background:#fff; border:1px solid #ffb6c1; border-radius:10px; padding:12px; }
+.btn{ background:#ff69b4; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn-sec{ background:#fff; color:#ff1493; border:1px solid #ffb6c1; }
+.linha{ display:flex; justify-content:space-between; padding:4px 0; }
+
+.btn-voltar{
+    background:#ff69b4;
+    color:white;
+    padding:8px 14px;
+    border-radius:8px;
+    text-decoration:none;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    display:inline-block;
+    margin-bottom:15px;
+}
+</style>
+
+<div class="container">
+  <h2>Relatório do Caixa - {{ rel.dia }}</h2>
+
+  <div class="card" style="text-align:center;">
+    <div>Fechado em: <strong>{{ rel.registro.data_fechamento }}</strong></div>
+    <div style="margin-top:10px;">
+      <a href="/caixa" style="text-decoration:none;"><button class="btn btn-sec">Voltar</button></a>
+      <a href="/caixa/{{ rel.dia }}/pdf" style="text-decoration:none;"><button class="btn">Gerar PDF</button></a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Produtos vendidos</h3>
+    <ul class="list">
+      {% for i in rel.itens %}
+        <li><strong>{{ i.nome }}</strong> — ({{ i.qtd }} / unit R$ {{ "%.2f"|format(i.unit) }})</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Pagamentos</h3>
+    <div class="grid">
+      {% for k,titulo in [('pix','Pix'),('dinheiro','Dinheiro'),('cartao','Cartão')] %}
+      <div class="box">
+        <div style="font-weight:bold; color:#ff1493;">{{ titulo }}</div>
+        <div class="linha"><span>Quantidade (vendas)</span><span>{{ rel.pagamentos[k].qtd_vendas }}</span></div>
+        <div class="linha"><span>Quantidade (itens)</span><span>{{ rel.pagamentos[k].qtd_itens }}</span></div>
+        <div class="linha"><span>Valor pago</span><span>R$ {{ "%.2f"|format(rel.pagamentos[k].valor) }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Resumo</h3>
+    <div class="linha"><strong>Total do dia</strong><strong>R$ {{ "%.2f"|format(rel.total) }}</strong></div>
+    <div class="linha"><strong>Lucro do dia</strong><strong>R$ {{ "%.2f"|format(rel.lucro) }}</strong></div>
+  </div>
+</div>
+
+<a href="{{ url_for('vendas') }}" class="btn-voltar">
+    ← Voltar para Vendas
+</a>
+
+{% endblock %}

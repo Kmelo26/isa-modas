@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:1000px; margin:20px auto; padding:20px }
+h2{ text-align:center; color:#ff1493; }
+table{ width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
+th,td{ border:1px solid #ffb6c1; padding:8px; text-align:center; }
+th{ background:#ff69b4; color:white; }
+tr:nth-child(even){ background:#ffe6f0; }
+.btn{ background:#ff69b4; color:white; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn-sec{ background:#fff; color:#ff1493; border:1px solid #ffb6c1; }
+
+.btn-voltar{
+    background:#ff69b4;
+    color:white;
+    padding:8px 14px;
+    border-radius:8px;
+    text-decoration:none;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    display:inline-block;
+    margin-bottom:15px;
+}
+
+</style>
+
+<div class="container">
+  <h2>Histórico de Caixas</h2>
+
+  {% if caixa and caixa|length > 0 %}
+  <table>
+    <thead>
+      <tr>
+        <th>Dia</th>
+        <th>Fechado em</th>
+        <th>Total</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in caixa %}
+      <tr>
+        <td>{{ c.dia|br_date }}</td>
+        <td>{{ c.data_fechamento }}</td>
+        <td>R$ {{ "%.2f"|format(c.total) }}</td>
+        <td>
+          <a href="/caixa/{{ c.dia }}" style="text-decoration:none;">
+            <button class="btn btn-sec">Ver</button>
+          </a>
+          <a href="/caixa/{{ c.dia }}/pdf" style="text-decoration:none;">
+            <button class="btn">PDF</button>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p style="text-align:center;">Nenhum caixa fechado ainda.</p>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('vendas') }}" class="btn-voltar">
+    ← Voltar para Vendas
+</a>
+
+{% endblock %}
+

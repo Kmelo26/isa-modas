@@ -1,0 +1,18 @@
+{
+    "admin": {
+        "senha": "2803",
+        "tipo": "admin",
+        "permissoes": [
+            "vendas",
+            "estoque",
+            "usuarios"
+        ]
+    },
+    "isa": {
+        "senha": "isa2026",
+        "tipo": "cliente",
+        "permissoes": [
+            "vendas"
+        ]
+    }
+}

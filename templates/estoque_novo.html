@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:700px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:#ff1493 }
+
+form{
+  background:white;
+  padding:15px;
+  border-radius:10px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+  margin-bottom:15px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+form input, form button {
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ffb6c1;
+  width:100%;
+}
+form button { background:#ff69b4; color:white; border:none; cursor:pointer; font-weight:bold; }
+form button:hover { opacity:0.9; }
+
+.alerta { color:#b00020; font-weight:bold; background:#ffe6e6; border:1px solid #ff9aa9; padding:10px; border-radius:8px; margin-bottom:10px; }
+
+.btn-voltar{
+  display:inline-block;
+  padding:8px 12px;
+  border-radius:8px;
+  text-decoration:none;
+  font-weight:bold;
+  border:1px solid #ff69b4;
+  color:#ff1493;
+  background:white;
+}
+</style>
+
+<div class="container">
+  <h2>Cadastrar Produto no Estoque</h2>
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+
+  <form method="POST">
+      <input type="date" name="data" required>
+      <input type="text" name="nome" placeholder="Nome do produto" required>
+      <input type="number" step="0.01" name="valor_investido" placeholder="Custo unitário (compra)" required>
+      <input type="number" step="0.01" name="valor_venda" placeholder="Valor de venda" required>
+      <input type="number" name="quantidade" placeholder="Quantidade" required>
+      <button type="submit">Cadastrar Produto</button>
+  </form>
+
+  <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
+</div>
+
+{% endblock %}

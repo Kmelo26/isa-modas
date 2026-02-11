@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Login - Isa Modas</title>
+<style>
+body { font-family: Arial; background:#fff0f5; display:flex; justify-content:center; align-items:center; height:100vh; margin:0 }
+form { background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:300px }
+input { width:100%; padding:8px; margin:10px 0; border-radius:5px; border:1px solid #ccc }
+button { width:100%; padding:10px; background:#ff69b4; color:white; border:none; border-radius:5px; cursor:pointer }
+button:hover { background:#ff1493 }
+.alerta { color:red; font-weight:bold; text-align:center }
+h2 { text-align:center; color:#ff1493 }
+</style>
+</head>
+<body>
+
+<form method="POST">
+<h2>Login</h2>
+{% if erro %}
+<p class="alerta">{{ erro }}</p>
+{% endif %}
+<input type="text" name="usuario" placeholder="Usuário" required>
+<input type="password" name="senha" placeholder="Senha" required>
+<button type="submit">Entrar</button>
+</form>
+
+</body>
+</html>

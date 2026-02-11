@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:700px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:#ff1493; margin-bottom:15px }
+
+form{
+  background:white;
+  padding:18px;
+  border-radius:10px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+label{ font-weight:bold; color:#ff1493; }
+input, select{
+  padding:10px;
+  border:1px solid #ffb6c1;
+  border-radius:8px;
+}
+input[readonly]{ background:#f7f7f7; }
+.btn {
+  background:#ff69b4;
+  color:white;
+  border:none;
+  padding:10px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+}
+.btn:hover{ opacity:0.9; }
+.btn-sec{
+  background:#fff;
+  color:#ff1493;
+  border:1px solid #ffb6c1;
+  text-decoration:none;
+  display:inline-block;
+  text-align:center;
+  padding:10px 14px;
+  border-radius:8px;
+}
+.erro{
+  background:#ffe6e6;
+  border:1px solid #ff9aa9;
+  padding:10px;
+  border-radius:8px;
+  color:#b00020;
+  margin-bottom:10px;
+}
+.linha-botoes{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+.obs{ font-size:12px; color:#666; margin-top:-6px; }
+</style>
+
+<div class="container">
+  <h2>Editar Venda</h2>
+
+  {% if erro %}
+    <div class="erro">{{ erro }}</div>
+  {% endif %}
+
+  <form method="post">
+    <label>Data</label>
+    <input type="date" name="data" value="{{ venda.data|replace('/','-') }}" required>
+
+    <label>Produto</label>
+    <select id="produtoSelect" name="produto_pid" required>
+      <option value="">-- Selecione um produto --</option>
+
+      {% for p in estoque %}
+        <option
+          value="{{ p.pid }}"
+          data-preco="{{ p.valor_venda }}"
+          data-qtd="{{ p.quantidade }}"
+          {% if p.pid == venda.produto_pid %}selected{% endif %}
+        >
+          {{ p.nome }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <div class="obs">Selecione o produto cadastrado no estoque.</div>
+
+    <label>Preço de Venda</label>
+    <input id="precoVenda" type="text" readonly value="R$ {{ '%.2f'|format(venda.valor_venda) }}">
+
+    <label>Quantidade disponível</label>
+    <input id="qtdDisponivel" type="text" readonly>
+
+    <label>Quantidade</label>
+    <input type="number" name="quantidade" value="{{ venda.quantidade }}" min="1" required>
+
+<label>Forma de Pagamento</label>
+
+{% set fp_raw = (venda.forma_pagamento or '') %}
+{% set fp = fp_raw|lower %}
+
+<select name="forma_pagamento">
+
+  {# Se já existir algo salvo diferente das opções, mantém visível #}
+  {% if fp_raw and fp not in ['pix','dinheiro','cartao','cartão'] %}
+    <option value="{{ fp_raw }}" selected>{{ fp_raw }}</option>
+  {% endif %}
+
+  <option value="" {% if not fp_raw %}selected{% endif %}>
+    -- Manter como está --
+  </option>
+
+  <option value="pix" {{ 'selected' if fp == 'pix' else '' }}>
+    Pix
+  </option>
+
+  <option value="dinheiro" {{ 'selected' if fp == 'dinheiro' else '' }}>
+    Dinheiro
+  </option>
+
+  <option value="cartao" {{ 'selected' if fp in ['cartao','cartão'] else '' }}>
+    Cartão
+  </option>
+
+</select>
+
+<div class="obs">
+Se não quiser alterar, deixe “Manter como está”.
+</div>
+
+    <div class="linha-botoes">
+      <button class="btn" type="submit">Salvar</button>
+      <a class="btn-sec" href="/vendas">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  function formatBRL(n) {
+    const num = Number(n);
+    if (Number.isNaN(num)) return "";
+    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function atualizarInfoProduto() {
+    const select = document.getElementById("produtoSelect");
+    const opt = select.options[select.selectedIndex];
+
+    const preco = opt?.dataset?.preco ?? "";
+    const qtd = opt?.dataset?.qtd ?? "";
+
+    document.getElementById("precoVenda").value = preco !== "" ? formatBRL(preco) : "";
+    document.getElementById("qtdDisponivel").value = qtd !== "" ? qtd : "";
+  }
+
+  document.getElementById("produtoSelect").addEventListener("change", atualizarInfoProduto);
+  atualizarInfoProduto();
+</script>
+
+{% endblock %}

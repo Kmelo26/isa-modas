@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container{max-width:900px;margin:20px auto;padding:20px}
+.card{background:white;padding:18px;border-radius:10px;box-shadow:0 3px 8px rgba(0,0,0,.08)}
+h2{text-align:center;color:#ff1493}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border:1px solid #ffd1dc;padding:8px;text-align:center}
+th{background:#ff69b4;color:white}
+.total{font-size:18px;margin-top:12px;text-align:right}
+.btn{
+ background:#ff69b4;color:white;border:none;
+ padding:10px 14px;border-radius:8px;
+ cursor:pointer;font-weight:bold
+}
+.btn-sec{
+ background:#fff;color:#ff1493;
+ border:1px solid #ffb6c1
+}
+.linha{display:flex;gap:10px;justify-content:center;margin-top:20px}
+</style>
+
+<div class="container">
+<div class="card">
+
+<h2>Prévia do Caixa — {{ p.dia|br_date }}</h2>
+
+<table>
+<tr>
+<th>Produto</th>
+<th>Qtd</th>
+<th>Unit</th>
+<th>Total</th>
+</tr>
+
+{% for i in p.itens %}
+<tr>
+<td>{{ i.nome }}</td>
+<td>{{ i.qtd }}</td>
+<td>R$ {{ "%.2f"|format(i.unit) }}</td>
+<td>R$ {{ "%.2f"|format(i.total) }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<div class="total">
+Investido: <b>R$ {{ "%.2f"|format(p.total_investido) }}</b><br>
+Vendido: <b>R$ {{ "%.2f"|format(p.total) }}</b><br>
+Lucro: <b>R$ {{ "%.2f"|format(p.lucro) }}</b>
+</div>
+
+<div class="linha">
+<form method="post" action="/fechar_caixa">
+<input type="hidden" name="dia" value="{{ p.dia }}">
+<button class="btn">Confirmar Fechamento</button>
+</form>
+
+<a class="btn btn-sec" href="/fechar_caixa">Voltar</a>
+</div>
+
+</div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:1200px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:#ff1493; margin-bottom:15px }
+
+.filtros{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:end;
+  justify-content:center;
+  margin-bottom:15px;
+  background:white;
+  padding:12px;
+  border-radius:10px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+}
+.filtros label { font-weight:bold; color:#ff1493; }
+.filtros input { padding:8px; border:1px solid #ffb6c1; border-radius:8px; }
+
+.btn {
+  background:#ff69b4;
+  color:white;
+  border:none;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+}
+.btn:hover { opacity:0.9; }
+
+.btn-sec {
+  background:#fff;
+  color:#ff1493;
+  border:1px solid #ffb6c1;
+}
+
+.btn-mini{
+  padding:4px 8px;
+  font-size:12px;
+  border-radius:6px;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+}
+
+th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
+th { background:#ff69b4; color:white }
+tr:nth-child(even){ background:#ffe6f0 }
+
+.vazio{
+  text-align:center;
+  padding:18px;
+  background:white;
+  border-radius:10px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+}
+</style>
+
+<div class="container">
+  <h2>Minhas Vendas</h2>
+
+  <form class="filtros" method="get" action="/vendas">
+    <div>
+      <label>Produto</label><br>
+      <input
+        id="buscaProduto"
+        type="text"
+        name="busca_produto"
+        placeholder="Pesquisar produto..."
+        value="{{ busca_produto or '' }}"
+        autocomplete="off"
+      >
+    </div>
+
+    <div>
+      <label>Data inicial</label><br>
+      <input type="date" name="data_ini" value="{{ data_ini_raw or '' }}">
+    </div>
+
+    <div>
+      <label>Data final</label><br>
+      <input type="date" name="data_fim" value="{{ data_fim_raw or '' }}">
+    </div>
+
+    <button class="btn" type="submit">Filtrar</button>
+
+    <a class="btn btn-sec"
+       href="/vendas"
+       style="text-decoration:none;">
+       Limpar
+    </a>
+  </form>
+
+  {% if vendas and vendas|length > 0 %}
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Produto</th>
+          <th>Preço Venda</th>
+          <th>Quantidade</th>
+          <th>Pagamento</th>
+          <th>Total</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyVendas">
+        {% for v in vendas %}
+        <tr class="linha-venda" data-nome="{{ (v.nome or '')|lower }}">
+          <td>{{ v.data|br_date }}</td>
+          <td class="col-nome">{{ v.nome }}</td>
+          <td>R$ {{ "%.2f"|format(v.valor_venda) }}</td>
+          <td>{{ v.quantidade }}</td>
+          <td>{{ v.forma_pagamento }}</td>
+          <td>R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
+          <td>
+            <a class="btn btn-sec btn-mini"
+               href="/vendas/editar/{{ v.uid }}"
+               style="text-decoration:none;">
+              Editar
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- PAGINAÇÃO: abaixo da tabela e centralizada -->
+    {% if total_paginas and total_paginas > 1 %}
+      <div style="display:flex; justify-content:center; margin-top:16px;">
+        <div style="
+          background:white;
+          padding:8px 12px;
+          border-radius:12px;
+          box-shadow:0 3px 8px rgba(0,0,0,0.15);
+          display:flex;
+          gap:6px;
+          align-items:center;
+        ">
+
+          {% for p in range(1, total_paginas + 1) %}
+            {% if p == pagina %}
+              <span class="btn btn-mini" style="opacity:0.8; cursor:default;">{{ p }}</span>
+            {% else %}
+              <a class="btn btn-sec btn-mini"
+                 style="text-decoration:none;"
+                 href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}">
+                {{ p }}
+              </a>
+            {% endif %}
+          {% endfor %}
+
+          {% if pagina < total_paginas %}
+            <a class="btn btn-sec btn-mini"
+               style="text-decoration:none;"
+               href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}">
+              Próximo
+            </a>
+          {% endif %}
+
+        </div>
+      </div>
+    {% endif %}
+
+  {% else %}
+    <div class="vazio">Nenhuma venda cadastrada ainda.</div>
+  {% endif %}
+</div>
+
+<div style="position:absolute; top:20px; right:20px;">
+  <a href="/fechar_caixa" style="text-decoration:none;">
+    <button class="btn">Fechar Caixa</button>
+  </a>
+</div>
+
+<script>
+(function(){
+  const input = document.getElementById("buscaProduto");
+  const linhas = Array.from(document.querySelectorAll("#tbodyVendas .linha-venda"));
+
+  function normaliza(s){
+    return (s || "")
+      .toString()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function filtrar(){
+    const termo = normaliza(input.value);
+    if(!termo){
+      linhas.forEach(tr => tr.style.display = "");
+      return;
+    }
+    linhas.forEach(tr => {
+      const nome = normaliza(tr.getAttribute("data-nome") || tr.querySelector(".col-nome")?.textContent);
+      tr.style.display = nome.includes(termo) ? "" : "none";
+    });
+  }
+
+  input.addEventListener("input", filtrar);
+})();
+</script>
+
+{% endblock %}

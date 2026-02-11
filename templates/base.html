@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Isa Modas - Painel</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background: #fff0f5;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 250px;
+    background: #ff69b4;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.sidebar h2 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.sidebar a {
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: block;
+    font-weight: bold;
+}
+
+.sidebar a:hover {
+    background: #ff1493;
+}
+
+/* CONTEÚDO */
+.main {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.usuario {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.btn {
+    background: #ff69b4;
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn:hover {
+    background: #ff1493;
+}
+
+/* BOXES */
+.box {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+/* FORM */
+form label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+form input,
+form select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+/* ALERTA */
+.alerta {
+    color: red;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>Isa Modas</h2>
+
+    {# 1) Cadastrar Vendas (OPÇÃO A - LOTE) #}
+    {% if tipo == "admin" or ("vendas" in permissoes) %}
+        <a href="{{ url_for('cadastrar_venda_lote') }}">Cadastrar Vendas</a>
+    {% endif %}
+
+    {# 2) Vendas #}
+    {% if tipo == "admin" or ("vendas" in permissoes) %}
+        <a href="{{ url_for('vendas') }}">Vendas</a>
+    {% endif %}
+
+    {# 3) Estoque #}
+    {% if tipo == "admin" or ("estoque" in permissoes) %}
+        <a href="{{ url_for('estoque') }}">Estoque</a>
+    {% endif %}
+
+    {# 4) Financeiro #}
+    {% if tipo == "admin" or ("financeiro" in permissoes) %}
+        <a href="{{ url_for('financeiro') }}">Financeiro</a>
+    {% endif %}
+
+    {# 5) Admin (área para permissões e futuras funções) #}
+    {% if tipo == "admin" %}
+        <a href="{{ url_for('permissoes') }}">Admin</a>
+    {% endif %}
+
+    <a href="{{ url_for('logout') }}">Sair</a>
+</div>
+
+<!-- CONTEÚDO PRINCIPAL -->
+<div class="main">
+    <div class="header">
+        <div class="usuario">
+            Usuário: {{ usuario if usuario is defined else session.get("usuario", "") }}
+        </div>
+    </div>
+
+    {% block conteudo %}{% endblock %}
+</div>
+
+</body>
+</html>

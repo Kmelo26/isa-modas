@@ -1,0 +1,378 @@
+[
+    {
+        "data": "2026-02-05",
+        "nome": "Amstel",
+        "valor_investido": 2.49,
+        "valor_venda": 5.0,
+        "quantidade": 1,
+        "forma_pagamento": "pix",
+        "uid": "59902ba572a74c5a9901c2da9dce45b8",
+        "produto_pid": "6404b874281448969cdabc96a70a154f",
+        "fechado": true,
+        "fechado_em": "2026-02-09 18:01:00",
+        "caixa_dia": "2026-02-05"
+    },
+    {
+        "data": "2026-02-05",
+        "nome": "Vinho Pérola",
+        "valor_investido": 20.0,
+        "valor_venda": 34.0,
+        "quantidade": 1,
+        "forma_pagamento": "cartao",
+        "uid": "ce22a5dd01c14a889f12ac40952bb147",
+        "produto_pid": "62931d03b37840ce89ce090266215341",
+        "fechado": true,
+        "fechado_em": "2026-02-09 18:01:00",
+        "caixa_dia": "2026-02-05"
+    },
+    {
+        "data": "2026-01-06",
+        "nome": "Skol",
+        "valor_venda": 5.0,
+        "valor_investido": 2.39,
+        "quantidade": 1,
+        "forma_pagamento": "pix",
+        "uid": "0d17bef8c5554bd4bce4538846fa0870"
+    },
+    {
+        "id_venda": "V1770435437",
+        "data": "2026-01-07",
+        "nome": "Skol",
+        "valor_venda": 5.0,
+        "valor_investido": 2.39,
+        "quantidade": 2,
+        "forma_pagamento": "cartao",
+        "uid": "30342c7834c64636a029f7aea2f5d2ef",
+        "fechado": true,
+        "fechado_em": "2026-02-10 19:17:25",
+        "caixa_dia": "2026-01-07"
+    },
+    {
+        "id_venda": "V1770435437",
+        "data": "2026-01-07",
+        "nome": "Vinho Pérola",
+        "valor_venda": 34.0,
+        "valor_investido": 20.0,
+        "quantidade": 1,
+        "forma_pagamento": "cartao",
+        "uid": "d8db38a8950d43e8b9e17644e38cb0d1",
+        "fechado": true,
+        "fechado_em": "2026-02-10 19:17:25",
+        "caixa_dia": "2026-01-07"
+    },
+    {
+        "id_venda": "V1770564258",
+        "data": "2026-02-07",
+        "nome": "Vinho Pérola",
+        "valor_venda": 34.0,
+        "valor_investido": 20.0,
+        "quantidade": 1,
+        "forma_pagamento": "pix",
+        "uid": "d3ba77fc5e6f42858e5b02506aebf9b9",
+        "produto_pid": "62931d03b37840ce89ce090266215341"
+    },
+    {
+        "uid": "b885fc8956ec411a89abfd6788ffd981",
+        "id_venda": "V1770575347",
+        "data": "2026-02-02",
+        "nome": "Amstel",
+        "valor_venda": 5.0,
+        "valor_investido": 2.49,
+        "quantidade": 1,
+        "forma_pagamento": "cartao",
+        "produto_pid": "6404b874281448969cdabc96a70a154f"
+    },
+    {
+        "uid": "94854f6010834bf0bdcc3008ed05b022",
+        "id_venda": "V1770768107",
+        "data": "2026-02-10",
+        "produto_pid": "6404b874281448969cdabc96a70a154f",
+        "nome": "Amstel",
+        "valor_venda": 5.0,
+        "valor_investido": 2.49,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-05",
+                "qtd": 1,
+                "custo_unit": 2.49
+            }
+        ]
+    },
+    {
+        "uid": "a18b3ac7f19b4361b4eb90e4018636e2",
+        "id_venda": "V1770779204",
+        "data": "2026-02-10",
+        "produto_pid": "358312483ce64500b12bd63da4a66182",
+        "nome": "Garrafa Heineken",
+        "valor_venda": 7.0,
+        "valor_investido": 4.39,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-05",
+                "qtd": 1,
+                "custo_unit": 4.39
+            }
+        ]
+    },
+    {
+        "uid": "5f1a83d8fcd84f969d9a20fe8c796580",
+        "id_venda": "V1770779225",
+        "data": "2026-02-11",
+        "produto_pid": "62931d03b37840ce89ce090266215341",
+        "nome": "Vinho Pérola",
+        "valor_venda": 34.0,
+        "valor_investido": 20.0,
+        "quantidade": 2,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-09",
+                "qtd": 1,
+                "custo_unit": 20.0
+            },
+            {
+                "data_lote": "2026-02-09",
+                "qtd": 1,
+                "custo_unit": 20.0
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:32:13",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "abda5c683c74499eaa27c2d52923a744",
+        "id_venda": "V1770779303",
+        "data": "2026-02-11",
+        "produto_pid": "6404b874281448969cdabc96a70a154f",
+        "nome": "Amstel",
+        "valor_venda": 5.0,
+        "valor_investido": 2.49,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-05",
+                "qtd": 1,
+                "custo_unit": 2.49
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:32:13",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "70ca06293acf4c26a432fd2a80509cf8",
+        "id_venda": "V1770779303",
+        "data": "2026-02-11",
+        "produto_pid": "42e79e1111ad42078746d78196349e62",
+        "nome": "Redboll",
+        "valor_venda": 12.0,
+        "valor_investido": 6.75,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-06",
+                "qtd": 1,
+                "custo_unit": 6.75
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:32:13",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "8acb5ec0fd794ed8bc1b9405ccd0b4f4",
+        "id_venda": "V1770780523",
+        "data": "2026-02-11",
+        "produto_pid": "62931d03b37840ce89ce090266215341",
+        "nome": "Vinho Pérola",
+        "valor_venda": 34.0,
+        "valor_investido": 20.0,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-09",
+                "qtd": 1,
+                "custo_unit": 20.0
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:32:13",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "6c04c4b0e67a4346b2184bda13679435",
+        "id_venda": "V1770780523",
+        "data": "2026-02-11",
+        "produto_pid": "358312483ce64500b12bd63da4a66182",
+        "nome": "Garrafa Heineken",
+        "valor_venda": 7.0,
+        "valor_investido": 4.39,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-05",
+                "qtd": 1,
+                "custo_unit": 4.39
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:32:13",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "a2d8c023f37143c4bf8f1583daa81a7a",
+        "id_venda": "V1770780523",
+        "data": "2026-02-11",
+        "produto_pid": "42e79e1111ad42078746d78196349e62",
+        "nome": "Redboll",
+        "valor_venda": 12.0,
+        "valor_investido": 6.75,
+        "quantidade": 2,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-06",
+                "qtd": 2,
+                "custo_unit": 6.75
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:32:13",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "5f00bec6c5c8468aa81bc8dd1a31432b",
+        "id_venda": "V1770781144",
+        "data": "2026-02-11",
+        "produto_pid": "42e79e1111ad42078746d78196349e62",
+        "nome": "Redboll",
+        "valor_venda": 12.0,
+        "valor_investido": 6.75,
+        "quantidade": 2,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-06",
+                "qtd": 2,
+                "custo_unit": 6.75
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:44:00",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "c816232d3cfe4636838aa9c50f7e20c4",
+        "id_venda": "V1770781175",
+        "data": "2026-02-11",
+        "produto_pid": "42e79e1111ad42078746d78196349e62",
+        "nome": "Redboll",
+        "valor_venda": 12.0,
+        "valor_investido": 6.75,
+        "quantidade": 2,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-06",
+                "qtd": 2,
+                "custo_unit": 6.75
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 00:44:00",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "1f5a8d49824349da9562c70437bb3d26",
+        "id_venda": "V1770824399",
+        "data": "2026-02-11",
+        "produto_pid": "d131ba127bfa49fab996e74ca2ae89a0",
+        "nome": "Coca-Cola 500ml",
+        "valor_venda": 12.0,
+        "valor_investido": 7.29,
+        "quantidade": 3,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-11",
+                "qtd": 3,
+                "custo_unit": 7.29
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 12:41:26",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "149df1dfd0a84f33ae0abe0c883e4cbe",
+        "id_venda": "V1770824399",
+        "data": "2026-02-11",
+        "produto_pid": "62931d03b37840ce89ce090266215341",
+        "nome": "Vinho Pérola",
+        "valor_venda": 34.0,
+        "valor_investido": 20.0,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-09",
+                "qtd": 1,
+                "custo_unit": 20.0
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 12:41:26",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "07811deba383470bb12b033daad65a53",
+        "id_venda": "V1770827458",
+        "data": "2026-02-11",
+        "produto_pid": "62931d03b37840ce89ce090266215341",
+        "nome": "Vinho Pérola",
+        "valor_venda": 34.0,
+        "valor_investido": 20.0,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-09",
+                "qtd": 1,
+                "custo_unit": 20.0
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 14:20:28",
+        "caixa_dia": "2026-02-11"
+    },
+    {
+        "uid": "a7d4c6e5f8c64b88b87fa2836c999510",
+        "id_venda": "V1770827458",
+        "data": "2026-02-11",
+        "produto_pid": "358312483ce64500b12bd63da4a66182",
+        "nome": "Garrafa Heineken",
+        "valor_venda": 7.0,
+        "valor_investido": 4.39,
+        "quantidade": 1,
+        "forma_pagamento": "dinheiro",
+        "consumo_lotes": [
+            {
+                "data_lote": "2026-02-05",
+                "qtd": 1,
+                "custo_unit": 4.39
+            }
+        ],
+        "fechado": true,
+        "fechado_em": "2026-02-11 14:20:28",
+        "caixa_dia": "2026-02-11"
+    }
+]

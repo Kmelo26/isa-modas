@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:1200px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:#ff1493 }
+.resumo { display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px; justify-content:center; }
+.resumo .box { flex:1 1 200px; text-align:center; background:white; border-radius:10px; padding:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1) }
+.resumo .box h3 { margin-top:0; color:#ff1493 }
+table { width:100%; border-collapse:collapse }
+th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
+th { background:#ff69b4; color:white }
+tr:nth-child(even) { background:#ffe6f0 }
+.alerta { color:red; font-weight:bold }
+
+/* filtro */
+.filtro {
+  background:#fff;
+  padding:15px;
+  border-radius:10px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.08);
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:end;
+  margin-bottom:20px;
+}
+.filtro label { font-weight:bold; color:#ff1493; display:block; margin-bottom:6px; }
+.filtro input {
+  padding:10px;
+  border:1px solid #ffb6c1;
+  border-radius:8px;
+  min-width:170px;
+}
+.btn {
+  background:#ff69b4;
+  color:white;
+  border:none;
+  padding:10px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+}
+.btn-sec{
+  background:#fff;
+  color:#ff1493;
+  border:1px solid #ffb6c1;
+  padding:10px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+}
+</style>
+
+<div class="container">
+  <h2>Resumo Financeiro</h2>
+
+  <!-- FILTRO BACKEND POR DATA (como já está) -->
+  <form class="filtro" method="get" action="{{ url_for('financeiro') }}">
+    <div>
+      <label>Data inicial</label><br>
+      <input type="date" name="data_ini" value="{{ data_ini_raw or '' }}">
+    </div>
+
+    <div>
+      <label>Data final</label><br>
+      <input type="date" name="data_fim" value="{{ data_fim_raw or '' }}">
+    </div>
+
+    <button class="btn" type="submit">Filtrar</button>
+  </form>
+
+  <!-- RESUMO (vai ser atualizado pelo filtro geral) -->
+  <div class="resumo">
+      <div class="box">
+          <h3>Nº de Vendas</h3>
+          <p id="bx_num_vendas">{{ num_vendas }}</p>
+      </div>
+
+      <div class="box">
+          <h3>Total Vendido</h3>
+          <p id="bx_total_vendido">R$ {{ "%.2f"|format(total_vendido) }}</p>
+      </div>
+
+      <div class="box">
+          <h3>Total Investido</h3>
+          <p id="bx_total_investido">R$ {{ "%.2f"|format(total_investido) }}</p>
+      </div>
+
+      <div class="box">
+          <h3>Lucro</h3>
+          {% if total_vendido - total_investido < 0 %}
+          <p id="bx_lucro" class="alerta">R$ {{ "%.2f"|format(total_vendido - total_investido) }}</p>
+          {% else %}
+          <p id="bx_lucro">R$ {{ "%.2f"|format(total_vendido - total_investido) }}</p>
+          {% endif %}
+      </div>
+  </div>
+
+  <h2>Vendas Detalhadas</h2>
+
+  <!-- FILTRO GERAL (front-end) -->
+  <div class="filtro">
+    <div style="flex:1;">
+      <label>Pesquisar (geral)</label><br>
+      <input id="filtroGeral"
+             type="text"
+             placeholder="Digite produto, data, valor, quantidade, pagamento..."
+             autocomplete="off"
+             style="width:100%;">
+    </div>
+
+    <button class="btn-sec" type="button" id="btnLimparFront">Limpar</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+          <th>Data</th>
+          <th>Produto</th>
+          <th>Preço Venda</th>
+          <th>Investido</th>
+          <th>Quantidade</th>
+          <th>Pagamento</th>
+          <th>Lucro da Venda</th>
+      </tr>
+    </thead>
+
+    <tbody id="tbodyFinanceiro">
+      {% for v in vendas %}
+      <tr class="linha-fin"
+          data-valor-venda="{{ v.valor_venda }}"
+          data-valor-investido="{{ v.valor_investido }}"
+          data-quantidade="{{ v.quantidade }}">
+          <td>{{ v.data|br_date }}</td>
+          <td>{{ v.nome }}</td>
+          <td>R$ {{ "%.2f"|format(v.valor_venda) }}</td>
+          <td>R$ {{ "%.2f"|format(v.valor_investido) }}</td>
+          <td>{{ v.quantidade }}</td>
+          <td>{{ v.forma_pagamento }}</td>
+          <td>R$ {{ "%.2f"|format((v.valor_venda - v.valor_investido) * v.quantidade) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+  const input = document.getElementById("filtroGeral");
+  const btn = document.getElementById("btnLimparFront");
+  const linhas = Array.from(document.querySelectorAll("#tbodyFinanceiro .linha-fin"));
+
+  const elNum = document.getElementById("bx_num_vendas");
+  const elVendido = document.getElementById("bx_total_vendido");
+  const elInvestido = document.getElementById("bx_total_investido");
+  const elLucro = document.getElementById("bx_lucro");
+
+  function normaliza(s){
+    return (s || "")
+      .toString()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function toNum(x){
+    const n = parseFloat(String(x ?? "0").replace(",", "."));
+    return isNaN(n) ? 0 : n;
+  }
+
+  function formatBRL(v){
+    const n = Number(v) || 0;
+    return "R$ " + n.toFixed(2).replace(".", ",");
+  }
+
+  function recalcularResumo(){
+    let num = 0;
+    let totalVendido = 0;
+    let totalInvestido = 0;
+
+    linhas.forEach(tr => {
+      if (tr.style.display === "none") return;
+
+      const vv = toNum(tr.dataset.valorVenda);
+      const vi = toNum(tr.dataset.valorInvestido);
+      const q = toNum(tr.dataset.quantidade);
+
+      num += 1;
+      totalVendido += vv * q;
+      totalInvestido += vi * q;
+    });
+
+    const lucro = totalVendido - totalInvestido;
+
+    if (elNum) elNum.textContent = String(num);
+    if (elVendido) elVendido.textContent = formatBRL(totalVendido);
+    if (elInvestido) elInvestido.textContent = formatBRL(totalInvestido);
+
+    if (elLucro) {
+      elLucro.textContent = formatBRL(lucro);
+      if (lucro < 0) elLucro.classList.add("alerta");
+      else elLucro.classList.remove("alerta");
+    }
+  }
+
+  function filtrar(){
+    const termo = normaliza(input.value);
+
+    if(!termo){
+      linhas.forEach(tr => tr.style.display = "");
+      recalcularResumo();
+      return;
+    }
+
+    linhas.forEach(tr => {
+      const texto = normaliza(tr.innerText);
+      tr.style.display = texto.includes(termo) ? "" : "none";
+    });
+
+    recalcularResumo();
+  }
+
+  if(input){
+    input.addEventListener("input", filtrar);
+  }
+
+  if(btn){
+    btn.addEventListener("click", ()=>{
+      input.value = "";
+      filtrar();
+    });
+  }
+
+  // calcula logo ao abrir a página
+  recalcularResumo();
+})();
+</script>
+
+{% endblock %}
