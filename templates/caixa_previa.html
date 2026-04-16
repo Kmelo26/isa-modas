@@ -3,22 +3,18 @@
 
 <style>
 .container{max-width:900px;margin:20px auto;padding:20px}
-.card{background:white;padding:18px;border-radius:10px;box-shadow:0 3px 8px rgba(0,0,0,.08)}
-h2{text-align:center;color:#ff1493}
-table{width:100%;border-collapse:collapse;margin-top:15px}
-th,td{border:1px solid #ffd1dc;padding:8px;text-align:center}
-th{background:#ff69b4;color:white}
-.total{font-size:18px;margin-top:12px;text-align:right}
-.btn{
- background:#ff69b4;color:white;border:none;
- padding:10px 14px;border-radius:8px;
- cursor:pointer;font-weight:bold
-}
-.btn-sec{
- background:#fff;color:#ff1493;
- border:1px solid #ffb6c1
-}
-.linha{display:flex;gap:10px;justify-content:center;margin-top:20px}
+.card{background:var(--card-bg);padding:18px;border-radius:10px;box-shadow:var(--shadow);border:1px solid var(--border);}
+h2{text-align:center;color:var(--accent);}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th,td{border:1px solid var(--border);padding:8px;text-align:center;color:var(--text);}
+th{background:#2a2a2a;color:var(--accent);}
+tr:nth-child(even){background:var(--table-even);}
+.total{font-size:18px;margin-top:12px;text-align:right;color:var(--text);}
+.btn{background:var(--btn-bg);color:var(--accent);border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:bold;}
+.btn:hover{background:var(--accent-hover);}
+.btn-sec{background:var(--card-bg);color:var(--accent);border:1px solid var(--border);}
+.btn-sec:hover{background:var(--accent-dim);}
+.linha{display:flex;gap:10px;justify-content:center;margin-top:20px;}
 </style>
 
 <div class="container">

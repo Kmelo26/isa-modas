@@ -3,33 +3,29 @@
 
 <style>
 .container { max-width:1000px; margin:20px auto; padding:20px }
-.box { background:white; padding:15px; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.08); margin-bottom:15px }
-h2 { color:#ff1493; margin:0 0 10px; text-align:center }
-small { color:#666 }
-table { width:100%; border-collapse:collapse; margin-top:10px; background:white; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
-th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
-th { background:#ff69b4; color:white }
-tr:nth-child(even){ background:#ffe6f0 }
-
-form{
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.08);
-  margin-bottom:15px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:end;
-}
-label{ font-weight:bold; color:#ff1493; display:block; margin-bottom:4px }
-input{ padding:10px; border:1px solid #ffb6c1; border-radius:8px; min-width:180px }
-button{ background:#ff69b4; color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:bold }
-button:hover{ opacity:0.9 }
-.alerta { color:#b00020; font-weight:bold; background:#ffe6e6; border:1px solid #ff9aa9; padding:10px; border-radius:8px; margin-bottom:10px; }
-.acoes { display:flex; gap:10px; justify-content:center; margin-bottom:10px; flex-wrap:wrap }
-.btn { display:inline-block; padding:8px 12px; border-radius:8px; text-decoration:none; font-weight:bold; border:1px solid #ff69b4; color:#ff1493; background:white }
-.btn:hover{ opacity:0.9 }
+.box { background:var(--card-bg); padding:15px; border-radius:10px;
+  box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:15px; color:var(--text); }
+h2 { color:var(--accent); margin:0 0 10px; text-align:center }
+small { color:var(--text-muted) }
+table { width:100%; border-collapse:collapse; margin-top:10px; background:var(--card-bg);
+  border-radius:10px; overflow:hidden; box-shadow:var(--shadow); }
+th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
+th { background:#2a2a2a; color:var(--accent); }
+tr:nth-child(even){ background:var(--table-even); }
+form { background:var(--card-bg); padding:15px; border-radius:10px; box-shadow:var(--shadow);
+  border:1px solid var(--border); margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+label { font-weight:bold; color:var(--accent); display:block; margin-bottom:4px; }
+input { padding:10px; border:1px solid var(--border); border-radius:8px;
+  min-width:180px; background:var(--input-bg); color:var(--text); }
+button { background:var(--btn-bg); color:var(--accent); border:none; padding:10px 14px;
+  border-radius:8px; cursor:pointer; font-weight:bold; }
+button:hover { background:var(--accent-hover); }
+.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
+  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
+.acoes { display:flex; gap:10px; justify-content:center; margin-bottom:10px; flex-wrap:wrap; }
+.btn { display:inline-block; padding:8px 12px; border-radius:8px; text-decoration:none;
+  font-weight:bold; border:1px solid var(--border); color:var(--accent); background:var(--card-bg); }
+.btn:hover { background:var(--accent-dim); }
 </style>
 
 <div class="container">

@@ -2,28 +2,305 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Login - Isa Modas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - Isa Bar</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-body { font-family: Arial; background:#fff0f5; display:flex; justify-content:center; align-items:center; height:100vh; margin:0 }
-form { background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:300px }
-input { width:100%; padding:8px; margin:10px 0; border-radius:5px; border:1px solid #ccc }
-button { width:100%; padding:10px; background:#ff69b4; color:white; border:none; border-radius:5px; cursor:pointer }
-button:hover { background:#ff1493 }
-.alerta { color:red; font-weight:bold; text-align:center }
-h2 { text-align:center; color:#ff1493 }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: #141414;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    padding: 40px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bg-circle1 {
+    position: fixed;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.03);
+    top: -120px; right: -100px;
+    pointer-events: none;
+  }
+  .bg-circle2 {
+    position: fixed;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.02);
+    bottom: -100px; left: -80px;
+    pointer-events: none;
+  }
+
+  .card {
+    background: #1c1c1c;
+    border-radius: 24px;
+    padding: 56px 52px 48px;
+    width: 100%;
+    max-width: 460px;
+    border: 1px solid #303030;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+    animation: card-in 0.6s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .top-accent {
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #888, #ffffff, #888, transparent);
+    border-radius: 0 0 3px 3px;
+  }
+
+  .logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 36px;
+    animation: fade-up 0.5s 0.1s both;
+  }
+
+  .logo-icon {
+    width: 46px; height: 46px;
+    background: #2e2e2e;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+    border: 1px solid #3d3d3d;
+  }
+
+  .logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: #e2e2e2;
+    letter-spacing: 0.2px;
+  }
+
+  .badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #aaa;
+    border: 1px solid #3d3d3d;
+    border-radius: 20px;
+    padding: 4px 10px;
+    background: #252525;
+    white-space: nowrap;
+  }
+
+  .form-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 6px;
+    animation: fade-up 0.5s 0.15s both;
+  }
+
+  .form-sub {
+    font-size: 14px;
+    color: #646464;
+    margin-bottom: 36px;
+    animation: fade-up 0.5s 0.2s both;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+    animation: fade-up 0.5s 0.25s both;
+  }
+  .field + .field { animation-delay: 0.3s; }
+
+  .field label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #646464;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .input-wrap { position: relative; }
+
+  .input-icon {
+    position: absolute;
+    left: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 14px 18px 14px 44px;
+    border: 1px solid #303030;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #b8b8b8;
+    background: #181818;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    appearance: none;
+  }
+
+  .field input:focus {
+    border-color: #ffffff;
+    background: #1f1f1f;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+  }
+
+  .field input::placeholder { color: #444; }
+
+  .alerta {
+    background: #2a0f0f;
+    border: 1px solid #5a1f1f;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #f87171;
+    margin-bottom: 18px;
+    text-align: center;
+    animation: fade-up 0.4s both;
+  }
+
+  .btn-wrap { animation: fade-up 0.5s 0.35s both; }
+
+  .btn {
+    width: 100%;
+    padding: 15px;
+    background: #2e2e2e;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 6px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    letter-spacing: 0.3px;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    transform: skewX(-20deg);
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0%        { left: -100%; }
+    60%, 100% { left: 160%; }
+  }
+
+  .btn:hover { transform: translateY(-1px); background: #3d3d3d; box-shadow: 0 8px 28px rgba(0,0,0,0.5); }
+  .btn:active { transform: scale(0.98); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 20px;
+    animation: fade-up 0.5s 0.4s both;
+  }
+  .divider-line { flex: 1; height: 1px; background: #303030; }
+  .divider-text { font-size: 11px; color: #555; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+
+  .footer-text {
+    font-size: 12px;
+    color: #555;
+    text-align: center;
+    animation: fade-up 0.5s 0.45s both;
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
 </style>
 </head>
 <body>
 
-<form method="POST">
-<h2>Login</h2>
-{% if erro %}
-<p class="alerta">{{ erro }}</p>
-{% endif %}
-<input type="text" name="usuario" placeholder="Usuário" required>
-<input type="password" name="senha" placeholder="Senha" required>
-<button type="submit">Entrar</button>
-</form>
+<div class="bg-circle1"></div>
+<div class="bg-circle2"></div>
+
+<div class="card">
+  <div class="top-accent"></div>
+
+  <div class="logo-wrap">
+    <div class="logo-icon">
+      <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+        <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+        <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
+        <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/>
+        <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.3"/>
+      </svg>
+    </div>
+    <span class="logo-text">Isa Bar</span>
+    <span class="badge">Sistema</span>
+  </div>
+
+  <p class="form-title">Login</p>
+  <p class="form-sub">Acesse sua conta para continuar</p>
+
+  <form method="POST">
+    {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+    {% endif %}
+
+    <div class="field">
+      <label for="usuario">Usuário</label>
+      <div class="input-wrap">
+        <span class="input-icon">◈</span>
+        <input type="text" id="usuario" name="usuario" placeholder="Digite seu usuário" required>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="senha">Senha</label>
+      <div class="input-wrap">
+        <span class="input-icon">◉</span>
+        <input type="password" id="senha" name="senha" placeholder="••••••••" required>
+      </div>
+    </div>
+
+    <div class="btn-wrap">
+      <button class="btn" type="submit">Entrar →</button>
+    </div>
+  </form>
+
+  <div class="divider">
+    <div class="divider-line"></div>
+    <span class="divider-text">Isa Bar © 2026</span>
+    <div class="divider-line"></div>
+  </div>
+
+  <p class="footer-text">Todos os direitos reservados</p>
+</div>
 
 </body>
 </html>

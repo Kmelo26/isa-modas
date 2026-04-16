@@ -3,27 +3,21 @@
 
 <style>
 .container { max-width:1000px; margin:20px auto; padding:20px }
-h2{ text-align:center; color:#ff1493; }
-table{ width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
-th,td{ border:1px solid #ffb6c1; padding:8px; text-align:center; }
-th{ background:#ff69b4; color:white; }
-tr:nth-child(even){ background:#ffe6f0; }
-.btn{ background:#ff69b4; color:white; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-weight:bold; }
-.btn-sec{ background:#fff; color:#ff1493; border:1px solid #ffb6c1; }
-
-.btn-voltar{
-    background:#ff69b4;
-    color:white;
-    padding:8px 14px;
-    border-radius:8px;
-    text-decoration:none;
-    border:none;
-    cursor:pointer;
-    font-weight:bold;
-    display:inline-block;
-    margin-bottom:15px;
-}
-
+h2 { text-align:center; color:var(--accent); }
+table { width:100%; border-collapse:collapse; background:var(--card-bg);
+  border-radius:10px; overflow:hidden; box-shadow:var(--shadow); }
+th,td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
+th { background:#2a2a2a; color:var(--accent); }
+tr:nth-child(even) { background:var(--table-even); }
+.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:6px 10px;
+  border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn:hover { background:var(--accent-hover); }
+.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border); }
+.btn-sec:hover { background:var(--accent-dim); }
+.btn-voltar { background:var(--btn-bg); color:var(--accent); padding:8px 14px; border-radius:8px;
+  text-decoration:none; border:none; cursor:pointer; font-weight:bold;
+  display:inline-block; margin-bottom:15px; }
+.btn-voltar:hover { background:var(--accent-hover); }
 </style>
 
 <div class="container">

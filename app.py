@@ -1,31 +1,29 @@
 from flask import Flask, render_template, request, redirect, session, url_for, send_file
-import json
 import os
 import time
 import uuid
-from json import JSONDecodeError
 from datetime import datetime, date
 from io import BytesIO
 
+from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
+import db
+
+load_dotenv()
+
 app = Flask(__name__)
-app.secret_key = "isa_modas_secreto"
+app.secret_key = os.environ.get("SECRET_KEY", "isa_modas_secreto")
 
 
 # ================== FILTRO DATA BR (JINJA) ==================
 def br_date(value):
-    """
-    Aceita: '2026-02-05', '2026/02/05', datetime/date, None
-    Retorna: '05/02/2026' ou '' se vazio
-    """
     if value is None:
         return ""
     s = str(value).strip()
     if not s:
         return ""
-
     try:
         if "/" in s and len(s) >= 10:
             s = datetime.strptime(s[:10], "%Y/%m/%d").strftime("%Y-%m-%d")
@@ -33,36 +31,9 @@ def br_date(value):
             s = datetime.strptime(s[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
     except Exception:
         return s
-
     return f"{s[8:10]}/{s[5:7]}/{s[0:4]}"
 
 app.jinja_env.filters["br_date"] = br_date
-
-
-# ================== ARQUIVOS ==================
-ARQUIVO_ESTOQUE = "estoque.json"
-ARQUIVO_VENDAS = "vendas.json"
-ARQUIVO_USUARIOS = "usuarios.json"
-ARQUIVO_CAIXA = "caixa.json"
-
-
-# ================== HELPERS JSON ==================
-def carregar_json(arquivo):
-    if not os.path.exists(arquivo):
-        return {} if arquivo == ARQUIVO_USUARIOS else []
-    try:
-        with open(arquivo, "r", encoding="utf-8") as f:
-            conteudo = f.read().strip()
-            if not conteudo:
-                return {} if arquivo == ARQUIVO_USUARIOS else []
-            return json.loads(conteudo)
-    except (JSONDecodeError, OSError):
-        return {} if arquivo == ARQUIVO_USUARIOS else []
-
-
-def salvar_json(arquivo, dados):
-    with open(arquivo, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
 
 
 # ================== AUTH HELPERS ==================
@@ -140,53 +111,6 @@ def normalizar_pagamento(forma):
     return "cartao"
 
 
-# ================== MIGRAÇÕES / CONSISTÊNCIA ==================
-def garantir_uid_vendas():
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        return
-    alterou = False
-    for v in vendas:
-        if isinstance(v, dict) and not v.get("uid"):
-            v["uid"] = uuid.uuid4().hex
-            alterou = True
-    if alterou:
-        salvar_json(ARQUIVO_VENDAS, vendas)
-
-
-def migrar_vendas_remover_codigo():
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
-
-    alterou = False
-    for v in vendas:
-        if not isinstance(v, dict):
-            continue
-
-        if not v.get("uid"):
-            v["uid"] = uuid.uuid4().hex
-            alterou = True
-
-        if "codigo" in v:
-            v.pop("codigo", None)
-            alterou = True
-
-        v["nome"] = str(v.get("nome", "")).strip()
-        v["data"] = str(v.get("data", "")).strip()
-        v["quantidade"] = to_int(v.get("quantidade", 0))
-        v["valor_venda"] = to_float(v.get("valor_venda", 0))
-        v["valor_investido"] = to_float(v.get("valor_investido", 0))
-        v["forma_pagamento"] = str(v.get("forma_pagamento", "")).strip()
-
-        if "consumo_lotes" in v and not isinstance(v.get("consumo_lotes"), list):
-            v["consumo_lotes"] = []
-            alterou = True
-
-    if alterou:
-        salvar_json(ARQUIVO_VENDAS, vendas)
-
-
 # ================== FIFO / LOTES ==================
 def estoque_qtd_total(produto):
     lotes = produto.get("lotes", [])
@@ -207,77 +131,6 @@ def atualizar_campos_derivados_estoque(produto):
     valor = estoque_valor_total(produto)
     produto["quantidade"] = qtd
     produto["valor_investido"] = round((valor / qtd), 4) if qtd > 0 else 0.0
-
-
-def garantir_lotes_fifo_estoque():
-    estoque = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque, list):
-        estoque = []
-
-    alterou = False
-
-    for p in estoque:
-        if not isinstance(p, dict):
-            continue
-
-        if "codigo" in p:
-            p.pop("codigo", None)
-            alterou = True
-
-        if not p.get("pid"):
-            p["pid"] = uuid.uuid4().hex
-            alterou = True
-
-        p["nome"] = str(p.get("nome", "")).strip()
-        if not p["nome"]:
-            p["nome"] = "SEM NOME"
-            alterou = True
-
-        if "data" not in p:
-            p["data"] = ""
-            alterou = True
-
-        p["valor_venda"] = to_float(p.get("valor_venda", 0))
-
-        if "lotes" not in p or not isinstance(p.get("lotes"), list):
-            qtd_antiga = to_int(p.get("quantidade", 0))
-            custo_antigo = to_float(p.get("valor_investido", 0))
-            data_lote = normalizar_data_str(p.get("data"))
-
-            p["lotes"] = []
-            if qtd_antiga > 0:
-                p["lotes"].append({
-                    "data": data_lote,
-                    "qtd": qtd_antiga,
-                    "custo_unit": custo_antigo
-                })
-            alterou = True
-
-        lotes_ok = []
-        for l in p.get("lotes", []):
-            if not isinstance(l, dict):
-                continue
-            qtd = to_int(l.get("qtd", 0))
-            if qtd <= 0:
-                continue
-            lotes_ok.append({
-                "data": normalizar_data_str(l.get("data")),
-                "qtd": qtd,
-                "custo_unit": to_float(l.get("custo_unit", 0))
-            })
-
-        if lotes_ok != p.get("lotes"):
-            p["lotes"] = lotes_ok
-            alterou = True
-
-        antes_qtd = p.get("quantidade")
-        antes_inv = p.get("valor_investido")
-        atualizar_campos_derivados_estoque(p)
-        if antes_qtd != p.get("quantidade") or antes_inv != p.get("valor_investido"):
-            alterou = True
-
-    if alterou:
-        salvar_json(ARQUIVO_ESTOQUE, estoque)
 
 
 def entrada_estoque_lote(produto, data, qtd, custo_unit):
@@ -323,13 +176,8 @@ def consumir_fifo(produto, qtd_vender):
         data_lote = normalizar_data_str(lote.get("data"))
 
         usar = min(restante, qtd_lote)
-
         custo_total += usar * custo_unit
-        consumo.append({
-            "data_lote": data_lote,
-            "qtd": usar,
-            "custo_unit": custo_unit
-        })
+        consumo.append({"data_lote": data_lote, "qtd": usar, "custo_unit": custo_unit})
 
         lote["qtd"] = qtd_lote - usar
         restante -= usar
@@ -362,25 +210,15 @@ def devolver_fifo(produto, consumo_lotes):
 
 # ================== CAIXA ==================
 def montar_relatorio_caixa_por_dia(dia):
-    caixa = carregar_json(ARQUIVO_CAIXA)
-    vendas = carregar_json(ARQUIVO_VENDAS)
-
-    if not isinstance(caixa, list):
-        caixa = []
-    if not isinstance(vendas, list):
-        vendas = []
-
-    registro = next((c for c in reversed(caixa) if str(c.get("dia", "")) == str(dia)), None)
+    registro = db.get_cash_register_by_dia(dia)
     if not registro:
         return None
 
     uids = registro.get("vendas_uids", [])
-
-    if not uids:
-        vendas_dia = [v for v in vendas if str(v.get("caixa_dia", "")) == str(dia) and v.get("fechado")]
+    if uids:
+        vendas_dia = db.get_sales_by_uids(uids)
     else:
-        uids_set = set(uids)
-        vendas_dia = [v for v in vendas if v.get("uid") in uids_set]
+        vendas_dia = db.get_sales_closed_by_caixa_dia(dia)
 
     itens = []
     mapa = {}
@@ -398,7 +236,6 @@ def montar_relatorio_caixa_por_dia(dia):
         "dinheiro": {"qtd_vendas": 0, "valor": 0.0},
         "cartao": {"qtd_vendas": 0, "valor": 0.0},
     }
-
     total = 0.0
     lucro = 0.0
 
@@ -407,11 +244,9 @@ def montar_relatorio_caixa_por_dia(dia):
         qtd = to_int(v.get("quantidade", 0))
         unit = to_float(v.get("valor_venda", 0))
         inv = to_float(v.get("valor_investido", 0))
-
         valor_venda = unit * qtd
         total += valor_venda
         lucro += (unit - inv) * qtd
-
         pagamentos[forma]["qtd_vendas"] += 1
         pagamentos[forma]["valor"] += valor_venda
 
@@ -427,56 +262,39 @@ def montar_relatorio_caixa_por_dia(dia):
 
 
 def montar_previa_caixa_por_dia(dia):
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
-
     dia = normalizar_data_str(dia)
-
-    vendas_dia = [
-        v for v in vendas
-        if isinstance(v, dict)
-        and normalizar_data_str(v.get("data", "")) == dia
-        and not v.get("fechado")
-    ]
+    vendas_dia = db.get_sales_open_by_date(dia)
 
     itens = []
     mapa = {}
-
     pagamentos = {
         "pix": {"qtd_vendas": 0, "valor": 0.0},
         "dinheiro": {"qtd_vendas": 0, "valor": 0.0},
         "cartao": {"qtd_vendas": 0, "valor": 0.0},
     }
-
     total = 0.0
     total_investido = 0.0
     lucro = 0.0
 
     for v in vendas_dia:
         forma = normalizar_pagamento(v.get("forma_pagamento"))
-
         qtd = to_int(v.get("quantidade", 0))
         unit = to_float(v.get("valor_venda", 0))
         inv_unit = to_float(v.get("valor_investido", 0))
-
         valor_venda = unit * qtd
         valor_inv = inv_unit * qtd
 
         total += valor_venda
         total_investido += valor_inv
         lucro += (unit - inv_unit) * qtd
-
         pagamentos[forma]["qtd_vendas"] += 1
         pagamentos[forma]["valor"] += valor_venda
 
         nome = str(v.get("nome", "")).strip()
         key = (nome.lower(), round(unit, 2))
-
         if key not in mapa:
             mapa[key] = {"nome": nome, "unit": unit, "qtd": 0, "total": 0.0}
             itens.append(mapa[key])
-
         mapa[key]["qtd"] += qtd
         mapa[key]["total"] += valor_venda
 
@@ -491,32 +309,20 @@ def montar_previa_caixa_por_dia(dia):
     }
 
 
-# ================== USUÁRIOS INICIAIS ==================
-if not os.path.exists(ARQUIVO_USUARIOS):
-    salvar_json(ARQUIVO_USUARIOS, {
-        "admin": {"senha": "kelvin0800", "tipo": "admin", "permissoes": []},
-        "isa": {"senha": "isa2026", "tipo": "funcionario", "permissoes": ["vendas"]}
-    })
-
-
-# ================== ATUALIZA SESSÃO + MIGRAÇÕES ==================
+# ================== ATUALIZA SESSÃO ==================
 @app.before_request
 def atualizar_permissoes_da_sessao():
-    # Mantém seu comportamento original (migrar sempre)
-    garantir_lotes_fifo_estoque()
-    migrar_vendas_remover_codigo()
-
     if "usuario" not in session:
         return
 
     usuario = session.get("usuario", "")
-    usuarios = carregar_json(ARQUIVO_USUARIOS)
+    user_data = db.get_user(usuario)
 
-    if usuario not in usuarios:
+    if not user_data:
         session.clear()
         return
 
-    tipo_atual = normalizar_tipo(usuarios[usuario].get("tipo", "funcionario"))
+    tipo_atual = normalizar_tipo(user_data.get("tipo", "funcionario"))
 
     if usuario == "admin" or tipo_atual == "admin":
         session["tipo"] = "admin"
@@ -524,7 +330,7 @@ def atualizar_permissoes_da_sessao():
         return
 
     session["tipo"] = tipo_atual
-    permissoes = usuarios[usuario].get("permissoes", [])
+    permissoes = user_data.get("permissoes", [])
     if not isinstance(permissoes, list):
         permissoes = []
     permissoes = [p for p in permissoes if p in PERMISSOES_TODAS]
@@ -534,24 +340,24 @@ def atualizar_permissoes_da_sessao():
 # ================== LOGIN ==================
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    usuarios = carregar_json(ARQUIVO_USUARIOS)
-
     if request.method == "POST":
         usuario = request.form.get("usuario", "").strip()
         senha = request.form.get("senha", "").strip()
 
-        if usuario in usuarios and usuarios[usuario].get("senha") == senha:
+        user_data = db.get_user(usuario)
+
+        if user_data and user_data.get("senha") == senha:
             session.clear()
             session["usuario"] = usuario
 
-            tipo = normalizar_tipo(usuarios[usuario].get("tipo", "funcionario"))
+            tipo = normalizar_tipo(user_data.get("tipo", "funcionario"))
 
             if usuario == "admin" or tipo == "admin":
                 session["tipo"] = "admin"
                 session["permissoes"] = PERMISSOES_TODAS[:]
             else:
                 session["tipo"] = tipo
-                perms = usuarios[usuario].get("permissoes", [])
+                perms = user_data.get("permissoes", [])
                 if not isinstance(perms, list):
                     perms = []
                 perms = [p for p in perms if p in PERMISSOES_TODAS]
@@ -580,10 +386,7 @@ def vendas():
     if session.get("tipo") != "admin" and not tem_permissao("vendas"):
         return redirect(url_for("login"))
 
-    garantir_uid_vendas()
-    vendas_data = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas_data, list):
-        vendas_data = []
+    vendas_data = db.get_all_sales()
 
     data_ini_raw = request.args.get("data_ini", "").strip()
     data_fim_raw = request.args.get("data_fim", "").strip()
@@ -597,18 +400,15 @@ def vendas():
     for v in vendas_data:
         if not isinstance(v, dict):
             continue
-
         ok = True
         nome = str(v.get("nome", "")).lower()
         if busca_produto and busca_produto not in nome:
             ok = False
-
         d = parse_date_yyyy_mm_dd(v.get("data", ""))
         if data_ini and d and d < data_ini:
             ok = False
         if data_fim and d and d > data_fim:
             ok = False
-
         if ok:
             vendas_filtradas.append(v)
 
@@ -618,7 +418,6 @@ def vendas():
 
     vendas_filtradas.sort(key=chave_data, reverse=True)
 
-    # ===== PAGINAÇÃO (20 por página) - só o necessário =====
     try:
         pagina = int(request.args.get("pagina", "1"))
     except ValueError:
@@ -636,7 +435,6 @@ def vendas():
     inicio = (pagina - 1) * por_pagina
     fim = inicio + por_pagina
     vendas_pagina = vendas_filtradas[inicio:fim]
-    # ================================================
 
     return render_template(
         "vendas.html",
@@ -647,14 +445,12 @@ def vendas():
         data_ini_raw=data_ini_raw,
         data_fim_raw=data_fim_raw,
         busca_produto=busca_produto_raw,
-
-        # só para o template desenhar a paginação
         pagina=pagina,
         total_paginas=total_paginas
     )
 
 
-# ================== EDITAR VENDA (CORRIGIDO + FIFO) ==================
+# ================== EDITAR VENDA ==================
 @app.route("/vendas/editar/<uid>", methods=["GET", "POST"])
 def editar_venda(uid):
     if not usuario_logado():
@@ -663,19 +459,12 @@ def editar_venda(uid):
     if session.get("tipo") != "admin" and not tem_permissao("vendas"):
         return redirect(url_for("vendas"))
 
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
-
-    estoque = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque, list):
-        estoque = []
-
-    venda = next((v for v in vendas if isinstance(v, dict) and str(v.get("uid")) == str(uid)), None)
+    venda = db.get_sale(uid)
     if not venda:
         return redirect(url_for("vendas"))
 
-    # Não deixa alterar venda já fechada (evita bagunçar caixa)
+    estoque = db.get_all_products()
+
     if venda.get("fechado"):
         return render_template(
             "editar_vendas.html",
@@ -691,12 +480,8 @@ def editar_venda(uid):
     if request.method == "POST":
         nova_data = normalizar_data_str(request.form.get("data", venda.get("data", "")))
 
-        # manter forma de pagamento caso venha vazio (opção "manter como está")
         fp_form = (request.form.get("forma_pagamento") or "").strip()
-        if fp_form:
-            nova_forma_pagamento = normalizar_pagamento(fp_form)
-        else:
-            nova_forma_pagamento = venda.get("forma_pagamento", "cartao")
+        nova_forma_pagamento = normalizar_pagamento(fp_form) if fp_form else venda.get("forma_pagamento", "cartao")
 
         novo_pid = (request.form.get("produto_pid") or "").strip() or str(venda.get("produto_pid", "")).strip()
         nova_qtd = to_int(request.form.get("quantidade", venda.get("quantidade", 1)), 0)
@@ -709,24 +494,20 @@ def editar_venda(uid):
             erro = "Produto não encontrado no estoque."
 
         if not erro:
-            # devolve consumo antigo no produto antigo
             pid_antigo = str(venda.get("produto_pid", "")).strip()
-            produto_antigo = next((p for p in estoque if str(p.get("pid", "")) == pid_antigo), None)
             consumo_antigo = venda.get("consumo_lotes", [])
+
+            if pid_antigo == str(produto_novo.get("pid", "")):
+                produto_antigo = produto_novo
+            else:
+                produto_antigo = next((p for p in estoque if str(p.get("pid", "")) == pid_antigo), None)
 
             if produto_antigo and consumo_antigo:
                 devolver_fifo(produto_antigo, consumo_antigo)
 
-            # consome novamente no produto novo
             try:
                 custo_total, consumo_novo = consumir_fifo(produto_novo, nova_qtd)
             except ValueError as e:
-                # se falhar, tenta reverter (melhor esforço)
-                if produto_antigo and consumo_antigo:
-                    try:
-                        consumir_fifo(produto_antigo, sum(to_int(c.get("qtd", 0)) for c in consumo_antigo))
-                    except Exception:
-                        pass
                 erro = str(e)
 
         if not erro:
@@ -741,8 +522,11 @@ def editar_venda(uid):
             venda["valor_investido"] = round(custo_unit_medio, 4)
             venda["consumo_lotes"] = consumo_novo
 
-            salvar_json(ARQUIVO_VENDAS, vendas)
-            salvar_json(ARQUIVO_ESTOQUE, estoque)
+            db.update_sale(venda)
+            db.update_product(produto_novo)
+            if produto_antigo and produto_antigo is not produto_novo:
+                db.update_product(produto_antigo)
+
             return redirect(url_for("vendas"))
 
     return render_template(
@@ -754,7 +538,61 @@ def editar_venda(uid):
         permissoes=session.get("permissoes", [])
     )
 
-##############-ESTOQUE-######################
+
+# ================== EXCLUIR VENDA ==================
+@app.route("/vendas/excluir/<uid>")
+def excluir_venda(uid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    venda = db.get_sale(uid)
+
+    if venda:
+        if venda.get("fechado"):
+            return redirect(url_for("vendas"))
+
+        pid = str(venda.get("produto_pid", "")).strip()
+        produto = db.get_product(pid)
+        consumo_lotes = venda.get("consumo_lotes", [])
+
+        if produto and consumo_lotes:
+            devolver_fifo(produto, consumo_lotes)
+            db.update_product(produto)
+
+        db.delete_sale(uid)
+
+    return redirect(url_for("vendas"))
+
+
+@app.route("/vendas/ver/<uid>")
+def ver_venda(uid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    venda = db.get_sale(uid)
+    if not venda:
+        return redirect(url_for("vendas"))
+
+    custo = venda.get("valor_investido", 0) or 0
+    valor_venda = venda.get("valor_venda", 0) or 0
+    margem = ((valor_venda - custo) / valor_venda * 100) if valor_venda > 0 else 0
+
+    return render_template(
+        "ver_venda.html",
+        venda=venda,
+        margem=margem,
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", [])
+    )
+
+
+# ================== ESTOQUE ==================
 @app.route("/estoque", methods=["GET"])
 def estoque():
     if not usuario_logado():
@@ -763,26 +601,16 @@ def estoque():
     if not tem_permissao("estoque"):
         return redirect(url_for("vendas"))
 
-    estoque_data = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque_data, list):
-        estoque_data = []
-
-    # ordenar
+    estoque_data = db.get_all_products()
     estoque_data.sort(key=lambda p: str(p.get("nome", "")).strip().lower())
 
-    # ===== FILTRO (PESQUISA) =====
     q = (request.args.get("q", "") or "").strip()
     if q:
         q_low = q.lower()
-        estoque_filtrado = [
-            p for p in estoque_data
-            if q_low in str(p.get("nome", "")).lower()
-        ]
+        estoque_filtrado = [p for p in estoque_data if q_low in str(p.get("nome", "")).lower()]
     else:
         estoque_filtrado = estoque_data
-    # =============================
 
-    # ===== PAGINAÇÃO (20 por página) =====
     try:
         pagina = int(request.args.get("pagina", "1"))
     except ValueError:
@@ -800,12 +628,11 @@ def estoque():
     inicio = (pagina - 1) * por_pagina
     fim = inicio + por_pagina
     estoque_pagina = estoque_filtrado[inicio:fim]
-    # ====================================
 
     return render_template(
         "estoque.html",
         estoque=estoque_pagina,
-        estoque_lista=estoque_filtrado,  # para o select (somente do filtro atual)
+        estoque_lista=estoque_filtrado,
         q=q,
         erro="",
         tipo=session.get("tipo"),
@@ -814,8 +641,8 @@ def estoque():
         total_paginas=total_paginas
     )
 
-######### CADASTRAR PRODUTO ##########
 
+# ================== CADASTRAR PRODUTO ==================
 @app.route("/estoque/novo", methods=["GET", "POST"])
 def estoque_novo():
     if not usuario_logado():
@@ -823,10 +650,6 @@ def estoque_novo():
 
     if not tem_permissao("estoque"):
         return redirect(url_for("vendas"))
-
-    estoque_data = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque_data, list):
-        estoque_data = []
 
     erro = ""
 
@@ -843,13 +666,17 @@ def estoque_novo():
             erro = "Quantidade inválida."
         else:
             nome_key = nome.lower()
-            existente = next((p for p in estoque_data if str(p.get("nome", "")).strip().lower() == nome_key), None)
+            estoque_data = db.get_all_products()
+            existente = next(
+                (p for p in estoque_data if str(p.get("nome", "")).strip().lower() == nome_key), None
+            )
 
             if existente:
                 existente["data"] = data
                 existente["valor_venda"] = valor_venda
                 try:
                     entrada_estoque_lote(existente, data, quantidade, valor_investido)
+                    db.update_product(existente)
                 except ValueError as e:
                     erro = str(e)
             else:
@@ -866,10 +693,9 @@ def estoque_novo():
                     erro = str(e)
 
                 if not erro:
-                    estoque_data.append(novo)
+                    db.insert_product(novo)
 
             if not erro:
-                salvar_json(ARQUIVO_ESTOQUE, estoque_data)
                 return redirect(url_for("estoque"))
 
     return render_template(
@@ -879,8 +705,8 @@ def estoque_novo():
         permissoes=session.get("permissoes", []),
     )
 
-##### EDITAR ESTOQUE #####
 
+# ================== EDITAR PRODUTO ==================
 @app.route("/estoque/editar/<pid>", methods=["GET", "POST"])
 def editar_produto(pid):
     if not usuario_logado():
@@ -889,11 +715,7 @@ def editar_produto(pid):
     if not tem_permissao("estoque"):
         return redirect(url_for("vendas"))
 
-    estoque_data = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque_data, list):
-        estoque_data = []
-
-    produto = next((p for p in estoque_data if str(p.get("pid", "")) == str(pid)), None)
+    produto = db.get_product(pid)
     if not produto:
         return redirect(url_for("estoque"))
 
@@ -912,11 +734,8 @@ def editar_produto(pid):
             produto["nome"] = nome
             produto["data"] = data
             produto["valor_venda"] = valor_venda
-
-            # mantém campos derivados consistentes (quantidade e valor investido médio)
             atualizar_campos_derivados_estoque(produto)
-
-            salvar_json(ARQUIVO_ESTOQUE, estoque_data)
+            db.update_product(produto)
             return redirect(url_for("estoque"))
 
     return render_template(
@@ -928,14 +747,25 @@ def editar_produto(pid):
     )
 
 
-# Alias: se algum template antigo chamar url_for('editar_produto', pid=...)
-# e você quiser linkar também por /editar_produto/<pid> sem quebrar.
 @app.route("/editar_produto/<pid>")
 def editar_produto_alias(pid):
     return redirect(url_for("editar_produto", pid=pid))
 
 
-# ================== VER LOTES DO PRODUTO ==================
+# ================== REMOVER PRODUTO ==================
+@app.route("/estoque/remover/<pid>", methods=["POST"])
+def remover_produto(pid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+
+    if session.get("tipo") != "admin":
+        return redirect(url_for("estoque"))
+
+    db.delete_product(pid)
+    return redirect(url_for("estoque"))
+
+
+# ================== LOTES DO PRODUTO ==================
 @app.route("/estoque/produto/<pid>", methods=["GET", "POST"])
 def estoque_produto(pid):
     if not usuario_logado():
@@ -943,11 +773,7 @@ def estoque_produto(pid):
     if not tem_permissao("estoque"):
         return redirect(url_for("vendas"))
 
-    estoque_data = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque_data, list):
-        estoque_data = []
-
-    produto = next((p for p in estoque_data if str(p.get("pid", "")) == str(pid)), None)
+    produto = db.get_product(pid)
     if not produto:
         return redirect(url_for("estoque"))
 
@@ -965,7 +791,7 @@ def estoque_produto(pid):
         else:
             try:
                 entrada_estoque_lote(produto, data, qtd, custo_unit)
-                salvar_json(ARQUIVO_ESTOQUE, estoque_data)
+                db.update_product(produto)
                 return redirect(url_for("estoque_produto", pid=pid))
             except ValueError as e:
                 erro = str(e)
@@ -995,14 +821,7 @@ def cadastrar_venda():
     if not tem_permissao("vendas"):
         return redirect(url_for("vendas"))
 
-    estoque = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque, list):
-        estoque = []
-
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
-
+    estoque = db.get_all_products()
     erro = ""
 
     if request.method == "GET":
@@ -1040,18 +859,19 @@ def cadastrar_venda():
             qtd = to_int(qtd_raw, 0)
             if not pid or qtd <= 0:
                 continue
-
             produto = next((p for p in estoque if str(p.get("pid", "")) == pid), None)
             if not produto:
                 erro = "Produto não encontrado no estoque."
                 break
-
             itens.append((produto, qtd))
 
         if not erro and not itens:
             erro = "Adicione pelo menos 1 produto com quantidade válida."
 
         if not erro:
+            novas_vendas = []
+            produtos_modificados = []
+
             for produto, qtd in itens:
                 try:
                     custo_total, consumo = consumir_fifo(produto, qtd)
@@ -1060,8 +880,7 @@ def cadastrar_venda():
                     break
 
                 custo_unit_medio = (custo_total / qtd) if qtd else 0.0
-
-                vendas.append({
+                novas_vendas.append({
                     "uid": uuid.uuid4().hex,
                     "id_venda": id_venda,
                     "data": data,
@@ -1073,10 +892,13 @@ def cadastrar_venda():
                     "forma_pagamento": forma_pagamento,
                     "consumo_lotes": consumo
                 })
+                produtos_modificados.append(produto)
 
             if not erro:
-                salvar_json(ARQUIVO_VENDAS, vendas)
-                salvar_json(ARQUIVO_ESTOQUE, estoque)
+                for venda in novas_vendas:
+                    db.insert_sale(venda)
+                for produto in produtos_modificados:
+                    db.update_product(produto)
                 return redirect(url_for("vendas"))
 
     hoje = datetime.now().strftime("%Y-%m-%d")
@@ -1099,14 +921,7 @@ def cadastrar_venda_lote():
     if not tem_permissao("vendas"):
         return redirect(url_for("vendas"))
 
-    estoque = carregar_json(ARQUIVO_ESTOQUE)
-    if not isinstance(estoque, list):
-        estoque = []
-
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
-
+    estoque = db.get_all_products()
     erro = ""
 
     if request.method == "POST":
@@ -1127,18 +942,19 @@ def cadastrar_venda_lote():
                 qtd = to_int(qtd_raw, 0)
                 if not pid or qtd <= 0:
                     continue
-
                 produto = next((p for p in estoque if str(p.get("pid", "")) == pid), None)
                 if not produto:
                     erro = "Produto não encontrado no estoque."
                     break
-
                 itens.append((produto, qtd))
 
             if not erro and not itens:
                 erro = "Adicione pelo menos 1 produto com quantidade válida."
 
             if not erro:
+                novas_vendas = []
+                produtos_modificados = []
+
                 for produto, qtd in itens:
                     try:
                         custo_total, consumo = consumir_fifo(produto, qtd)
@@ -1147,8 +963,7 @@ def cadastrar_venda_lote():
                         break
 
                     custo_unit_medio = (custo_total / qtd) if qtd else 0.0
-
-                    vendas.append({
+                    novas_vendas.append({
                         "uid": uuid.uuid4().hex,
                         "id_venda": id_venda,
                         "data": data,
@@ -1160,11 +975,14 @@ def cadastrar_venda_lote():
                         "forma_pagamento": forma_pagamento,
                         "consumo_lotes": consumo
                     })
+                    produtos_modificados.append(produto)
 
-            if not erro:
-                salvar_json(ARQUIVO_VENDAS, vendas)
-                salvar_json(ARQUIVO_ESTOQUE, estoque)
-                return redirect(url_for("vendas"))
+                if not erro:
+                    for venda in novas_vendas:
+                        db.insert_sale(venda)
+                    for produto in produtos_modificados:
+                        db.update_product(produto)
+                    return redirect(url_for("vendas"))
 
     return render_template(
         "cadastrar_venda_lote.html",
@@ -1174,6 +992,215 @@ def cadastrar_venda_lote():
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
     )
+
+
+# ================== COMANDAS ==================
+@app.route("/comandas")
+def comandas():
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    todas = db.get_all_commands()
+    abertas = [c for c in todas if isinstance(c, dict) and c.get("status") == "aberta"]
+    abertas.sort(key=lambda c: c.get("data_abertura", ""), reverse=True)
+
+    return render_template(
+        "comandas.html",
+        comandas=abertas,
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+        usuario=session.get("usuario", "")
+    )
+
+
+@app.route("/comandas/nova", methods=["POST"])
+def comanda_nova():
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    nome = (request.form.get("nome") or "").strip()
+    if not nome:
+        return redirect(url_for("comandas"))
+
+    nova = {
+        "cid": uuid.uuid4().hex,
+        "nome": nome,
+        "data_abertura": datetime.now().strftime("%Y-%m-%d"),
+        "hora_abertura": datetime.now().strftime("%H:%M"),
+        "status": "aberta",
+        "itens": []
+    }
+    db.insert_command(nova)
+    return redirect(url_for("comanda_detalhe", cid=nova["cid"]))
+
+
+@app.route("/comandas/<cid>")
+def comanda_detalhe(cid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda:
+        return redirect(url_for("comandas"))
+
+    estoque = db.get_all_products()
+    estoque_disponivel = [p for p in estoque if isinstance(p, dict) and estoque_qtd_total(p) > 0]
+    estoque_disponivel.sort(key=lambda p: str(p.get("nome", "")).lower())
+
+    total = sum(
+        to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
+        for i in comanda.get("itens", [])
+    )
+
+    return render_template(
+        "comanda_detalhe.html",
+        comanda=comanda,
+        estoque=estoque_disponivel,
+        total=round(total, 2),
+        erro="",
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+        usuario=session.get("usuario", "")
+    )
+
+
+@app.route("/comandas/<cid>/adicionar", methods=["POST"])
+def comanda_adicionar(cid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") != "aberta":
+        return redirect(url_for("comandas"))
+
+    pid = (request.form.get("produto_pid") or "").strip()
+    qtd = to_int(request.form.get("quantidade", "1"), 0)
+
+    produto = db.get_product(pid)
+    erro = ""
+
+    if not produto:
+        erro = "Produto não encontrado."
+    elif qtd <= 0:
+        erro = "Quantidade inválida."
+    else:
+        try:
+            custo_total, consumo = consumir_fifo(produto, qtd)
+            custo_unit_medio = (custo_total / qtd) if qtd else 0.0
+
+            comanda["itens"].append({
+                "item_id": uuid.uuid4().hex,
+                "produto_pid": produto.get("pid"),
+                "nome": produto.get("nome", ""),
+                "quantidade": qtd,
+                "valor_venda": to_float(produto.get("valor_venda", 0)),
+                "valor_investido": round(custo_unit_medio, 4),
+                "consumo_lotes": consumo,
+                "hora": datetime.now().strftime("%H:%M")
+            })
+
+            db.update_command(comanda)
+            db.update_product(produto)
+        except ValueError as e:
+            erro = str(e)
+
+    if erro:
+        estoque = db.get_all_products()
+        estoque_disponivel = [p for p in estoque if isinstance(p, dict) and estoque_qtd_total(p) > 0]
+        estoque_disponivel.sort(key=lambda p: str(p.get("nome", "")).lower())
+        total = sum(
+            to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
+            for i in comanda.get("itens", [])
+        )
+        return render_template(
+            "comanda_detalhe.html",
+            comanda=comanda,
+            estoque=estoque_disponivel,
+            total=round(total, 2),
+            erro=erro,
+            tipo=session.get("tipo"),
+            permissoes=session.get("permissoes", []),
+            usuario=session.get("usuario", "")
+        )
+
+    return redirect(url_for("comanda_detalhe", cid=cid))
+
+
+@app.route("/comandas/<cid>/remover/<item_id>", methods=["POST"])
+def comanda_remover_item(cid, item_id):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") != "aberta":
+        return redirect(url_for("comandas"))
+
+    item = next((i for i in comanda.get("itens", []) if str(i.get("item_id")) == str(item_id)), None)
+    if item:
+        pid = str(item.get("produto_pid", ""))
+        produto = db.get_product(pid)
+        if produto and item.get("consumo_lotes"):
+            devolver_fifo(produto, item["consumo_lotes"])
+            db.update_product(produto)
+
+        comanda["itens"] = [i for i in comanda["itens"] if str(i.get("item_id")) != str(item_id)]
+        db.update_command(comanda)
+
+    return redirect(url_for("comanda_detalhe", cid=cid))
+
+
+@app.route("/comandas/<cid>/fechar", methods=["POST"])
+def comanda_fechar(cid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") != "aberta":
+        return redirect(url_for("comandas"))
+
+    if not comanda.get("itens"):
+        return redirect(url_for("comanda_detalhe", cid=cid))
+
+    forma_pagamento = (request.form.get("forma_pagamento") or "cartao").strip()
+
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    id_venda = f"V{int(time.time())}"
+
+    for item in comanda["itens"]:
+        db.insert_sale({
+            "uid": uuid.uuid4().hex,
+            "id_venda": id_venda,
+            "comanda_id": comanda["cid"],
+            "comanda_nome": comanda["nome"],
+            "data": hoje,
+            "produto_pid": item.get("produto_pid"),
+            "nome": item.get("nome", ""),
+            "valor_venda": to_float(item.get("valor_venda", 0)),
+            "valor_investido": to_float(item.get("valor_investido", 0)),
+            "quantidade": to_int(item.get("quantidade", 0)),
+            "forma_pagamento": forma_pagamento,
+            "consumo_lotes": item.get("consumo_lotes", [])
+        })
+
+    comanda["status"] = "fechada"
+    comanda["data_fechamento"] = hoje
+    comanda["hora_fechamento"] = datetime.now().strftime("%H:%M")
+    comanda["forma_pagamento"] = forma_pagamento
+
+    db.update_command(comanda)
+    return redirect(url_for("comandas"))
 
 
 # ================== FECHAR CAIXA ==================
@@ -1195,22 +1222,7 @@ def fechar_caixa():
         return render_template("fechar_caixa.html", hoje=hoje, erro="Selecione uma data.")
 
     dia = normalizar_data_str(dia_raw)
-
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
-
-    caixa = carregar_json(ARQUIVO_CAIXA)
-    if not isinstance(caixa, list):
-        caixa = []
-
-    abertas_do_dia = []
-    for v in vendas:
-        if not isinstance(v, dict):
-            continue
-        data_v = normalizar_data_str(v.get("data", ""))
-        if data_v == dia and not v.get("fechado"):
-            abertas_do_dia.append(v)
+    abertas_do_dia = db.get_sales_open_by_date(dia)
 
     pix = dinheiro = cartao = total = 0.0
     qtd_vendas = 0
@@ -1221,7 +1233,6 @@ def fechar_caixa():
         qtd = to_int(v.get("quantidade", 0), 0)
         unit = to_float(v.get("valor_venda", 0), 0.0)
         valor = unit * qtd
-
         forma = normalizar_pagamento(v.get("forma_pagamento"))
 
         total += valor
@@ -1231,13 +1242,6 @@ def fechar_caixa():
             dinheiro += valor
         else:
             cartao += valor
-
-        v["fechado"] = True
-        v["fechado_em"] = fechado_em
-        v["caixa_dia"] = dia
-
-        if not v.get("uid"):
-            v["uid"] = uuid.uuid4().hex
 
         uids_fechados.append(v["uid"])
         qtd_vendas += 1
@@ -1261,9 +1265,8 @@ def fechar_caixa():
         "vendas_uids": uids_fechados
     }
 
-    caixa.append(registro)
-    salvar_json(ARQUIVO_VENDAS, vendas)
-    salvar_json(ARQUIVO_CAIXA, caixa)
+    db.mark_sales_fechado(uids_fechados, dia, fechado_em)
+    db.insert_cash_register(registro)
 
     return render_template("caixa_fechado.html", r=registro)
 
@@ -1303,10 +1306,7 @@ def caixa_historico():
     if session.get("tipo") != "admin" and not tem_permissao("financeiro"):
         return redirect(url_for("vendas"))
 
-    caixa = carregar_json(ARQUIVO_CAIXA)
-    if not isinstance(caixa, list):
-        caixa = []
-
+    caixa = db.get_all_cash_registers()
     caixa = sorted(caixa, key=lambda c: str(c.get("dia", "")), reverse=True)
     return render_template("caixa_historico.html", caixa=caixa)
 
@@ -1421,24 +1421,19 @@ def financeiro():
     data_de = parse_date_input(data_ini_raw)
     data_ate = parse_date_input(data_fim_raw)
 
-    vendas = carregar_json(ARQUIVO_VENDAS)
-    if not isinstance(vendas, list):
-        vendas = []
+    vendas = db.get_all_sales()
 
     vendas_filtradas = []
     for v in vendas:
         if not isinstance(v, dict):
             continue
-
         d = parse_date_input(v.get("data", ""))
         if not d:
             continue
-
         if data_de and d < data_de:
             continue
         if data_ate and d > data_ate:
             continue
-
         vendas_filtradas.append(v)
 
     vendas_filtradas.sort(
@@ -1453,7 +1448,6 @@ def financeiro():
         qtd = to_int(v.get("quantidade", 0))
         venda_unit = to_float(v.get("valor_venda", 0))
         inv_unit = to_float(v.get("valor_investido", 0))
-
         total_vendido += venda_unit * qtd
         total_investido += inv_unit * qtd
 
@@ -1480,9 +1474,7 @@ def permissoes():
     if session.get("tipo") != "admin":
         return redirect(url_for("vendas"))
 
-    usuarios = carregar_json(ARQUIVO_USUARIOS)
-    if not isinstance(usuarios, dict):
-        usuarios = {}
+    usuarios = db.get_all_users()
 
     if request.method == "POST":
         usuario_alvo = (request.form.get("usuario_alvo") or "").strip()
@@ -1490,8 +1482,7 @@ def permissoes():
         permissoes_marcadas = [p for p in permissoes_marcadas if p in PERMISSOES_TODAS]
 
         if usuario_alvo in usuarios and normalizar_tipo(usuarios[usuario_alvo].get("tipo")) != "admin":
-            usuarios[usuario_alvo]["permissoes"] = permissoes_marcadas
-            salvar_json(ARQUIVO_USUARIOS, usuarios)
+            db.update_user_permissions(usuario_alvo, permissoes_marcadas)
 
         return redirect(url_for("permissoes"))
 

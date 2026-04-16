@@ -3,39 +3,19 @@
 
 <style>
 .container { max-width:700px; margin:20px auto; padding:20px }
-h2 { text-align:center; color:#ff1493 }
-
-form{
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.08);
-  margin-bottom:15px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-form input, form button {
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #ffb6c1;
-  width:100%;
-}
-form button { background:#ff69b4; color:white; border:none; cursor:pointer; font-weight:bold; }
-form button:hover { opacity:0.9; }
-
-.alerta { color:#b00020; font-weight:bold; background:#ffe6e6; border:1px solid #ff9aa9; padding:10px; border-radius:8px; margin-bottom:10px; }
-
-.btn-voltar{
-  display:inline-block;
-  padding:8px 12px;
-  border-radius:8px;
-  text-decoration:none;
-  font-weight:bold;
-  border:1px solid #ff69b4;
-  color:#ff1493;
-  background:white;
-}
+h2 { text-align:center; color:var(--accent); }
+form { background:var(--card-bg); padding:15px; border-radius:10px;
+  box-shadow:var(--shadow); border:1px solid var(--border);
+  margin-bottom:15px; display:flex; flex-direction:column; gap:10px; }
+form input, form button { padding:10px; border-radius:8px;
+  border:1px solid var(--border); width:100%; background:var(--input-bg); color:var(--text); }
+form button { background:var(--btn-bg); color:var(--accent); border:none; cursor:pointer; font-weight:bold; }
+form button:hover { background:var(--accent-hover); }
+.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
+  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
+.btn-voltar { display:inline-block; padding:8px 12px; border-radius:8px; text-decoration:none;
+  font-weight:bold; border:1px solid var(--border); color:var(--accent); background:var(--card-bg); }
+.btn-voltar:hover { background:var(--accent-dim); }
 </style>
 
 <div class="container">

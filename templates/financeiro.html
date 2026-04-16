@@ -3,57 +3,32 @@
 
 <style>
 .container { max-width:1200px; margin:20px auto; padding:20px }
-h2 { text-align:center; color:#ff1493 }
+h2 { text-align:center; color:var(--accent); }
 .resumo { display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px; justify-content:center; }
-.resumo .box { flex:1 1 200px; text-align:center; background:white; border-radius:10px; padding:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1) }
-.resumo .box h3 { margin-top:0; color:#ff1493 }
-table { width:100%; border-collapse:collapse }
-th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
-th { background:#ff69b4; color:white }
-tr:nth-child(even) { background:#ffe6f0 }
-.alerta { color:red; font-weight:bold }
-
-/* filtro */
-.filtro {
-  background:#fff;
-  padding:15px;
-  border-radius:10px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.08);
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:end;
-  margin-bottom:20px;
-}
-.filtro label { font-weight:bold; color:#ff1493; display:block; margin-bottom:6px; }
-.filtro input {
-  padding:10px;
-  border:1px solid #ffb6c1;
-  border-radius:8px;
-  min-width:170px;
-}
-.btn {
-  background:#ff69b4;
-  color:white;
-  border:none;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-}
-.btn-sec{
-  background:#fff;
-  color:#ff1493;
-  border:1px solid #ffb6c1;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-}
+.resumo .box { flex:1 1 200px; text-align:center; background:var(--card-bg); border-radius:10px;
+  padding:15px; box-shadow:var(--shadow); border:1px solid var(--border); color:var(--text); }
+.resumo .box h3 { margin-top:0; color:var(--accent); }
+table { width:100%; border-collapse:collapse; background:var(--card-bg); }
+th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
+th { background:#2a2a2a; color:var(--accent); }
+tr:nth-child(even) { background:var(--table-even); }
+.alerta { color:#f87171; font-weight:bold; }
+.filtro { background:var(--card-bg); padding:15px; border-radius:10px;
+  box-shadow:var(--shadow); border:1px solid var(--border);
+  display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:20px; }
+.filtro label { font-weight:bold; color:var(--accent); display:block; margin-bottom:6px; }
+.filtro input { padding:10px; border:1px solid var(--border); border-radius:8px;
+  min-width:170px; background:var(--input-bg); color:var(--text); }
+.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:10px 14px;
+  border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn:hover { background:var(--accent-hover); }
+.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+  padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn-sec:hover { background:var(--accent-dim); }
 </style>
 
 <div class="container">
-  <h2>Resumo Financeiro</h2>
+  <h2>FINANCEIRO</h2>
 
   <!-- FILTRO BACKEND POR DATA (como já está) -->
   <form class="filtro" method="get" action="{{ url_for('financeiro') }}">

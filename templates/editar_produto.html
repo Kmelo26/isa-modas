@@ -3,13 +3,18 @@
 
 <style>
 .container { max-width:700px; margin:20px auto; padding:20px }
-.box { background:white; padding:18px; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,0.08) }
-h2 { color:#ff1493; margin:0 0 10px; text-align:center }
-label { font-weight:bold; color:#ff1493; display:block; margin-top:10px }
-input { width:100%; padding:10px; border:1px solid #ffb6c1; border-radius:8px; margin-top:6px }
-.alerta { color:#b00020; font-weight:bold; background:#ffe6e6; border:1px solid #ff9aa9; padding:10px; border-radius:8px; margin-bottom:10px; }
-.btn { margin-top:14px; display:inline-block; padding:10px 14px; border-radius:8px; text-decoration:none; font-weight:bold; border:1px solid #ff69b4; color:#ff1493; background:white; cursor:pointer }
-.btn:hover{ opacity:0.9 }
+.box { background:var(--card-bg); padding:18px; border-radius:10px;
+  box-shadow:var(--shadow); border:1px solid var(--border); }
+h2 { color:var(--accent); margin:0 0 10px; text-align:center }
+label { font-weight:bold; color:var(--accent); display:block; margin-top:10px }
+input { width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;
+  margin-top:6px; background:var(--input-bg); color:var(--text); }
+.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
+  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
+.btn { margin-top:14px; display:inline-block; padding:10px 14px; border-radius:8px;
+  text-decoration:none; font-weight:bold; border:1px solid var(--border);
+  color:var(--accent); background:var(--card-bg); cursor:pointer; }
+.btn:hover { background:var(--accent-dim); }
 </style>
 
 <div class="container">

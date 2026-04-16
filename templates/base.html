@@ -2,9 +2,26 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Isa Modas - Painel</title>
+<title>Isa Bar - Painel</title>
 
 <style>
+:root {
+    --bg:           #141414;
+    --sidebar-bg:   #0e0e0e;
+    --card-bg:      #1c1c1c;
+    --border:       #303030;
+    --text:         #b8b8b8;
+    --text-muted:   #646464;
+    --accent:       #e0e0e0;
+    --accent-hover: #383838;
+    --accent-dim:   #1c1c1c;
+    --btn-bg:       #282828;
+    --btn-hover:    #363636;
+    --input-bg:     #181818;
+    --table-even:   #202020;
+    --shadow:       0 3px 12px rgba(0,0,0,0.5);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -13,81 +30,277 @@
 }
 
 body {
-    background: #fff0f5;
+    background: var(--bg);
+    color: var(--text);
     display: flex;
     height: 100vh;
     overflow: hidden;
 }
 
-/* SIDEBAR */
+/* ── SIDEBAR ── */
 .sidebar {
-    width: 250px;
-    background: #ff69b4;
-    color: white;
+    width: 240px;
+    background: var(--sidebar-bg);
+    color: var(--text);
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 0;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+    transition: width 0.22s ease;
+    overflow: hidden;
 }
 
-.sidebar h2 {
-    text-align: center;
-    margin-bottom: 30px;
+.sidebar.collapsed {
+    width: 56px;
 }
 
-.sidebar a {
-    color: white;
-    text-decoration: none;
-    padding: 10px 15px;
-    border-radius: 5px;
+/* Logo / cabeçalho da sidebar */
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 10px;
+    border-bottom: 1px solid var(--border);
     margin-bottom: 10px;
-    display: block;
+    flex-shrink: 0;
+}
+
+.sidebar-gear {
+    width: 36px;
+    height: 36px;
+    background: #1c1c1c;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.sidebar-gear:hover {
+    background: var(--btn-hover);
+}
+
+.sidebar-gear svg {
+    color: var(--accent);
+}
+
+.sidebar-title {
+    font-size: 16px;
     font-weight: bold;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 0.15s ease, width 0.22s ease;
 }
 
-.sidebar a:hover {
-    background: #ff1493;
+.sidebar-title small {
+    display: block;
+    font-size: 10px;
+    font-weight: normal;
+    color: var(--text-muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
 }
 
-/* CONTEÚDO */
+.sidebar.collapsed .sidebar-title {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    justify-content: center;
+}
+
+
+/* Links nav */
+.sidebar-nav {
+    flex: 1;
+    padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.sidebar-nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 9px 10px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-nav a:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.sidebar-nav .nav-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.sidebar-nav a:hover .nav-icon {
+    opacity: 1;
+}
+
+.nav-label {
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+}
+
+.sidebar.collapsed .nav-label {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+/* Tooltip quando collapsed */
+.sidebar.collapsed .sidebar-nav a {
+    justify-content: center;
+    padding: 9px 0;
+}
+
+.sidebar.collapsed .sidebar-nav .nav-icon {
+    opacity: 0.7;
+}
+
+/* Separador antes do Sair */
+.sidebar-footer {
+    padding: 10px 8px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.sidebar-footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 9px 10px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-footer a:hover {
+    background: #2a0f0f;
+    color: #f87171;
+}
+
+.sidebar.collapsed .sidebar-footer a {
+    justify-content: center;
+    padding: 9px 0;
+}
+
+.sidebar.collapsed .footer-label {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.footer-label {
+    opacity: 1;
+    transition: opacity 0.15s ease;
+}
+
+/* ── CONTEÚDO PRINCIPAL ── */
 .main {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    background: var(--bg);
 }
 
+/* Header com perfil */
 .header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-bottom: 20px;
 }
 
-.usuario {
-    font-weight: bold;
-    font-size: 1.2em;
+.profile-chip {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 6px 14px 6px 6px;
 }
 
+.profile-avatar {
+    width: 30px;
+    height: 30px;
+    background: var(--btn-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.profile-avatar svg {
+    color: var(--accent);
+}
+
+.profile-name {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--text);
+}
+
+/* ── BOTÃO PADRÃO ── */
 .btn {
-    background: #ff69b4;
-    color: white;
-    border: none;
+    background: var(--btn-bg);
+    color: var(--accent);
+    border: 1px solid var(--border);
     padding: 8px 18px;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
     font-weight: bold;
+    transition: background 0.15s;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .btn:hover {
-    background: #ff1493;
+    background: var(--btn-hover);
 }
 
 /* BOXES */
 .box {
-    background: white;
+    background: var(--card-bg);
     padding: 15px;
     border-radius: 10px;
     margin-bottom: 15px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
 }
 
 /* FORM */
@@ -95,6 +308,7 @@ form label {
     display: block;
     margin-top: 10px;
     font-weight: bold;
+    color: var(--text);
 }
 
 form input,
@@ -102,15 +316,27 @@ form select {
     width: 100%;
     padding: 8px;
     margin-top: 5px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+}
+
+form input:focus,
+form select:focus {
+    outline: none;
+    border-color: var(--accent);
 }
 
 /* ALERTA */
 .alerta {
-    color: red;
+    color: #f87171;
     font-weight: bold;
     margin-bottom: 10px;
+    background: #2a0f0f;
+    border: 1px solid #5a1f1f;
+    padding: 10px;
+    border-radius: 8px;
 }
 </style>
 </head>
@@ -118,47 +344,143 @@ form select {
 <body>
 
 <!-- SIDEBAR -->
-<div class="sidebar">
-    <h2>Isa Modas</h2>
+<div class="sidebar" id="sidebar">
 
-    {# 1) Cadastrar Vendas (OPÇÃO A - LOTE) #}
-    {% if tipo == "admin" or ("vendas" in permissoes) %}
-        <a href="{{ url_for('cadastrar_venda_lote') }}">Cadastrar Vendas</a>
-    {% endif %}
+    <!-- Logo: engrenagem clicável = toggle da sidebar -->
+    <div class="sidebar-logo">
+        <button class="sidebar-gear" id="sidebarToggle" title="Recolher/expandir menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                         a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                         A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                         l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                         A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                         l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                         a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                         l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                         a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </button>
+        <div class="sidebar-title">
+            Isa Bar
+            <small>Painel</small>
+        </div>
+    </div>
 
-    {# 2) Vendas #}
-    {% if tipo == "admin" or ("vendas" in permissoes) %}
-        <a href="{{ url_for('vendas') }}">Vendas</a>
-    {% endif %}
+    <!-- Navegação -->
+    <div class="sidebar-nav">
 
-    {# 3) Estoque #}
-    {% if tipo == "admin" or ("estoque" in permissoes) %}
-        <a href="{{ url_for('estoque') }}">Estoque</a>
-    {% endif %}
+        {% if tipo == "admin" or ("vendas" in permissoes) %}
+        <a href="{{ url_for('cadastrar_venda_lote') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span class="nav-label">Cadastrar Venda</span>
+        </a>
+        {% endif %}
 
-    {# 4) Financeiro #}
-    {% if tipo == "admin" or ("financeiro" in permissoes) %}
-        <a href="{{ url_for('financeiro') }}">Financeiro</a>
-    {% endif %}
+        {% if tipo == "admin" or ("vendas" in permissoes) %}
+        <a href="{{ url_for('vendas') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span class="nav-label">Vendas</span>
+        </a>
+        {% endif %}
 
-    {# 5) Admin (área para permissões e futuras funções) #}
-    {% if tipo == "admin" %}
-        <a href="{{ url_for('permissoes') }}">Admin</a>
-    {% endif %}
+        {% if tipo == "admin" or ("vendas" in permissoes) %}
+        <a href="{{ url_for('comandas') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span class="nav-label">Comandas</span>
+        </a>
+        {% endif %}
 
-    <a href="{{ url_for('logout') }}">Sair</a>
+        {% if tipo == "admin" or ("estoque" in permissoes) %}
+        <a href="{{ url_for('estoque') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            </svg>
+            <span class="nav-label">Estoque</span>
+        </a>
+        {% endif %}
+
+        {% if tipo == "admin" or ("financeiro" in permissoes) %}
+        <a href="{{ url_for('financeiro') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            <span class="nav-label">Financeiro</span>
+        </a>
+        {% endif %}
+
+        {% if tipo == "admin" %}
+        <a href="{{ url_for('permissoes') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span class="nav-label">Admin</span>
+        </a>
+        {% endif %}
+
+    </div>
+
+    <!-- Rodapé sidebar (Sair) -->
+    <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span class="footer-label">Sair</span>
+        </a>
+    </div>
 </div>
 
 <!-- CONTEÚDO PRINCIPAL -->
 <div class="main">
     <div class="header">
-        <div class="usuario">
-            Usuário: {{ usuario if usuario is defined else session.get("usuario", "") }}
+        <!-- Chip de perfil -->
+        <div class="profile-chip">
+            <div class="profile-avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <span class="profile-name">
+                {{ usuario if usuario is defined else session.get("usuario", "") }}
+            </span>
         </div>
     </div>
 
     {% block conteudo %}{% endblock %}
 </div>
+
+<script>
+(function(){
+    const sidebar = document.getElementById('sidebar');
+    const btn = document.getElementById('sidebarToggle');
+
+    // Restaurar estado salvo
+    if (localStorage.getItem('sidebar_collapsed') === '1') {
+        sidebar.classList.add('collapsed');
+    }
+
+    btn.addEventListener('click', function(){
+        sidebar.classList.toggle('collapsed');
+        localStorage.setItem('sidebar_collapsed',
+            sidebar.classList.contains('collapsed') ? '1' : '0');
+    });
+})();
+</script>
 
 </body>
 </html>

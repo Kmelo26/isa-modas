@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:860px; margin:20px auto; padding:20px; }
+h2 { text-align:center; color:var(--accent); margin-bottom:20px; }
+
+.btn {
+  background:var(--btn-bg); color:var(--accent); border:none;
+  padding:8px 18px; border-radius:8px; cursor:pointer;
+  font-weight:bold; font-size:13px; transition:background 0.15s;
+  text-decoration:none; display:inline-block;
+}
+.btn:hover { background:var(--accent-hover); }
+
+/* ── FORM NOVA COMANDA ── */
+.nova-card {
+  background:var(--card-bg); border-radius:12px; padding:18px 22px;
+  box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:24px;
+}
+.nova-card h3 { color:var(--accent); font-size:13px; text-transform:uppercase;
+  letter-spacing:1.5px; margin-bottom:14px; }
+.nova-row { display:flex; gap:10px; align-items:flex-end; }
+.nova-row input { flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:8px;
+  font-size:15px; outline:none; background:var(--input-bg); color:var(--text); transition:border-color 0.2s; }
+.nova-row input:focus { border-color:var(--accent); }
+
+.vazio { text-align:center; padding:40px; background:var(--card-bg); border-radius:12px;
+  box-shadow:var(--shadow); color:var(--text-muted); font-size:15px; }
+
+.comanda-card { background:var(--card-bg); border-radius:12px; padding:18px 22px;
+  box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:14px;
+  display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.comanda-info { flex:1; }
+.comanda-nome { font-size:17px; font-weight:bold; color:var(--accent); margin-bottom:4px;
+  display:flex; align-items:center; gap:8px; }
+.comanda-meta { font-size:12px; color:var(--text-muted); }
+
+.comanda-total { font-size:20px; font-weight:bold; color:var(--text); text-align:right; min-width:110px; }
+.comanda-total small { display:block; font-size:11px; color:var(--text-muted); font-weight:normal; }
+
+.badge-aberta { background:#0d2e1a; color:#4ade80; border:1px solid #1a5c30;
+  border-radius:20px; padding:2px 10px; font-size:11px; font-weight:bold; }
+</style>
+
+<div class="container">
+  <h2>COMANDAS</h2>
+
+  <!-- Nova comanda -->
+  <div class="nova-card">
+    <h3>Abrir nova comanda</h3>
+    <form method="post" action="/comandas/nova">
+      <div class="nova-row">
+        <input type="text" name="nome" placeholder="Nome da mesa ou cliente (ex: Mesa 3, João)" required autocomplete="off">
+        <button type="submit" class="btn">Abrir</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lista de comandas abertas -->
+  {% if not comandas %}
+    <div class="vazio">Nenhuma comanda aberta no momento.</div>
+  {% else %}
+    {% for c in comandas %}
+      {% set total = namespace(v=0) %}
+      {% for i in c.itens %}
+        {% set total.v = total.v + i.valor_venda * i.quantidade %}
+      {% endfor %}
+      <a href="/comandas/{{ c.cid }}" style="text-decoration:none;">
+        <div class="comanda-card">
+          <div class="comanda-info">
+            <div class="comanda-nome">
+              {{ c.nome }}
+              <span class="badge-aberta">aberta</span>
+            </div>
+            <div class="comanda-meta">
+              Aberta em {{ c.data_abertura|br_date }} às {{ c.hora_abertura }}
+              &nbsp;·&nbsp;
+              {{ c.itens|length }} item{% if c.itens|length != 1 %}s{% endif %}
+            </div>
+          </div>
+          <div class="comanda-total">
+            R$ {{ "%.2f"|format(total.v) }}
+            <small>consumido</small>
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  {% endif %}
+</div>
+
+{% endblock %}

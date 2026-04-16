@@ -2,221 +2,510 @@
 {% block conteudo %}
 
 <style>
-.container{max-width:900px;margin:auto;padding:20px}
-select,input{padding:8px;border-radius:6px;border:1px solid #ccc}
-.btn{background:#ff69b4;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:15px;background:white}
-th,td{border:1px solid #ffb6c1;padding:6px;text-align:center}
-th{background:#ff69b4;color:white}
-.total{font-weight:bold;color:#ff1493;text-align:right;margin-top:10px}
-.alerta{background:#ffe6e6;border:1px solid #ff9aa2;padding:10px;border-radius:8px;margin:10px 0}
-.btn-x{background:#fff;color:#ff1493;border:1px solid #ffb6c1;padding:4px 10px;border-radius:6px;cursor:pointer}
+select, input { padding:8px; border-radius:6px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); }
+.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:8px 12px;
+  border-radius:6px; cursor:pointer; font-weight:bold; }
+.btn:hover { background:var(--accent-hover); }
+th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
+th { background:#2a2a2a; color:var(--accent); }
+tr:nth-child(even) { background:var(--table-even); }
+.alerta { background:#2a0f0f; border:1px solid #5a1f1f; padding:10px;
+  border-radius:8px; margin:10px 0; color:#f87171; }
+.btn-x { background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+  padding:4px 10px; border-radius:6px; cursor:pointer; }
+
+.pv-page { max-width:1100px; margin:24px auto; padding:0 20px; }
+.pv-page h2 { text-align:center; color:var(--accent); margin-bottom:20px; }
+.pv-grid { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
+
+.pv-card { background:var(--card-bg); border-radius:10px; padding:18px 20px;
+  box-shadow:var(--shadow); margin-bottom:16px; border:1px solid var(--border); }
+.pv-card:last-child { margin-bottom:0; }
+.pv-card-title { font-size:11px; font-weight:bold; color:var(--accent); text-transform:uppercase;
+  letter-spacing:1.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:8px; }
+.pv-card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.pv-row-add { display:grid; grid-template-columns:1fr 110px auto; gap:10px; align-items:end; }
+.pv-field { display:flex; flex-direction:column; gap:5px; }
+.pv-field label { font-size:12px; font-weight:bold; color:var(--accent); }
+.pv-field input, .pv-field select { width:100%; }
+
+.pv-tabela-wrap { margin-top:16px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
+.pv-tabela-wrap table { width:100%; border-collapse:collapse; background:var(--card-bg); margin:0; }
+.pv-tabela-wrap th { background:#2a2a2a; color:var(--accent); padding:8px; text-align:center; font-size:12px; }
+.pv-tabela-wrap td { border:1px solid var(--border); padding:8px; text-align:center; font-size:13px; }
+.pv-tabela-wrap tr:nth-child(even) { background:var(--table-even); }
+
+.pv-vazio { text-align:center; padding:24px; color:var(--text-muted); font-size:13px;
+  border:2px dashed var(--border); border-radius:8px; margin-top:12px; }
+
+.pv-sidebar { background:var(--card-bg); border-radius:10px; padding:18px 20px;
+  box-shadow:var(--shadow); border:1px solid var(--border); position:sticky; top:20px; }
+.pv-res-row { display:flex; justify-content:space-between; align-items:center;
+  padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.pv-res-row:last-of-type { border-bottom:none; }
+.pv-res-label { color:var(--text-muted); }
+.pv-res-val   { font-weight:bold; color:var(--text); }
+.pv-res-total { display:flex; justify-content:space-between; align-items:center;
+  padding-top:14px; margin-top:6px; border-top:2px solid var(--border); }
+.pv-res-total-label { font-size:14px; font-weight:bold; color:var(--accent); }
+.pv-res-total-val   { font-size:26px; font-weight:bold; color:var(--accent); }
+
+.btn-finalizar { width:100%; padding:12px; background:var(--btn-bg); color:var(--accent); border:none;
+  border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; margin-top:16px; transition:background 0.15s; }
+.btn-finalizar:hover { background:var(--accent-hover); }
+
+/* ── MODAL ── */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal-pg { background:var(--card-bg); border:1px solid var(--border); border-radius:20px;
+  width:100%; max-width:400px; padding:28px; position:relative;
+  box-shadow:0 24px 64px rgba(0,0,0,0.6); animation:modal-in 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes modal-in { from{opacity:0;transform:translateY(20px) scale(0.97);}to{opacity:1;transform:none;} }
+.modal-close { position:absolute;top:14px;right:14px;background:#2a2a2a;border:none;border-radius:8px;
+  width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--text-muted);display:flex;
+  align-items:center;justify-content:center;transition:background 0.15s,color 0.15s; }
+.modal-close:hover { background:var(--accent-dim);color:var(--accent); }
+.modal-titulo { font-size:18px;font-weight:bold;color:var(--accent);margin-bottom:4px; }
+.modal-total-pill { display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);
+  border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:13px;
+  color:var(--accent);font-weight:bold;margin:10px 0 20px; }
+
+.tela { display:none; }
+.tela.ativa { display:block; animation:slide-in 0.2s ease; }
+@keyframes slide-in { from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;} }
+
+.formas-lista { display:flex; flex-direction:column; gap:10px; }
+.forma-btn { border:1px solid var(--border);border-radius:10px;padding:14px 18px;
+  background:#242424;cursor:pointer;display:flex;align-items:center;gap:14px;
+  transition:border-color 0.15s,background 0.15s; }
+.forma-btn:hover { background:var(--accent-dim);border-color:var(--accent); }
+.forma-btn-icon { font-size:24px;width:40px;text-align:center; }
+.forma-btn-nome { font-size:15px;font-weight:bold;color:var(--accent); }
+.forma-btn-sub  { font-size:11px;color:var(--text-muted); }
+
+.falta-box { background:#2a0f0f;border:1px solid #5a1f1f;border-radius:8px;padding:10px 14px;
+  font-size:13px;color:#f87171;font-weight:bold;text-align:center;margin-bottom:16px; }
+
+.btn-voltar-tela { background:none;border:none;color:var(--text-muted);font-size:13px;cursor:pointer;
+  padding:0 0 14px;display:flex;align-items:center;gap:4px;transition:color 0.15s; }
+.btn-voltar-tela:hover { color:var(--accent); }
+
+.valor-titulo { font-size:14px;color:var(--text-muted);margin-bottom:16px; }
+.valor-titulo strong { color:var(--accent); }
+
+.pagamentos-lista { margin-bottom:12px; }
+.pagamento-item { display:flex;justify-content:space-between;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--border);font-size:13px; }
+.pagamento-item:last-child { border-bottom:none; }
+.pagamento-forma { display:flex;align-items:center;gap:6px;color:var(--accent);font-weight:bold; }
+.pagamento-valor { font-weight:bold;color:var(--text); }
+
+.valor-box { display:flex;align-items:center;gap:8px;border:2px solid var(--border);border-radius:12px;
+  padding:14px 18px;background:var(--input-bg);margin-bottom:16px;transition:border-color 0.2s,box-shadow 0.2s; }
+.valor-box:focus-within { border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,66,110,0.15); }
+.valor-prefix { font-size:20px;font-weight:bold;color:var(--accent); }
+.valor-input { flex:1;border:none;background:transparent;outline:none;font-size:28px;
+  font-weight:bold;color:var(--accent);width:100%; }
+.valor-input::placeholder { color:var(--border); }
+
+.resultado-box { border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:16px;font-size:13px; }
+.resultado-box.troco { background:#0d2e1a;border:1px solid #1a5c30;color:#4ade80; }
+.resultado-box.falta { background:#2a0f0f;border:1px solid #5a1f1f;color:#f87171; }
+.resultado-box.ok    { background:#0d2e1a;border:1px solid #1a5c30;color:#4ade80; }
+.resultado-box.vazio { background:#242424;border:1px solid var(--border);color:var(--text-muted); }
+.resultado-label { font-weight:bold;font-size:11px;letter-spacing:1px;text-transform:uppercase; }
+.resultado-val   { font-size:17px;font-weight:bold; }
+
+.segunda-forma-wrap { display:none;background:var(--accent-dim);border:1px solid var(--border);
+  border-radius:10px;padding:12px 16px;margin-bottom:16px; }
+.segunda-forma-wrap.visivel { display:block; }
+.segunda-forma-label { font-size:11px;font-weight:bold;color:var(--accent);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:10px; }
+.segunda-formas { display:flex;gap:8px; }
+.segunda-forma-btn { flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 8px;
+  background:#242424;cursor:pointer;text-align:center;transition:border-color 0.15s,background 0.15s;
+  display:flex;flex-direction:column;align-items:center;gap:4px; }
+.segunda-forma-btn:hover { background:var(--accent-dim);border-color:var(--accent); }
+.segunda-forma-btn-icon  { font-size:18px; }
+.segunda-forma-btn-label { font-size:11px;font-weight:bold;color:var(--accent); }
+
+.btn-confirmar { width:100%;padding:13px;background:var(--btn-bg);color:var(--accent);border:none;
+  border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;transition:background 0.15s,transform 0.1s; }
+.btn-confirmar:hover:not(:disabled) { background:var(--accent-hover);transform:translateY(-1px); }
+.btn-confirmar:disabled { opacity:0.4;cursor:not-allowed;transform:none; }
 </style>
 
-<div class="container">
-  <h2>Cadastrar Venda</h2>
+<!-- ═══ MODAL ═══ -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal-pg">
+    <button class="modal-close" onclick="fecharModal()">✕</button>
+
+    <div class="modal-titulo">Pagamento</div>
+    <div class="modal-total-pill">Total: <strong id="txt-total">R$ 0,00</strong></div>
+
+    <!-- TELA 1: SELECIONAR FORMA -->
+    <div class="tela ativa" id="tela-1">
+      <div class="falta-box" id="falta-box" style="display:none">
+        Falta pagar: <span id="txt-falta">R$ 0,00</span>
+      </div>
+      <div class="formas-lista">
+        <div class="forma-btn" id="opcao-dinheiro" onclick="escolherForma('dinheiro')">
+          <span class="forma-btn-icon">💵</span>
+          <div><div class="forma-btn-nome">Dinheiro</div><div class="forma-btn-sub">Pagamento em espécie</div></div>
+        </div>
+        <div class="forma-btn" id="opcao-pix" onclick="escolherForma('pix')">
+          <span class="forma-btn-icon">📱</span>
+          <div><div class="forma-btn-nome">Pix</div><div class="forma-btn-sub">Transferência instantânea</div></div>
+        </div>
+        <div class="forma-btn" id="opcao-cartao" onclick="escolherForma('cartao')">
+          <span class="forma-btn-icon">💳</span>
+          <div><div class="forma-btn-nome">Cartão</div><div class="forma-btn-sub">Débito ou crédito</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELA 2: DIGITAR VALOR -->
+    <div class="tela" id="tela-2">
+      <button class="btn-voltar-tela" onclick="voltarTela1()">← Voltar</button>
+
+      <div class="valor-titulo">Valor pago em <strong id="txt-forma-atual"></strong></div>
+
+      <div class="pagamentos-lista" id="pagamentos-lista" style="display:none"></div>
+
+      <div class="valor-box">
+        <span class="valor-prefix">R$</span>
+        <input class="valor-input" id="input-valor" type="number" step="0.01" min="0"
+          placeholder="0,00" oninput="calcularResultado()">
+      </div>
+
+      <div class="resultado-box vazio" id="resultado-box">
+        <span class="resultado-label" id="resultado-label">Aguardando</span>
+        <span class="resultado-val"   id="resultado-val">—</span>
+      </div>
+
+      <div class="segunda-forma-wrap" id="segunda-forma-wrap">
+        <div class="segunda-forma-label">Ainda falta — escolha a segunda forma:</div>
+        <div class="segunda-formas">
+          <div class="segunda-forma-btn" id="sf-dinheiro" onclick="escolherForma('dinheiro')"><span class="segunda-forma-btn-icon">💵</span><span class="segunda-forma-btn-label">Dinheiro</span></div>
+          <div class="segunda-forma-btn" id="sf-pix"      onclick="escolherForma('pix')"     ><span class="segunda-forma-btn-icon">📱</span><span class="segunda-forma-btn-label">Pix</span></div>
+          <div class="segunda-forma-btn" id="sf-cartao"   onclick="escolherForma('cartao')"  ><span class="segunda-forma-btn-icon">💳</span><span class="segunda-forma-btn-label">Cartão</span></div>
+        </div>
+      </div>
+
+      <button class="btn-confirmar" id="btn-confirmar" disabled onclick="confirmarPagamento()">
+        Confirmar Pagamento →
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ PÁGINA ═══ -->
+<div class="pv-page">
+  <h2>CADASTRO DE VENDAS</h2>
 
   {% if erro %}
     <div class="alerta">{{ erro }}</div>
   {% endif %}
 
-  <form method="post" action="/cadastrar_venda">
+  <form method="post" action="/cadastrar_venda" id="form-venda">
 
-    <div style="margin-bottom:12px">
-      <label><strong>Data da Venda</strong></label>
-      <input type="date" name="data" id="data_venda" value="{{ hoje }}" required>
+    <input type="hidden" name="forma_pagamento" id="h-forma">
+    <input type="hidden" name="valor_dinheiro"  id="h-dinheiro" value="0">
+    <input type="hidden" name="valor_pix"       id="h-pix"      value="0">
+    <input type="hidden" name="valor_cartao"    id="h-cartao"   value="0">
+    <input type="hidden" name="troco"           id="h-troco"    value="0">
+    <input type="hidden" name="total_venda"     id="total_venda" value="0.00">
+
+    <div class="pv-grid">
+
+      <div>
+        <div class="pv-card">
+          <div class="pv-card-title">Dados da venda</div>
+          <div class="pv-field">
+            <label>Data da Venda</label>
+            <input type="date" name="data" id="data_venda" value="{{ hoje }}" required style="width:auto;">
+          </div>
+        </div>
+
+        <div class="pv-card">
+          <div class="pv-card-title">Itens da venda</div>
+          <div class="pv-row-add">
+            <div class="pv-field">
+              <label>Produto</label>
+              <select id="produto">
+                <option value="">Selecione...</option>
+                {% for p in estoque %}
+                  <option value="{{ p.pid }}"
+                    data-nome="{{ p.nome }}"
+                    data-preco="{{ '%.2f'|format(p.valor_venda|float) }}">
+                    {{ p.nome }} — R$ {{ '%.2f'|format(p.valor_venda|float) }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="pv-field">
+              <label>Quantidade</label>
+              <input id="qtd" type="number" placeholder="Ex: 1" min="1"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();add();}">
+            </div>
+            <div class="pv-field">
+              <label>&nbsp;</label>
+              <button type="button" class="btn" onclick="add()">Adicionar</button>
+            </div>
+          </div>
+          <div id="itens-wrap">
+            <div class="pv-vazio">Nenhum produto adicionado ainda.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-sidebar">
+        <div class="pv-card-title">Resumo</div>
+        <div class="pv-res-row">
+          <span class="pv-res-label">Quantidade de itens</span>
+          <span class="pv-res-val" id="res-qtd">0</span>
+        </div>
+        <div class="pv-res-row">
+          <span class="pv-res-label">Subtotal</span>
+          <span class="pv-res-val" id="res-sub">R$ 0,00</span>
+        </div>
+        <div class="pv-res-row">
+          <span class="pv-res-label">Pagamento</span>
+          <span class="pv-res-val" id="res-pg">—</span>
+        </div>
+        <div class="pv-res-total">
+          <span class="pv-res-total-label">Total</span>
+          <span class="pv-res-total-val" id="res-total">R$ 0,00</span>
+        </div>
+        <button type="button" class="btn-finalizar" onclick="abrirModal()">
+          Finalizar Venda
+        </button>
+      </div>
+
     </div>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <select id="produto">
-        <option value="">Produto</option>
-        {% for p in estoque %}
-          <option
-            value="{{ p.pid }}"
-            data-nome="{{ p.nome }}"
-            data-preco="{{ '%.2f'|format(p.valor_venda|float) }}">
-            {{ p.nome }} - R$ {{ '%.2f'|format(p.valor_venda|float) }}
-          </option>
-        {% endfor %}
-      </select>
-
-      <input id="qtd" type="number" placeholder="Qtd" min="1">
-      <button type="button" class="btn" onclick="add()">Adicionar</button>
-    </div>
-
-    <div style="margin-top:12px">
-      <label>Forma de Pagamento</label>
-      <select name="forma_pagamento" id="forma_pagamento" required>
-        <option value="">Selecione</option>
-        <option value="dinheiro">Dinheiro</option>
-        <option value="pix">Pix</option>
-        <option value="cartao">Cartão</option>
-      </select>
-    </div>
-
-    <div id="box-dinheiro" style="display:none; margin-top:10px;">
-      <label>Valor recebido (R$)</label>
-      <input type="number" step="0.01" min="0" id="valor_recebido" name="valor_recebido" placeholder="Ex: 100.00">
-
-      <label>Troco (R$)</label>
-      <input type="text" id="troco" name="troco" readonly value="0.00">
-
-      <p id="msg-troco" style="margin:6px 0 0; font-weight:bold;"></p>
-    </div>
-
-    <div style="margin-top:10px">
-      <label>Total da Venda</label>
-      <input type="text" id="total_venda" name="total_venda" readonly value="0.00">
-    </div>
-
-    <table id="tabela">
-      <thead>
-        <tr>
-          <th>Produto</th>
-          <th>Qtd</th>
-          <th>Preço</th>
-          <th>Total</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <div class="total">
-      Total venda: R$ <span id="total">0.00</span>
-    </div>
-
-    <button class="btn" style="margin-top:10px;width:100%" type="submit">
-      Finalizar Venda
-    </button>
-
   </form>
 </div>
 
 <script>
 let total = 0;
+let totalModal = 0;
+let formaAtual = null;
+let pagamentos = [];
 
-const forma = document.getElementById("forma_pagamento");
-const boxDinheiro = document.getElementById("box-dinheiro");
-const recebido = document.getElementById("valor_recebido");
-const totalSpan = document.getElementById("total");
-const totalEl = document.getElementById("total_venda");
-const trocoEl = document.getElementById("troco");
-const msg = document.getElementById("msg-troco");
-const form = document.querySelector("form");
+const nomeForma = { dinheiro:'Dinheiro', pix:'Pix', cartao:'Cartão' };
+const iconForma = { dinheiro:'💵', pix:'📱', cartao:'💳' };
 
-function format2(n){
-  return (Math.round(n * 100) / 100).toFixed(2);
-}
+function format2(n){ return (Math.round(n*100)/100).toFixed(2); }
+function parsePreco(v){ return parseFloat(String(v||"").trim().replace(",",".")); }
+const fmt = n => 'R$ ' + format2(n).replace('.',',');
 
-function parsePreco(v){
-  return parseFloat(String(v || "").trim().replace(",", "."));
-}
+function totalPago(){ return pagamentos.reduce((s,p)=>s+p.valor, 0); }
+function restante(){ return Math.max(totalModal - totalPago(), 0); }
 
-function recalcularTroco(){
-  const totalVenda = parseFloat(totalEl.value) || 0;
-  const vr = parseFloat(recebido.value) || 0;
-  const t = vr - totalVenda;
-
-  trocoEl.value = format2(Math.max(t, 0));
-
-  if (forma.value !== "dinheiro") {
-    msg.textContent = "";
-    return true;
-  }
-
-  if (!recebido.value) {
-    msg.textContent = "Informe o valor recebido.";
-    msg.style.color = "crimson";
-    return false;
-  }
-
-  if (t < 0) {
-    msg.textContent = `Falta R$ ${format2(Math.abs(t))} para completar.`;
-    msg.style.color = "crimson";
-    return false;
-  }
-
-  msg.textContent = `Troco: R$ ${format2(t)}`;
-  msg.style.color = "green";
-  return true;
-}
-
+/* ── ITENS ── */
 function atualizarTotais(){
-  totalSpan.innerText = format2(total);
-  totalEl.value = format2(total);
-  if (forma.value === "dinheiro") recalcularTroco();
+  document.getElementById("total_venda").value = format2(total);
+  document.getElementById("res-sub").textContent   = "R$ " + format2(total).replace(".",",");
+  document.getElementById("res-total").textContent = "R$ " + format2(total).replace(".",",");
+  const qtd = [...document.querySelectorAll('input[name="quantidade[]"]')]
+    .reduce((s,el)=>s+parseInt(el.value||0),0);
+  document.getElementById("res-qtd").textContent = qtd + (qtd===1?" item":" itens");
 }
 
 function add(){
   const sel = document.getElementById("produto");
   const opt = sel.options[sel.selectedIndex];
-
-  const pid = opt.value || "";
-  const nome = opt.dataset.nome || "";
-  const precoStr = opt.getAttribute("data-preco") || "";
+  const pid = opt.value||"", nome = opt.dataset.nome||"";
+  const precoStr = opt.getAttribute("data-preco")||"";
   const preco = parsePreco(precoStr);
-  const qtd = parseInt(document.getElementById("qtd").value, 10);
+  const qtd = parseInt(document.getElementById("qtd").value,10);
+  if(!pid||!qtd||qtd<=0) return;
+  if(!precoStr||Number.isNaN(preco)){ alert("Preço não encontrado."); return; }
 
-  if(!pid || !qtd || qtd <= 0) return;
-
-  if (!precoStr || Number.isNaN(preco)) {
-    alert("Preço do produto não encontrado no estoque.");
-    console.log("DEBUG data-preco:", precoStr, "option:", opt);
-    return;
-  }
-
-  const subtotal = preco * qtd;
+  const subtotal = preco*qtd;
   total += subtotal;
+
+  let tbody = document.querySelector("#pv-tabela tbody");
+  if(!tbody){
+    document.getElementById("itens-wrap").innerHTML = `
+      <div class="pv-tabela-wrap">
+        <table id="pv-tabela">
+          <thead><tr><th>Produto</th><th>Qtd</th><th>Preço</th><th>Total</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>`;
+    tbody = document.querySelector("#pv-tabela tbody");
+  }
 
   const tr = document.createElement("tr");
   tr.innerHTML = `
-    <td>${nome}</td>
-    <td>${qtd}</td>
-    <td>${format2(preco)}</td>
-    <td>${format2(subtotal)}</td>
+    <td>${nome}</td><td>${qtd}</td>
+    <td>R$ ${format2(preco)}</td>
+    <td>R$ ${format2(subtotal)}</td>
     <td>
-      <button type="button" class="btn-x" onclick="rem(this, ${subtotal})">X</button>
+      <button type="button" class="btn-x" onclick="rem(this,${subtotal})">X</button>
       <input type="hidden" name="produto_pid[]" value="${pid}">
       <input type="hidden" name="quantidade[]" value="${qtd}">
-    </td>
-  `;
-
-  document.querySelector("#tabela tbody").appendChild(tr);
+    </td>`;
+  tbody.appendChild(tr);
   atualizarTotais();
-  document.getElementById("qtd").value = "";
+  sel.value=""; document.getElementById("qtd").value="";
 }
 
-function rem(btn, val){
+function rem(btn,val){
   btn.closest("tr").remove();
   total -= val;
+  if(document.querySelectorAll("#pv-tabela tbody tr").length===0)
+    document.getElementById("itens-wrap").innerHTML='<div class="pv-vazio">Nenhum produto adicionado ainda.</div>';
   atualizarTotais();
 }
 
-forma.addEventListener("change", () => {
-  const isDinheiro = forma.value === "dinheiro";
-  boxDinheiro.style.display = isDinheiro ? "block" : "none";
-
-  if (!isDinheiro) {
-    recebido.value = "";
-    trocoEl.value = "0.00";
-    msg.textContent = "";
-  }
-  recalcularTroco();
-});
-
-recebido.addEventListener("input", recalcularTroco);
-
-form.addEventListener("submit", (e) => {
+/* ── MODAL ── */
+function abrirModal(){
+  const dataVal = document.getElementById("data_venda").value;
+  if(!dataVal){ alert("Informe a data da venda antes de continuar."); document.getElementById("data_venda").focus(); return; }
   const itens = document.querySelectorAll('input[name="produto_pid[]"]');
-  if (itens.length <= 0 || total <= 0) {
-    e.preventDefault();
-    alert("Adicione pelo menos 1 item na venda.");
-    return;
-  }
+  if(itens.length===0||total<=0){ alert("Adicione pelo menos 1 item na venda."); return; }
 
-  const ok = recalcularTroco();
-  if (!ok) e.preventDefault();
+  totalModal = total;
+  pagamentos = [];
+  formaAtual = null;
+
+  document.getElementById("txt-total").textContent = fmt(totalModal);
+  document.getElementById("falta-box").style.display = "none";
+  irParaTela(1);
+  document.getElementById("modal-bg").classList.add("open");
+}
+
+function fecharModal(){ document.getElementById("modal-bg").classList.remove("open"); }
+
+function irParaTela(n){
+  document.querySelectorAll(".tela").forEach(t=>t.classList.remove("ativa"));
+  document.getElementById("tela-"+n).classList.add("ativa");
+
+  if(n===1){
+    const r = restante();
+    if(pagamentos.length>0 && r>0.005){
+      document.getElementById("falta-box").style.display="block";
+      document.getElementById("txt-falta").textContent = fmt(r);
+      // esconde formas já usadas
+      ["dinheiro","pix","cartao"].forEach(f=>{
+        const usado = pagamentos.some(p=>p.forma===f);
+        document.getElementById("opcao-"+f).style.display = usado ? "none" : "flex";
+      });
+    } else {
+      document.getElementById("falta-box").style.display="none";
+      ["dinheiro","pix","cartao"].forEach(f=>{
+        document.getElementById("opcao-"+f).style.display = "flex";
+      });
+    }
+  }
+}
+
+function escolherForma(forma){
+  formaAtual = forma;
+  document.getElementById("txt-forma-atual").textContent = iconForma[forma]+" "+nomeForma[forma];
+  document.getElementById("input-valor").value = "";
+
+  // esconde a forma atual na lista de segunda opção
+  ["dinheiro","pix","cartao"].forEach(f=>{
+    const el = document.getElementById("sf-"+f);
+    const usado = pagamentos.some(p=>p.forma===f);
+    el.style.display = (f===forma||usado) ? "none" : "flex";
+  });
+
+  renderPagamentos();
+  calcularResultado();
+  irParaTela(2);
+  setTimeout(()=>{ document.getElementById("input-valor").focus(); }, 150);
+}
+
+function voltarTela1(){
+  formaAtual = null;
+  irParaTela(1);
+}
+
+function renderPagamentos(){
+  const lista = document.getElementById("pagamentos-lista");
+  if(pagamentos.length===0){ lista.style.display="none"; lista.innerHTML=""; return; }
+  lista.style.display="block";
+  lista.innerHTML = pagamentos.map(p=>`
+    <div class="pagamento-item">
+      <span class="pagamento-forma">${iconForma[p.forma]} ${nomeForma[p.forma]}</span>
+      <span class="pagamento-valor">${fmt(p.valor)}</span>
+    </div>`).join("");
+}
+
+function calcularResultado(){
+  const v    = parseFloat(document.getElementById("input-valor").value)||0;
+  const jaFoi = totalPago();
+  const pagoAgora = jaFoi + v;
+  const diff = pagoAgora - totalModal;
+
+  const box   = document.getElementById("resultado-box");
+  const label = document.getElementById("resultado-label");
+  const val   = document.getElementById("resultado-val");
+  const btn   = document.getElementById("btn-confirmar");
+  const sfWrap= document.getElementById("segunda-forma-wrap");
+
+  if(v<=0){
+    box.className="resultado-box vazio"; label.textContent="Aguardando"; val.textContent="—";
+    btn.disabled=true; btn.textContent="Confirmar Pagamento →";
+    sfWrap.classList.remove("visivel");
+  } else if(diff < -0.005){
+    box.className="resultado-box falta"; label.textContent="Falta"; val.textContent=fmt(Math.abs(diff));
+    btn.disabled=true; btn.textContent="Confirmar Pagamento →";
+    sfWrap.classList.add("visivel");
+  } else if(diff > 0.005){
+    box.className="resultado-box troco"; label.textContent="Troco"; val.textContent=fmt(diff);
+    btn.disabled=false; btn.textContent="Confirmar Pagamento →";
+    sfWrap.classList.remove("visivel");
+  } else {
+    box.className="resultado-box ok"; label.textContent="Pago exato ✓"; val.textContent="";
+    btn.disabled=false; btn.textContent="Confirmar Pagamento →";
+    sfWrap.classList.remove("visivel");
+  }
+}
+
+function confirmarPagamento(){
+  const v = parseFloat(document.getElementById("input-valor").value)||0;
+  if(v<=0){ alert("Digite o valor pago."); return; }
+
+  pagamentos.push({ forma: formaAtual, valor: v });
+
+  // monta totais por forma
+  const totais = { dinheiro:0, pix:0, cartao:0 };
+  const formas = [];
+  pagamentos.forEach(p=>{
+    totais[p.forma] += p.valor;
+    if(!formas.includes(p.forma)) formas.push(p.forma);
+  });
+
+  const totalPagoFinal = pagamentos.reduce((s,p)=>s+p.valor,0);
+  const troco = Math.max(totalPagoFinal - totalModal, 0);
+  const formaPrincipal = [...formas].sort((a,b)=>totais[b]-totais[a])[0];
+
+  document.getElementById("h-forma").value    = formas.join("+");
+  document.getElementById("h-dinheiro").value = format2(totais.dinheiro);
+  document.getElementById("h-pix").value      = format2(totais.pix);
+  document.getElementById("h-cartao").value   = format2(totais.cartao);
+  document.getElementById("h-troco").value    = format2(troco);
+
+  const pgLabel = formas.map(f=>nomeForma[f]);
+  document.getElementById("res-pg").textContent = pgLabel.join(" + ");
+
+  fecharModal();
+  document.getElementById("form-venda").submit();
+}
+
+document.getElementById("modal-bg").addEventListener("click",function(e){
+  if(e.target===this) fecharModal();
 });
 </script>
 

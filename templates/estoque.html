@@ -3,59 +3,30 @@
 
 <style>
 .container { max-width:1200px; margin:20px auto; padding:20px }
-h2 { text-align:center; color:#ff1493 }
-
-.top-actions{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-  margin-bottom:12px;
-}
-
-.busca-wrap{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  flex-wrap:wrap;
-}
-
-.busca-wrap input{
-  padding:8px 10px;
-  border-radius:8px;
-  border:1px solid #ffb6c1;
-  background:white;
-  min-width:260px;
-}
-
-table { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
-th, td { border:1px solid #ffb6c1; padding:8px; text-align:center }
-th { background:#ff69b4; color:white }
-tr:nth-child(even) { background:#ffe6f0 }
-
-.alerta { color:#b00020; font-weight:bold; background:#ffe6e6; border:1px solid #ff9aa9; padding:10px; border-radius:8px; margin-bottom:10px; }
-
-.btn-acao{
-  display:inline-block;
-  padding:6px 10px;
-  border-radius:8px;
-  text-decoration:none;
-  font-weight:bold;
-  border:1px solid #ff69b4;
-  color:#ff1493;
-  background:white;
-}
-.btn-acao:hover{ opacity:0.9; }
-.btn-principal{
-  background:#ff69b4;
-  color:white;
-  border:1px solid #ff69b4;
-}
+h2 { text-align:center; color:var(--accent); }
+.top-actions { display:flex; justify-content:space-between; gap:10px;
+  flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.busca-wrap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.busca-wrap input { padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); min-width:260px; }
+table { width:100%; border-collapse:collapse; background:var(--card-bg);
+  border-radius:10px; overflow:hidden; box-shadow:var(--shadow); }
+th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
+th { background:#2a2a2a; color:var(--accent); }
+tr:nth-child(even) { background:var(--table-even); }
+.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
+  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
+.btn-acao { display:inline-block; padding:6px 10px; border-radius:8px; text-decoration:none;
+  font-weight:bold; border:1px solid var(--border); color:var(--accent); background:var(--card-bg); }
+.btn-acao:hover { background:var(--accent-dim); }
+.btn-principal { background:var(--btn-bg); color:var(--accent); border:1px solid var(--accent); }
+.btn-principal:hover { background:var(--accent-hover); }
+.btn-remover { color:#f87171; border-color:#7f1d1d; cursor:pointer; font-size:inherit; font-family:inherit; }
+.btn-remover:hover { background:#2a0f0f; }
 </style>
 
 <div class="container">
-  <h2>Gerenciar Estoque</h2>
+  <h2>ESTOQUE</h2>
 
   {% if erro %}
     <div class="alerta">{{ erro }}</div>
@@ -91,6 +62,13 @@ tr:nth-child(even) { background:#ffe6f0 }
         <td>
           <a class="btn-acao" href="{{ url_for('estoque_produto', pid=p.pid) }}">Lotes</a>
           <a class="btn-acao" href="{{ url_for('editar_produto', pid=p.pid) }}">Editar</a>
+          {% if tipo == 'admin' %}
+          <form method="POST" action="{{ url_for('remover_produto', pid=p.pid) }}"
+                style="display:inline;"
+                onsubmit="return confirm('Remover o produto \'{{ p.nome }}\' do estoque? Esta ação não pode ser desfeita.');">
+            <button type="submit" class="btn-acao btn-remover">Remover</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% else %}

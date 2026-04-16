@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.page { max-width:900px; margin:20px auto; padding:20px; }
+h2 { text-align:center; color:var(--accent); margin-bottom:6px; }
+.sub { text-align:center; color:var(--text-muted); font-size:13px; margin-bottom:22px; }
+
+.btn {
+  background:var(--btn-bg); color:var(--accent); border:none;
+  padding:8px 16px; border-radius:8px; cursor:pointer;
+  font-weight:bold; font-size:13px; transition:background 0.15s;
+  text-decoration:none; display:inline-block;
+}
+.btn:hover { background:var(--accent-hover); }
+.btn-sec {
+  background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+}
+.btn-danger {
+  background:#2a0f0f; color:#f87171; border:1px solid #5a1f1f;
+}
+.btn-danger:hover { background:#3a1515; }
+
+.alerta { background:#2a0f0f; border:1px solid #5a1f1f; padding:10px 14px;
+  border-radius:8px; margin-bottom:16px; color:#f87171; font-weight:bold; }
+
+/* ── GRID ── */
+.layout { display:grid; grid-template-columns:1fr 290px; gap:20px; align-items:start; }
+
+.card { background:var(--card-bg); border-radius:12px; padding:18px 20px;
+  box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:16px; }
+.card:last-child { margin-bottom:0; }
+.card-title { font-size:11px; font-weight:bold; color:var(--accent); text-transform:uppercase;
+  letter-spacing:1.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+.add-row { display:grid; grid-template-columns:1fr 90px auto; gap:10px; align-items:end; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field label { font-size:12px; font-weight:bold; color:var(--accent); }
+.field select, .field input { padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+  font-size:13px; outline:none; width:100%; background:var(--input-bg); color:var(--text); }
+.field select:focus, .field input:focus { border-color:var(--accent); }
+
+.itens-wrap { margin-top:16px; }
+.vazio-itens { text-align:center; padding:24px; color:var(--text-muted); font-size:13px;
+  border:2px dashed var(--border); border-radius:8px; margin-top:12px; }
+
+table { width:100%; border-collapse:collapse; font-size:13px; }
+table th { background:#2a2a2a; color:var(--accent); padding:8px 10px; text-align:center; }
+table td { border:1px solid var(--border); padding:8px 10px; text-align:center; color:var(--text); }
+table tr:nth-child(even) { background:var(--table-even); }
+
+.btn-rem { background:#2a0f0f; color:#f87171; border:1px solid #5a1f1f;
+  padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
+.btn-rem:hover { background:#3a1515; }
+
+.sidebar { position:sticky; top:20px; }
+.res-row { display:flex; justify-content:space-between; padding:9px 0;
+  border-bottom:1px solid var(--border); font-size:13px; }
+.res-row:last-of-type { border-bottom:none; }
+.res-label { color:var(--text-muted); }
+.res-val { font-weight:bold; color:var(--text); }
+.res-total { display:flex; justify-content:space-between; align-items:center;
+  padding-top:14px; margin-top:6px; border-top:2px solid var(--border); }
+.res-total-label { font-size:14px; font-weight:bold; color:var(--accent); }
+.res-total-val { font-size:26px; font-weight:bold; color:var(--accent); }
+
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal-box { background:var(--card-bg); border:1px solid var(--border); border-radius:16px;
+  padding:28px; width:100%; max-width:380px; position:relative;
+  box-shadow:0 24px 64px rgba(0,0,0,0.6); animation:modal-in 0.25s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes modal-in { from{opacity:0;transform:translateY(16px) scale(0.97);}to{opacity:1;transform:none;} }
+.modal-titulo { font-size:18px; font-weight:bold; color:var(--accent); margin-bottom:4px; }
+.modal-total-pill { display:inline-flex; align-items:center; gap:6px; background:var(--accent-dim);
+  border:1px solid var(--border); border-radius:20px; padding:5px 14px; font-size:13px;
+  color:var(--accent); font-weight:bold; margin:10px 0 20px; }
+.formas { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+.forma-btn { border:1px solid var(--border); border-radius:10px; padding:13px 16px;
+  background:#242424; cursor:pointer; display:flex; align-items:center; gap:12px;
+  transition:border-color 0.15s,background 0.15s; }
+.forma-btn:hover, .forma-btn.sel { background:var(--accent-dim); border-color:var(--accent); }
+.forma-icon { font-size:22px; width:36px; text-align:center; }
+.forma-nome { font-size:14px; font-weight:bold; color:var(--accent); }
+.forma-sub  { font-size:11px; color:var(--text-muted); }
+.btn-confirmar { width:100%; padding:13px; background:var(--btn-bg); color:var(--accent); border:none;
+  border-radius:10px; font-size:15px; font-weight:bold; cursor:pointer; transition:background 0.15s; }
+.btn-confirmar:hover { background:var(--accent-hover); }
+.modal-close { position:absolute; top:14px; right:14px; background:#2a2a2a; border:none;
+  border-radius:8px; width:30px; height:30px; cursor:pointer; font-size:16px;
+  color:var(--text-muted); display:flex; align-items:center; justify-content:center; }
+.modal-close:hover { background:var(--accent-dim); color:var(--accent); }
+</style>
+
+<!-- MODAL FECHAR COMANDA -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal-box">
+    <button class="modal-close" onclick="fecharModal()">✕</button>
+    <div class="modal-titulo">Fechar Comanda</div>
+    <div class="modal-total-pill">Total: <strong id="modal-total">R$ 0,00</strong></div>
+
+    <form method="post" action="/comandas/{{ comanda.cid }}/fechar" id="form-fechar">
+      <input type="hidden" name="forma_pagamento" id="h-forma" value="dinheiro">
+
+      <div class="formas">
+        <div class="forma-btn sel" id="fb-dinheiro" onclick="selecionarForma('dinheiro')">
+          <span class="forma-icon">💵</span>
+          <div><div class="forma-nome">Dinheiro</div><div class="forma-sub">Pagamento em espécie</div></div>
+        </div>
+        <div class="forma-btn" id="fb-pix" onclick="selecionarForma('pix')">
+          <span class="forma-icon">📱</span>
+          <div><div class="forma-nome">Pix</div><div class="forma-sub">Transferência instantânea</div></div>
+        </div>
+        <div class="forma-btn" id="fb-cartao" onclick="selecionarForma('cartao')">
+          <span class="forma-icon">💳</span>
+          <div><div class="forma-nome">Cartão</div><div class="forma-sub">Débito ou crédito</div></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-confirmar">Confirmar e Fechar →</button>
+    </form>
+  </div>
+</div>
+
+<div class="page">
+  <h2>{{ comanda.nome }}</h2>
+  <div class="sub">
+    Aberta em {{ comanda.data_abertura|br_date }} às {{ comanda.hora_abertura }}
+    &nbsp;·&nbsp;
+    <a href="/comandas" style="color:var(--accent);">← Voltar às comandas</a>
+  </div>
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+
+  <div class="layout">
+    <div>
+      <!-- Adicionar item -->
+      {% if comanda.status == "aberta" %}
+      <div class="card">
+        <div class="card-title">Adicionar item</div>
+        <form method="post" action="/comandas/{{ comanda.cid }}/adicionar">
+          <div class="add-row">
+            <div class="field">
+              <label>Produto</label>
+              <select name="produto_pid" id="sel-produto">
+                <option value="">Selecione...</option>
+                {% for p in estoque %}
+                  <option value="{{ p.pid }}" data-preco="{{ '%.2f'|format(p.valor_venda|float) }}">
+                    {{ p.nome }} — R$ {{ '%.2f'|format(p.valor_venda|float) }}
+                    ({{ p.quantidade }} em estoque)
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Qtd</label>
+              <input type="number" name="quantidade" id="inp-qtd" value="1" min="1">
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button type="submit" class="btn">Adicionar</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Itens consumidos -->
+      <div class="card">
+        <div class="card-title">Itens consumidos</div>
+        {% if comanda.itens %}
+          <table>
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Produto</th>
+                <th>Qtd</th>
+                <th>Preço Unit.</th>
+                <th>Subtotal</th>
+                {% if comanda.status == "aberta" %}<th></th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in comanda.itens %}
+              <tr>
+                <td>{{ item.hora }}</td>
+                <td>{{ item.nome }}</td>
+                <td>{{ item.quantidade }}</td>
+                <td>R$ {{ "%.2f"|format(item.valor_venda) }}</td>
+                <td>R$ {{ "%.2f"|format(item.valor_venda * item.quantidade) }}</td>
+                {% if comanda.status == "aberta" %}
+                <td>
+                  <form method="post" action="/comandas/{{ comanda.cid }}/remover/{{ item.item_id }}"
+                        onsubmit="return confirm('Remover {{ item.nome }} da comanda? O estoque será reposto.')">
+                    <button type="submit" class="btn-rem">Remover</button>
+                  </form>
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="vazio-itens">Nenhum item adicionado ainda.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Sidebar resumo -->
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">Resumo</div>
+        <div class="res-row">
+          <span class="res-label">Itens</span>
+          <span class="res-val">{{ comanda.itens|length }}</span>
+        </div>
+        <div class="res-row">
+          <span class="res-label">Qtd total</span>
+          <span class="res-val">
+            {{ comanda.itens | sum(attribute='quantidade') }}
+          </span>
+        </div>
+        <div class="res-total">
+          <span class="res-total-label">Total</span>
+          <span class="res-total-val">R$ {{ "%.2f"|format(total) }}</span>
+        </div>
+
+        {% if comanda.status == "aberta" %}
+          {% if comanda.itens %}
+            <button class="btn" style="width:100%;margin-top:16px;padding:12px;font-size:15px;"
+                    onclick="abrirModal()">
+              Fechar Comanda →
+            </button>
+          {% else %}
+            <button class="btn" style="width:100%;margin-top:16px;padding:12px;font-size:15px;opacity:0.5;cursor:not-allowed;" disabled>
+              Fechar Comanda →
+            </button>
+          {% endif %}
+        {% else %}
+          <div style="margin-top:16px;text-align:center;color:#16a34a;font-weight:bold;font-size:13px;">
+            ✓ Comanda fechada em {{ comanda.data_fechamento|br_date }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const totalComanda = {{ total }};
+
+function abrirModal(){
+  document.getElementById("modal-total").textContent =
+    "R$ " + totalComanda.toFixed(2).replace(".", ",");
+  document.getElementById("modal-bg").classList.add("open");
+}
+
+function fecharModal(){
+  document.getElementById("modal-bg").classList.remove("open");
+}
+
+function selecionarForma(forma){
+  ["dinheiro","pix","cartao"].forEach(f => {
+    document.getElementById("fb-"+f).classList.toggle("sel", f === forma);
+  });
+  document.getElementById("h-forma").value = forma;
+}
+
+document.getElementById("modal-bg").addEventListener("click", function(e){
+  if(e.target === this) fecharModal();
+});
+</script>
+
+{% endblock %}

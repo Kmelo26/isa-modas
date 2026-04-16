@@ -2,26 +2,27 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Permissões - Isa Modas</title>
+<title>Permissões - Isa Bar</title>
 <style>
-body { font-family: Arial; background:#fff0f5; margin:0; }
-.header { display:flex; justify-content:space-between; align-items:center; padding:15px 30px; background:#ff69b4; color:white; }
-.logo { font-size:1.5em; font-weight:bold; }
-.btn { background:white; color:#ff69b4; border:none; padding:8px 16px; border-radius:20px; cursor:pointer; font-weight:bold; }
+body { font-family: Arial; background:#141414; color:#b8b8b8; margin:0; }
+.header { display:flex; justify-content:space-between; align-items:center; padding:15px 30px; background:#0e0e0e; border-bottom:1px solid #303030; }
+.logo { font-size:1.5em; font-weight:bold; color:#e0e0e0; }
+.btn { background:#282828; color:#e0e0e0; border:1px solid #383838; padding:8px 16px; border-radius:20px; cursor:pointer; font-weight:bold; }
+.btn:hover { background:#363636; }
 .container { max-width:1100px; margin:20px auto; padding:20px; }
-h2 { text-align:center; color:#ff1493; }
-.card { background:white; padding:15px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.08); }
+h2 { text-align:center; color:#e0e0e0; }
+.card { background:#1c1c1c; padding:15px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.5); border:1px solid #303030; }
 .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; margin-top:15px; }
-.userbox { background:white; padding:12px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.06); }
-.small { color:#666; font-size:0.95em; margin-top:6px; }
-label { display:flex; gap:10px; align-items:center; padding:6px 0; }
-select { width:100%; padding:10px; border-radius:8px; border:1px solid #ffb6c1; }
+.userbox { background:#1c1c1c; padding:12px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.4); border:1px solid #303030; }
+.small { color:#646464; font-size:0.95em; margin-top:6px; }
+label { display:flex; gap:10px; align-items:center; padding:6px 0; color:#b8b8b8; }
+select { width:100%; padding:10px; border-radius:8px; border:1px solid #303030; background:#181818; color:#b8b8b8; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="logo">Isa Modas</div>
+  <div class="logo">Isa Bar</div>
   <div>
     <a href="{{ url_for('vendas') }}"><button class="btn">Vendas</button></a>
     <a href="{{ url_for('logout') }}"><button class="btn">Sair</button></a>
@@ -29,7 +30,7 @@ select { width:100%; padding:10px; border-radius:8px; border:1px solid #ffb6c1; 
 </div>
 
 <div class="container">
-  <h2>Gerenciar Permissões</h2>
+  <h2>GERENCIAR PERMISSÕES</h2>
 
   <div class="card">
     <form method="post">
