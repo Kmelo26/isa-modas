@@ -54,8 +54,8 @@ def get_all_products() -> list:
 
 
 def get_product(pid: str) -> dict | None:
-    r = _sb().table("products").select("*").eq("pid", pid).maybe_single().execute()
-    return _fix_product(r.data) if r.data else None
+    rows = _sb().table("products").select("*").eq("pid", pid).limit(1).execute().data or []
+    return _fix_product(rows[0]) if rows else None
 
 
 def insert_product(product: dict):
@@ -187,3 +187,152 @@ def get_cash_register_by_dia(dia: str) -> dict | None:
 
 def insert_cash_register(registro: dict):
     _sb().table("cash_registers").insert(registro).execute()
+
+
+# ==================== BAR: PRODUCTS ====================
+
+def bar_get_all_products() -> list:
+    return _sb().table("bar_products").select("*").eq("active", True).order("name").execute().data or []
+
+
+def bar_get_product(pid: str) -> dict | None:
+    rows = _sb().table("bar_products").select("*").eq("id", pid).limit(1).execute().data or []
+    return rows[0] if rows else None
+
+
+def bar_insert_product(p: dict) -> str:
+    r = _sb().table("bar_products").insert(p).execute()
+    return r.data[0]["id"] if r.data else ""
+
+
+def bar_get_simple_products() -> list:
+    return _sb().table("bar_products").select("*").eq("active", True).eq("type", "simple").order("name").execute().data or []
+
+
+def bar_update_product(pid: str, data: dict):
+    _sb().table("bar_products").update(data).eq("id", pid).execute()
+
+
+def bar_delete_product(pid: str):
+    _sb().table("bar_products").update({"active": False}).eq("id", pid).execute()
+
+
+# ==================== BAR: STOCK BATCHES ====================
+
+def bar_get_batches(product_id: str) -> list:
+    return (
+        _sb().table("bar_stock_batches").select("*")
+        .eq("product_id", product_id)
+        .order("created_at")
+        .execute().data or []
+    )
+
+
+def bar_get_available_batches(product_id: str) -> list:
+    rows = (
+        _sb().table("bar_stock_batches").select("*")
+        .eq("product_id", product_id)
+        .gt("quantity_remaining", 0)
+        .order("created_at")
+        .execute().data or []
+    )
+    return rows
+
+
+def bar_insert_batch(batch: dict):
+    _sb().table("bar_stock_batches").insert(batch).execute()
+
+
+def bar_update_batch_remaining(batch_id: str, remaining: float):
+    _sb().table("bar_stock_batches").update({"quantity_remaining": remaining}).eq("id", batch_id).execute()
+
+
+def bar_get_stock_summary() -> dict:
+    batches = _sb().table("bar_stock_batches").select("product_id, quantity_remaining").gt("quantity_remaining", 0).execute().data or []
+    totals: dict = {}
+    for b in batches:
+        pid = b["product_id"]
+        totals[pid] = totals.get(pid, 0) + float(b["quantity_remaining"])
+    return totals
+
+
+# ==================== BAR: PRODUCT COMPONENTS ====================
+
+def bar_get_components(product_id: str) -> list:
+    rows = (
+        _sb().table("bar_product_components")
+        .select("*")
+        .eq("product_id", product_id)
+        .execute().data or []
+    )
+    result = []
+    for row in rows:
+        cid = row.get("component_id", "")
+        # component_id é UUID (com hífens), mas products.pid é TEXT hex sem hífens
+        prod = get_product(cid.replace("-", ""))
+        if prod is None:
+            continue
+        row["component"] = {"id": prod["pid"], "name": prod["nome"], "unit": prod.get("unit", "")}
+        result.append(row)
+    return result
+
+
+def bar_insert_component(comp: dict):
+    _sb().table("bar_product_components").insert(comp).execute()
+
+
+def bar_delete_component(comp_id: str):
+    _sb().table("bar_product_components").delete().eq("id", comp_id).execute()
+
+
+def bar_delete_all_components(product_id: str):
+    _sb().table("bar_product_components").delete().eq("product_id", product_id).execute()
+
+
+def bar_get_packages_using_product(product_pid: str) -> list:
+    """Returns all bar composite products that use product_pid as a component."""
+    h = product_pid.replace("-", "")
+    uuid_cid = f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}" if len(h) == 32 else product_pid
+    rows = (
+        _sb().table("bar_product_components")
+        .select("*")
+        .eq("component_id", uuid_cid)
+        .execute().data or []
+    )
+    result = []
+    for row in rows:
+        bar_prod = bar_get_product(row.get("product_id", ""))
+        if bar_prod:
+            row["pacote_nome"] = bar_prod.get("name", "")
+            row["pacote_id"]   = bar_prod.get("id", "")
+            result.append(row)
+    return result
+
+
+# ==================== BAR: SALES ====================
+
+def bar_insert_sale(sale: dict) -> dict:
+    r = _sb().table("bar_sales").insert(sale).select("*").execute()
+    return r.data[0] if r.data else {}
+
+
+def bar_insert_sale_items(items: list):
+    if items:
+        _sb().table("bar_sale_items").insert(items).execute()
+
+
+def bar_get_all_sales() -> list:
+    return (
+        _sb().table("bar_sales").select("*")
+        .order("created_at", desc=True)
+        .execute().data or []
+    )
+
+
+def bar_get_sale_items(sale_id: str) -> list:
+    return (
+        _sb().table("bar_sale_items")
+        .select("*, product:product_id(name, unit)")
+        .eq("sale_id", sale_id)
+        .execute().data or []
+    )

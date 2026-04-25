@@ -2,47 +2,86 @@
 {% block conteudo %}
 
 <style>
-select, input { padding:8px; border-radius:6px; border:1px solid var(--border);
-  background:var(--input-bg); color:var(--text); }
-.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:8px 12px;
-  border-radius:6px; cursor:pointer; font-weight:bold; }
-.btn:hover { background:var(--accent-hover); }
-th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
-th { background:#2a2a2a; color:var(--accent); }
-tr:nth-child(even) { background:var(--table-even); }
-.alerta { background:#2a0f0f; border:1px solid #5a1f1f; padding:10px;
-  border-radius:8px; margin:10px 0; color:#f87171; }
-.btn-x { background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
-  padding:4px 10px; border-radius:6px; cursor:pointer; }
+/* ── BASE ── */
+.pv-page { max-width:1200px; margin:24px auto; padding:0 20px; }
+.pv-page h2 { text-align:center; color:var(--accent); margin-bottom:4px; }
+.pv-subtitle { text-align:center; color:var(--text-muted); font-size:13px; margin-bottom:24px; }
+.pv-grid { display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
 
-.pv-page { max-width:1100px; margin:24px auto; padding:0 20px; }
-.pv-page h2 { text-align:center; color:var(--accent); margin-bottom:20px; }
-.pv-grid { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
-
-.pv-card { background:var(--card-bg); border-radius:10px; padding:18px 20px;
+/* ── CARDS ── */
+.pv-card { background:var(--card-bg); border-radius:12px; padding:20px 22px;
   box-shadow:var(--shadow); margin-bottom:16px; border:1px solid var(--border); }
 .pv-card:last-child { margin-bottom:0; }
 .pv-card-title { font-size:11px; font-weight:bold; color:var(--accent); text-transform:uppercase;
-  letter-spacing:1.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border);
+  letter-spacing:1.5px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border);
   display:flex; align-items:center; gap:8px; }
-.pv-card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+.pv-card-title svg { opacity:0.7; }
 
-.pv-row-add { display:grid; grid-template-columns:1fr 110px auto; gap:10px; align-items:end; }
+/* ── CAMPOS ── */
 .pv-field { display:flex; flex-direction:column; gap:5px; }
 .pv-field label { font-size:12px; font-weight:bold; color:var(--accent); }
-.pv-field input, .pv-field select { width:100%; }
+.pv-field input, .pv-field select {
+  padding:9px 11px; border-radius:8px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); font-size:14px; }
+.pv-field input:focus, .pv-field select:focus {
+  outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,66,110,0.12); }
 
-.pv-tabela-wrap { margin-top:16px; border-radius:8px; overflow:hidden; border:1px solid var(--border); }
-.pv-tabela-wrap table { width:100%; border-collapse:collapse; background:var(--card-bg); margin:0; }
-.pv-tabela-wrap th { background:#2a2a2a; color:var(--accent); padding:8px; text-align:center; font-size:12px; }
-.pv-tabela-wrap td { border:1px solid var(--border); padding:8px; text-align:center; font-size:13px; }
-.pv-tabela-wrap tr:nth-child(even) { background:var(--table-even); }
+/* ── ROW ADICIONAR ── */
+.pv-row-add { display:grid; grid-template-columns:1fr 120px 160px auto; gap:10px; align-items:end; }
 
-.pv-vazio { text-align:center; padding:24px; color:var(--text-muted); font-size:13px;
-  border:2px dashed var(--border); border-radius:8px; margin-top:12px; }
+/* ── BUSCA PRODUTO ── */
+.search-wrap { position:relative; }
+.search-wrap input { width:100%; }
+#sugestoes-produto {
+  display:none; position:absolute; top:100%; left:0; right:0; z-index:999;
+  margin:3px 0 0; padding:0; list-style:none;
+  background:var(--card-bg); border:1px solid var(--accent);
+  border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.45);
+  max-height:240px; overflow-y:auto;
+}
+#sugestoes-produto li {
+  padding:9px 13px; cursor:pointer; color:var(--text); font-size:13px;
+  border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;
+}
+#sugestoes-produto li:last-child { border-bottom:none; }
+#sugestoes-produto li:hover { background:var(--accent-dim); color:var(--accent); }
+#sugestoes-produto .sug-badge { font-size:10px; padding:1px 6px; border-radius:4px; font-weight:bold; flex-shrink:0; }
+#sugestoes-produto .sug-badge.estoque { background:#1a1a2e; color:#818cf8; border:1px solid #312e81; }
+#sugestoes-produto .sug-badge.bar     { background:#1a2e1a; color:#4ade80; border:1px solid #14532d; }
+#sugestoes-produto .sug-nome  { flex:1; }
+#sugestoes-produto .sug-preco { color:var(--accent); font-weight:bold; font-size:12px; flex-shrink:0; }
 
-.pv-sidebar { background:var(--card-bg); border-radius:10px; padding:18px 20px;
-  box-shadow:var(--shadow); border:1px solid var(--border); position:sticky; top:20px; }
+/* ── TABELA ── */
+.pv-tabela-wrap { margin-top:16px; border-radius:10px; overflow:hidden; border:1px solid var(--border); }
+.pv-tabela-wrap table { width:100%; border-collapse:collapse; background:var(--card-bg); }
+.pv-tabela-wrap th { background:#2a2a2a; color:var(--accent); padding:9px 10px;
+  text-align:center; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; }
+.pv-tabela-wrap td { border-top:1px solid var(--border); padding:9px 10px; text-align:center; font-size:13px; color:var(--text); }
+.pv-tabela-wrap tr:nth-child(even) td { background:var(--table-even); }
+.prod-icon { width:36px; height:36px; border-radius:8px; background:#2a2a2a;
+  border:1px solid var(--border); display:flex; align-items:center; justify-content:center; margin:0 auto; font-size:16px; }
+.tipo-badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:4px; font-weight:bold; }
+.tipo-badge.estoque { background:#1a1a2e; color:#818cf8; border:1px solid #312e81; }
+.tipo-badge.bar     { background:#1a2e1a; color:#4ade80; border:1px solid #14532d; }
+.btn-del { background:none; border:1px solid #7f1d1d; border-radius:7px; padding:5px 8px;
+  cursor:pointer; color:#f87171; display:inline-flex; align-items:center; transition:background 0.15s; }
+.btn-del:hover { background:#2a0f0f; }
+
+.pv-vazio { text-align:center; padding:28px; color:var(--text-muted); font-size:13px;
+  border:2px dashed var(--border); border-radius:10px; margin-top:14px; }
+
+/* ── OBSERVAÇÃO ── */
+.obs-toggle { display:flex; align-items:center; gap:6px; color:var(--text-muted); font-size:13px;
+  background:none; border:1px dashed var(--border); border-radius:8px; padding:10px 14px;
+  cursor:pointer; width:100%; margin-top:14px; transition:color 0.15s, border-color 0.15s; }
+.obs-toggle:hover { color:var(--accent); border-color:var(--accent); }
+.obs-area { display:none; margin-top:8px; }
+.obs-area.aberta { display:block; }
+.obs-area textarea { width:100%; padding:10px; border-radius:8px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); font-size:13px; resize:vertical; min-height:72px; }
+
+/* ── SIDEBAR ── */
+.pv-sidebar-wrap { position:sticky; top:20px; }
 .pv-res-row { display:flex; justify-content:space-between; align-items:center;
   padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
 .pv-res-row:last-of-type { border-bottom:none; }
@@ -53,168 +92,289 @@ tr:nth-child(even) { background:var(--table-even); }
 .pv-res-total-label { font-size:14px; font-weight:bold; color:var(--accent); }
 .pv-res-total-val   { font-size:26px; font-weight:bold; color:var(--accent); }
 
-.btn-finalizar { width:100%; padding:12px; background:var(--btn-bg); color:var(--accent); border:none;
-  border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; margin-top:16px; transition:background 0.15s; }
-.btn-finalizar:hover { background:var(--accent-hover); }
+.btn-desconto { background:none; border:1px solid var(--border); border-radius:7px;
+  padding:5px 12px; font-size:12px; color:var(--text-muted); cursor:pointer; transition:all 0.15s; }
+.btn-desconto:hover, .btn-desconto.ativo { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+.desc-inline { display:none; margin-top:8px; gap:6px; align-items:center; width:100%; }
+.desc-inline.show { display:flex; }
+.desc-inline input  { flex:1; min-width:0; padding:7px 9px; border-radius:7px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); font-size:13px;
+  appearance:textfield; }
+.desc-inline input::-webkit-outer-spin-button,
+.desc-inline input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.desc-inline select { width:70px; flex-shrink:0; padding:7px 6px; border-radius:7px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); font-size:13px; cursor:pointer; }
 
-/* ── MODAL ── */
-.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
-  backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; }
-.modal-bg.open { display:flex; }
-.modal-pg { background:var(--card-bg); border:1px solid var(--border); border-radius:20px;
-  width:100%; max-width:400px; padding:28px; position:relative;
-  box-shadow:0 24px 64px rgba(0,0,0,0.6); animation:modal-in 0.3s cubic-bezier(0.22,1,0.36,1) both; }
-@keyframes modal-in { from{opacity:0;transform:translateY(20px) scale(0.97);}to{opacity:1;transform:none;} }
-.modal-close { position:absolute;top:14px;right:14px;background:#2a2a2a;border:none;border-radius:8px;
-  width:30px;height:30px;cursor:pointer;font-size:16px;color:var(--text-muted);display:flex;
-  align-items:center;justify-content:center;transition:background 0.15s,color 0.15s; }
-.modal-close:hover { background:var(--accent-dim);color:var(--accent); }
-.modal-titulo { font-size:18px;font-weight:bold;color:var(--accent);margin-bottom:4px; }
-.modal-total-pill { display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);
-  border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:13px;
-  color:var(--accent);font-weight:bold;margin:10px 0 20px; }
+.btn-finalizar { width:100%; padding:14px; background:#16a34a; color:#fff; border:none;
+  border-radius:10px; font-size:15px; font-weight:bold; cursor:pointer; margin-top:16px;
+  transition:background 0.15s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-finalizar:hover { background:#15803d; }
+.finalizar-hint { font-size:11px; color:var(--text-muted); text-align:center; margin-top:8px;
+  display:flex; align-items:center; justify-content:center; gap:5px; }
 
-.tela { display:none; }
-.tela.ativa { display:block; animation:slide-in 0.2s ease; }
-@keyframes slide-in { from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;} }
+/* ── LIMPAR ── */
+.btn-limpar { background:var(--card-bg); color:var(--text-muted); border:1px solid var(--border);
+  border-radius:8px; padding:9px 16px; cursor:pointer; font-size:13px; margin-top:12px;
+  display:flex; align-items:center; gap:6px; transition:color 0.15s, border-color 0.15s; }
+.btn-limpar:hover { color:#f87171; border-color:#7f1d1d; }
 
-.formas-lista { display:flex; flex-direction:column; gap:10px; }
-.forma-btn { border:1px solid var(--border);border-radius:10px;padding:14px 18px;
-  background:#242424;cursor:pointer;display:flex;align-items:center;gap:14px;
-  transition:border-color 0.15s,background 0.15s; }
-.forma-btn:hover { background:var(--accent-dim);border-color:var(--accent); }
-.forma-btn-icon { font-size:24px;width:40px;text-align:center; }
-.forma-btn-nome { font-size:15px;font-weight:bold;color:var(--accent); }
-.forma-btn-sub  { font-size:11px;color:var(--text-muted); }
+.alerta { background:#2a0f0f; border:1px solid #5a1f1f; padding:10px;
+  border-radius:8px; margin:0 0 16px; color:#f87171; }
 
-.falta-box { background:#2a0f0f;border:1px solid #5a1f1f;border-radius:8px;padding:10px 14px;
-  font-size:13px;color:#f87171;font-weight:bold;text-align:center;margin-bottom:16px; }
+@media (max-width:900px){
+  .pv-grid { grid-template-columns:1fr; }
+  .pv-row-add { grid-template-columns:1fr 100px; }
+  .pv-row-add .pv-field:nth-child(3) { grid-column:1; }
+  .pv-row-add .pv-field:nth-child(4) { grid-column:2; }
+}
 
-.btn-voltar-tela { background:none;border:none;color:var(--text-muted);font-size:13px;cursor:pointer;
-  padding:0 0 14px;display:flex;align-items:center;gap:4px;transition:color 0.15s; }
-.btn-voltar-tela:hover { color:var(--accent); }
+/* ══════════════════════════════════════════════
+   MODAL FINALIZAR VENDA
+══════════════════════════════════════════════ */
+.fv-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.78);
+  backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; padding:20px; }
+.fv-overlay.open { display:flex; }
 
-.valor-titulo { font-size:14px;color:var(--text-muted);margin-bottom:16px; }
-.valor-titulo strong { color:var(--accent); }
+.fv-modal { background:#1c1c1c; border:1px solid #2e2e2e; border-radius:16px;
+  width:100%; max-width:440px; max-height:92vh; overflow-y:auto;
+  box-shadow:0 24px 64px rgba(0,0,0,0.8);
+  animation:fv-in 0.25s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes fv-in { from{opacity:0;transform:translateY(18px) scale(0.97);}to{opacity:1;transform:none;} }
 
-.pagamentos-lista { margin-bottom:12px; }
-.pagamento-item { display:flex;justify-content:space-between;align-items:center;
-  padding:7px 0;border-bottom:1px solid var(--border);font-size:13px; }
-.pagamento-item:last-child { border-bottom:none; }
-.pagamento-forma { display:flex;align-items:center;gap:6px;color:var(--accent);font-weight:bold; }
-.pagamento-valor { font-weight:bold;color:var(--text); }
+.fv-header { display:flex; justify-content:space-between; align-items:center;
+  padding:18px 20px 14px; border-bottom:1px solid #2e2e2e; }
+.fv-header-title { font-size:14px; font-weight:bold; color:#e5e5e5; letter-spacing:0.8px; }
+.fv-close { background:#2a2a2a; border:none; border-radius:8px; width:30px; height:30px;
+  cursor:pointer; color:#777; font-size:15px; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+.fv-close:hover { background:#333; color:#e5e5e5; }
 
-.valor-box { display:flex;align-items:center;gap:8px;border:2px solid var(--border);border-radius:12px;
-  padding:14px 18px;background:var(--input-bg);margin-bottom:16px;transition:border-color 0.2s,box-shadow 0.2s; }
-.valor-box:focus-within { border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,66,110,0.15); }
-.valor-prefix { font-size:20px;font-weight:bold;color:var(--accent); }
-.valor-input { flex:1;border:none;background:transparent;outline:none;font-size:28px;
-  font-weight:bold;color:var(--accent);width:100%; }
-.valor-input::placeholder { color:var(--border); }
+.fv-body { padding:20px; }
 
-.resultado-box { border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;
-  align-items:center;margin-bottom:16px;font-size:13px; }
-.resultado-box.troco { background:#0d2e1a;border:1px solid #1a5c30;color:#4ade80; }
-.resultado-box.falta { background:#2a0f0f;border:1px solid #5a1f1f;color:#f87171; }
-.resultado-box.ok    { background:#0d2e1a;border:1px solid #1a5c30;color:#4ade80; }
-.resultado-box.vazio { background:#242424;border:1px solid var(--border);color:var(--text-muted); }
-.resultado-label { font-weight:bold;font-size:11px;letter-spacing:1px;text-transform:uppercase; }
-.resultado-val   { font-size:17px;font-weight:bold; }
+.fv-total-label { font-size:10px; font-weight:bold; color:#666; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:4px; }
+.fv-total-val   { font-size:34px; font-weight:bold; color:#4ade80; margin-bottom:22px; line-height:1; }
 
-.segunda-forma-wrap { display:none;background:var(--accent-dim);border:1px solid var(--border);
-  border-radius:10px;padding:12px 16px;margin-bottom:16px; }
-.segunda-forma-wrap.visivel { display:block; }
-.segunda-forma-label { font-size:11px;font-weight:bold;color:var(--accent);text-transform:uppercase;
-  letter-spacing:1px;margin-bottom:10px; }
-.segunda-formas { display:flex;gap:8px; }
-.segunda-forma-btn { flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 8px;
-  background:#242424;cursor:pointer;text-align:center;transition:border-color 0.15s,background 0.15s;
-  display:flex;flex-direction:column;align-items:center;gap:4px; }
-.segunda-forma-btn:hover { background:var(--accent-dim);border-color:var(--accent); }
-.segunda-forma-btn-icon  { font-size:18px; }
-.segunda-forma-btn-label { font-size:11px;font-weight:bold;color:var(--accent); }
+.fv-sec-title { font-size:11px; font-weight:bold; color:#777; text-transform:uppercase;
+  letter-spacing:0.5px; margin-bottom:12px; }
 
-.btn-confirmar { width:100%;padding:13px;background:var(--btn-bg);color:var(--accent);border:none;
-  border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;transition:background 0.15s,transform 0.1s; }
-.btn-confirmar:hover:not(:disabled) { background:var(--accent-hover);transform:translateY(-1px); }
-.btn-confirmar:disabled { opacity:0.4;cursor:not-allowed;transform:none; }
+/* Formas 1 */
+.fv-formas { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.fv-forma-btn { background:#242424; border:1px solid #333; border-radius:10px; padding:14px 8px;
+  cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
+  transition:all 0.15s; color:#666; }
+.fv-forma-btn:hover { border-color:#555; color:#aaa; }
+.fv-forma-btn.ativo { background:#052e16; border-color:#16a34a; color:#4ade80; }
+.fv-forma-btn-icon  { font-size:22px; line-height:1; }
+.fv-forma-btn-label { font-size:10px; font-weight:bold; letter-spacing:0.8px; }
+
+/* Valor + Troco */
+.fv-valor-row { display:grid; grid-template-columns:1fr 120px; gap:14px; align-items:end; margin-bottom:12px; }
+.fv-vlabel { font-size:10px; font-weight:bold; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.fv-vinput { padding:11px 13px; border-radius:8px; border:1px solid #333; background:#242424;
+  color:#e5e5e5; font-size:20px; font-weight:bold; width:100%; box-sizing:border-box; }
+.fv-vinput:focus { outline:none; border-color:#4ade80; }
+.fv-troco-val { font-size:20px; font-weight:bold; color:#555; padding:10px 0; }
+.fv-troco-val.ok  { color:#4ade80; }
+.fv-troco-val.neg { color:#f87171; }
+
+/* Aviso falta */
+.fv-aviso { background:#2d1e00; border:1px solid #854d0e; border-radius:8px;
+  padding:10px 14px; font-size:13px; color:#fbbf24;
+  display:none; align-items:center; gap:8px; margin-bottom:14px; }
+.fv-aviso.show { display:flex; }
+
+/* Seção 2 */
+.fv-sec2 { border-top:1px solid #2e2e2e; padding-top:16px; margin-top:4px; display:none; }
+.fv-sec2.show { display:block; }
+.fv-falta-label { font-size:13px; font-weight:bold; color:#f87171; margin-bottom:14px; }
+
+.fv-formas2 { display:flex; gap:8px; margin-bottom:14px; }
+.fv-forma2-btn { flex:1; background:#242424; border:1px solid #333; border-radius:10px;
+  padding:11px 8px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  gap:7px; transition:all 0.15s; color:#777; font-size:13px; font-weight:bold; }
+.fv-forma2-btn:hover { border-color:#555; color:#aaa; }
+.fv-forma2-btn.ativo { background:#052e16; border-color:#16a34a; color:#4ade80; }
+
+/* Resumo */
+.fv-resumo { background:#242424; border-radius:10px; padding:14px 16px; margin-top:16px; display:none; }
+.fv-resumo.show { display:block; }
+.fv-resumo-titulo { font-size:10px; font-weight:bold; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+.fv-resumo-row { display:flex; justify-content:space-between; font-size:13px; color:#aaa; padding:4px 0; }
+.fv-resumo-sep { border-top:1px solid #333; margin:8px 0; }
+.fv-resumo-total-row { display:flex; justify-content:space-between; align-items:center; font-weight:bold; }
+.fv-resumo-total-label { font-size:11px; color:#777; text-transform:uppercase; letter-spacing:0.5px; }
+.fv-resumo-total-val   { font-size:16px; color:#4ade80; }
+
+/* Footer */
+.fv-footer { display:flex; gap:10px; padding:16px 20px; border-top:1px solid #2e2e2e; }
+.fv-btn-cancelar { flex:1; background:transparent; border:1px solid #333; color:#888; border-radius:10px;
+  padding:13px; font-size:14px; cursor:pointer; transition:all 0.15s; }
+.fv-btn-cancelar:hover { border-color:#555; color:#ccc; }
+.fv-btn-confirmar { flex:2; background:#16a34a; color:#fff; border:none; border-radius:10px;
+  padding:13px; font-size:14px; font-weight:bold; cursor:pointer; transition:background 0.15s;
+  display:flex; align-items:center; justify-content:center; gap:7px; }
+.fv-btn-confirmar:hover:not(:disabled) { background:#15803d; }
+.fv-btn-confirmar:disabled { opacity:0.35; cursor:not-allowed; }
+
+/* ── MODAL VER ITENS PACOTE ── */
+.pi-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.78);
+  backdrop-filter:blur(4px); z-index:1001; align-items:center; justify-content:center; padding:20px; }
+.pi-overlay.open { display:flex; }
+.pi-modal { background:#1c1c1c; border:1px solid #2e2e2e; border-radius:14px;
+  width:100%; max-width:360px; box-shadow:0 24px 64px rgba(0,0,0,.8);
+  animation:fv-in 0.2s ease both; }
+.pi-header { display:flex; justify-content:space-between; align-items:center;
+  padding:15px 18px 12px; border-bottom:1px solid #2e2e2e; }
+.pi-title { font-size:13px; font-weight:bold; color:#e5e5e5; letter-spacing:.5px; }
+.pi-body { padding:4px 18px 16px; }
+.pi-item { display:flex; justify-content:space-between; align-items:center;
+  padding:11px 0; border-bottom:1px solid #2e2e2e; }
+.pi-item:last-child { border-bottom:none; }
+.pi-item-nome { font-size:13px; color:#ccc; }
+.pi-item-qty  { font-size:13px; font-weight:700; color:#4ade80; }
+
+.btn-ver-itens { margin-left:7px; padding:2px 8px; background:none;
+  border:1px solid #22c55e55; border-radius:5px; color:#22c55e;
+  font-size:11px; font-weight:600; cursor:pointer; vertical-align:middle; }
+.btn-ver-itens:hover { background:#0a1f12; }
 </style>
 
-<!-- ═══ MODAL ═══ -->
-<div class="modal-bg" id="modal-bg">
-  <div class="modal-pg">
-    <button class="modal-close" onclick="fecharModal()">✕</button>
+<!-- ═══ MODAL FINALIZAR VENDA ═══ -->
+<div class="fv-overlay" id="fv-overlay">
+  <div class="fv-modal">
+    <div class="fv-header">
+      <span class="fv-header-title">FINALIZAR VENDA</span>
+      <button class="fv-close" onclick="fecharModal()">✕</button>
+    </div>
 
-    <div class="modal-titulo">Pagamento</div>
-    <div class="modal-total-pill">Total: <strong id="txt-total">R$ 0,00</strong></div>
+    <div class="fv-body">
+      <div class="fv-total-label">TOTAL DA VENDA</div>
+      <div class="fv-total-val" id="fv-total">R$ 0,00</div>
 
-    <!-- TELA 1: SELECIONAR FORMA -->
-    <div class="tela ativa" id="tela-1">
-      <div class="falta-box" id="falta-box" style="display:none">
-        Falta pagar: <span id="txt-falta">R$ 0,00</span>
+      <!-- 1. FORMA DE PAGAMENTO -->
+      <div class="fv-sec-title">1. Forma de Pagamento</div>
+      <div class="fv-formas">
+        <button type="button" class="fv-forma-btn" id="fv-bt-dinheiro" onclick="selecionarForma1('dinheiro')">
+          <span class="fv-forma-btn-icon">💵</span>
+          <span class="fv-forma-btn-label">DINHEIRO</span>
+        </button>
+        <button type="button" class="fv-forma-btn" id="fv-bt-pix" onclick="selecionarForma1('pix')">
+          <span class="fv-forma-btn-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </span>
+          <span class="fv-forma-btn-label">PIX</span>
+        </button>
+        <button type="button" class="fv-forma-btn" id="fv-bt-cartao" onclick="selecionarForma1('cartao')">
+          <span class="fv-forma-btn-icon">
+            <svg width="22" height="16" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1" y="1" width="22" height="14" rx="2"/><line x1="1" y1="5" x2="23" y2="5"/><line x1="5" y1="10" x2="9" y2="10"/></svg>
+          </span>
+          <span class="fv-forma-btn-label">CARTÃO</span>
+        </button>
       </div>
-      <div class="formas-lista">
-        <div class="forma-btn" id="opcao-dinheiro" onclick="escolherForma('dinheiro')">
-          <span class="forma-btn-icon">💵</span>
-          <div><div class="forma-btn-nome">Dinheiro</div><div class="forma-btn-sub">Pagamento em espécie</div></div>
+
+      <!-- Valor pago + troco -->
+      <div class="fv-valor-row">
+        <div>
+          <div class="fv-vlabel">VALOR PAGO</div>
+          <input class="fv-vinput" id="fv-valor1" type="number" step="0.01" min="0"
+            placeholder="0,00" oninput="calcModal()">
         </div>
-        <div class="forma-btn" id="opcao-pix" onclick="escolherForma('pix')">
-          <span class="forma-btn-icon">📱</span>
-          <div><div class="forma-btn-nome">Pix</div><div class="forma-btn-sub">Transferência instantânea</div></div>
+        <div>
+          <div class="fv-vlabel">TROCO</div>
+          <div class="fv-troco-val" id="fv-troco">R$ 0,00</div>
         </div>
-        <div class="forma-btn" id="opcao-cartao" onclick="escolherForma('cartao')">
-          <span class="forma-btn-icon">💳</span>
-          <div><div class="forma-btn-nome">Cartão</div><div class="forma-btn-sub">Débito ou crédito</div></div>
+      </div>
+
+      <!-- Aviso falta -->
+      <div class="fv-aviso" id="fv-aviso">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="fv-aviso-txt"></span>
+      </div>
+
+      <!-- 2. COMPLEMENTO -->
+      <div class="fv-sec2" id="fv-sec2">
+        <div class="fv-sec-title">2. Complemento do Pagamento</div>
+        <div class="fv-falta-label">FALTA PAGAR: <span id="fv-falta-val">R$ 0,00</span></div>
+        <div class="fv-vlabel">Forma de pagamento</div>
+        <div class="fv-formas2">
+          <button type="button" class="fv-forma2-btn" id="fv-bt2-dinheiro" onclick="selecionarForma2('dinheiro')">
+            💵 Dinheiro
+          </button>
+          <button type="button" class="fv-forma2-btn" id="fv-bt2-pix" onclick="selecionarForma2('pix')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            Pix
+          </button>
+          <button type="button" class="fv-forma2-btn" id="fv-bt2-cartao" onclick="selecionarForma2('cartao')">
+            <svg width="14" height="11" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="1" width="22" height="14" rx="2"/><line x1="1" y1="5" x2="23" y2="5"/></svg>
+            Cartão
+          </button>
+        </div>
+        <div class="fv-vlabel">VALOR</div>
+        <input class="fv-vinput" id="fv-valor2" type="number" step="0.01" min="0"
+          placeholder="0,00" oninput="calcModal()">
+      </div>
+
+      <!-- RESUMO DO PAGAMENTO -->
+      <div class="fv-resumo" id="fv-resumo">
+        <div class="fv-resumo-titulo">Resumo do Pagamento</div>
+        <div id="fv-resumo-itens"></div>
+        <div class="fv-resumo-sep"></div>
+        <div class="fv-resumo-total-row">
+          <span class="fv-resumo-total-label">TOTAL PAGO</span>
+          <span class="fv-resumo-total-val" id="fv-resumo-total">R$ 0,00</span>
         </div>
       </div>
     </div>
 
-    <!-- TELA 2: DIGITAR VALOR -->
-    <div class="tela" id="tela-2">
-      <button class="btn-voltar-tela" onclick="voltarTela1()">← Voltar</button>
-
-      <div class="valor-titulo">Valor pago em <strong id="txt-forma-atual"></strong></div>
-
-      <div class="pagamentos-lista" id="pagamentos-lista" style="display:none"></div>
-
-      <div class="valor-box">
-        <span class="valor-prefix">R$</span>
-        <input class="valor-input" id="input-valor" type="number" step="0.01" min="0"
-          placeholder="0,00" oninput="calcularResultado()">
-      </div>
-
-      <div class="resultado-box vazio" id="resultado-box">
-        <span class="resultado-label" id="resultado-label">Aguardando</span>
-        <span class="resultado-val"   id="resultado-val">—</span>
-      </div>
-
-      <div class="segunda-forma-wrap" id="segunda-forma-wrap">
-        <div class="segunda-forma-label">Ainda falta — escolha a segunda forma:</div>
-        <div class="segunda-formas">
-          <div class="segunda-forma-btn" id="sf-dinheiro" onclick="escolherForma('dinheiro')"><span class="segunda-forma-btn-icon">💵</span><span class="segunda-forma-btn-label">Dinheiro</span></div>
-          <div class="segunda-forma-btn" id="sf-pix"      onclick="escolherForma('pix')"     ><span class="segunda-forma-btn-icon">📱</span><span class="segunda-forma-btn-label">Pix</span></div>
-          <div class="segunda-forma-btn" id="sf-cartao"   onclick="escolherForma('cartao')"  ><span class="segunda-forma-btn-icon">💳</span><span class="segunda-forma-btn-label">Cartão</span></div>
-        </div>
-      </div>
-
-      <button class="btn-confirmar" id="btn-confirmar" disabled onclick="confirmarPagamento()">
-        Confirmar Pagamento →
+    <div class="fv-footer">
+      <button type="button" class="fv-btn-cancelar" onclick="fecharModal()">Cancelar</button>
+      <button type="button" class="fv-btn-confirmar" id="fv-btn-confirmar" disabled onclick="confirmarPagamento()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirmar Pagamento
       </button>
     </div>
+  </div>
+</div>
 
+<!-- ═══ MODAL VER ITENS ═══ -->
+<div class="pi-overlay" id="pi-overlay">
+  <div class="pi-modal">
+    <div class="pi-header">
+      <span class="pi-title" id="pi-title">Itens do Pacote</span>
+      <button class="fv-close" onclick="fecharModalItens()">✕</button>
+    </div>
+    <div class="pi-body" id="pi-body"></div>
   </div>
 </div>
 
 <!-- ═══ PÁGINA ═══ -->
 <div class="pv-page">
-  <h2>CADASTRO DE VENDAS</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    <h2 style="margin:0;">CADASTRO DE VENDAS</h2>
+    <a href="/comandas" style="display:inline-flex;align-items:center;gap:7px;
+      background:var(--card-bg);border:1px solid var(--border);border-radius:9px;
+      padding:9px 16px;font-size:13px;font-weight:700;color:var(--text);text-decoration:none;transition:.15s;"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+      📋 Comandas
+    </a>
+  </div>
+  <p class="pv-subtitle" style="margin-top:4px;">Registre uma nova venda</p>
+
+  {% if request.args.get('sucesso') %}
+  <div id="toast-sucesso" style="background:#052e16;border:1px solid #16a34a;border-radius:10px;
+    padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#4ade80;">
+    ✅ Venda registrada com sucesso!
+    <button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;
+      border:none;color:#4ade80;cursor:pointer;font-size:16px;">✕</button>
+  </div>
+  <script>setTimeout(()=>{ const t=document.getElementById('toast-sucesso'); if(t) t.remove(); }, 4000);</script>
+  {% endif %}
 
   {% if erro %}
     <div class="alerta">{{ erro }}</div>
   {% endif %}
 
-  <form method="post" action="/cadastrar_venda" id="form-venda">
-
+  <form method="post" action="/cadastrar_venda_lote" id="form-venda">
     <input type="hidden" name="forma_pagamento" id="h-forma">
     <input type="hidden" name="valor_dinheiro"  id="h-dinheiro" value="0">
     <input type="hidden" name="valor_pix"       id="h-pix"      value="0">
@@ -224,288 +384,494 @@ tr:nth-child(even) { background:var(--table-even); }
 
     <div class="pv-grid">
 
+      <!-- ══ COLUNA ESQUERDA ══ -->
       <div>
         <div class="pv-card">
-          <div class="pv-card-title">Dados da venda</div>
-          <div class="pv-field">
+          <div class="pv-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Dados da Venda
+          </div>
+          <div class="pv-field" style="max-width:220px;">
             <label>Data da Venda</label>
-            <input type="date" name="data" id="data_venda" value="{{ hoje }}" required style="width:auto;">
+            <input type="date" name="data" id="data_venda" value="{{ hoje }}" required>
           </div>
         </div>
 
         <div class="pv-card">
-          <div class="pv-card-title">Itens da venda</div>
+          <div class="pv-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Itens da Venda
+          </div>
+
           <div class="pv-row-add">
             <div class="pv-field">
-              <label>Produto</label>
-              <select id="produto">
-                <option value="">Selecione...</option>
-                {% for p in estoque %}
-                  <option value="{{ p.pid }}"
-                    data-nome="{{ p.nome }}"
-                    data-preco="{{ '%.2f'|format(p.valor_venda|float) }}">
-                    {{ p.nome }} — R$ {{ '%.2f'|format(p.valor_venda|float) }}
-                  </option>
-                {% endfor %}
-              </select>
+              <label>Produto / Pacote</label>
+              <div class="search-wrap">
+                <input id="busca-produto" type="text" placeholder="Selecione um produto ou pacote..." autocomplete="off">
+                <ul id="sugestoes-produto"></ul>
+              </div>
+              <input type="hidden" id="sel-pid"  value="">
+              <input type="hidden" id="sel-tipo" value="">
+              <input type="hidden" id="sel-nome" value="">
+              <input type="hidden" id="sel-vpc"  value="0">
+              <div id="vpc-row" style="display:none;margin-top:7px;align-items:center;gap:8px;padding:7px 10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;">
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text);user-select:none;">
+                  <input type="checkbox" id="vpc-check" onchange="document.getElementById('sel-vpc').value=this.checked?'1':'0'" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;">
+                  Vender por unidade solta
+                </label>
+                <span id="vpc-info" style="font-size:11px;color:var(--text-muted);"></span>
+              </div>
             </div>
             <div class="pv-field">
               <label>Quantidade</label>
-              <input id="qtd" type="number" placeholder="Ex: 1" min="1"
+              <input id="qtd" type="number" value="1" min="1"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();add();}">
             </div>
             <div class="pv-field">
+              <label>Preço Unitário (R$)</label>
+              <input id="preco-input" type="number" step="0.01" min="0" placeholder="0,00">
+            </div>
+            <div class="pv-field">
               <label>&nbsp;</label>
-              <button type="button" class="btn" onclick="add()">Adicionar</button>
+              <button type="button" onclick="add()" style="
+                background:var(--btn-bg); color:var(--accent); border:1px solid var(--accent);
+                padding:9px 18px; border-radius:8px; cursor:pointer; font-weight:bold; white-space:nowrap;">
+                Adicionar
+              </button>
             </div>
           </div>
+
           <div id="itens-wrap">
             <div class="pv-vazio">Nenhum produto adicionado ainda.</div>
           </div>
+
+          <button type="button" class="obs-toggle" onclick="toggleObs()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Adicionar observação (opcional)
+          </button>
+          <div class="obs-area" id="obs-area">
+            <textarea name="observacao" placeholder="Ex: cliente pediu embrulho para presente..."></textarea>
+          </div>
         </div>
       </div>
 
-      <div class="pv-sidebar">
-        <div class="pv-card-title">Resumo</div>
-        <div class="pv-res-row">
-          <span class="pv-res-label">Quantidade de itens</span>
-          <span class="pv-res-val" id="res-qtd">0</span>
+      <!-- ══ SIDEBAR ══ -->
+      <div class="pv-sidebar-wrap">
+        <div class="pv-card">
+          <div class="pv-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Resumo da Venda
+          </div>
+          <div class="pv-res-row">
+            <span class="pv-res-label">Quantidade de itens</span>
+            <span class="pv-res-val" id="res-qtd">0 itens</span>
+          </div>
+          <div class="pv-res-row">
+            <span class="pv-res-label">Subtotal</span>
+            <span class="pv-res-val" id="res-sub">R$ 0,00</span>
+          </div>
+          <div class="pv-res-row" style="flex-direction:column; align-items:flex-start; gap:0;">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+              <span class="pv-res-label">Desconto</span>
+              <button type="button" class="btn-desconto" id="btn-desconto" onclick="toggleDesconto()">Desconto</button>
+            </div>
+            <div class="desc-inline" id="desc-inline">
+              <input type="number" id="desc-val" step="0.01" min="0" value="0"
+                oninput="atualizarTotais()" placeholder="0,00">
+              <select id="desc-tipo" onchange="atualizarTotais()">
+                <option value="R$">R$</option>
+                <option value="%">%</option>
+              </select>
+            </div>
+          </div>
+          <div class="pv-res-total">
+            <span class="pv-res-total-label">Total</span>
+            <span class="pv-res-total-val" id="res-total">R$ 0,00</span>
+          </div>
+          <button type="button" class="btn-finalizar" onclick="finalizar()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            Finalizar Venda
+          </button>
+          <p class="finalizar-hint">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Ao finalizar, os itens serão baixados do estoque.
+          </p>
         </div>
-        <div class="pv-res-row">
-          <span class="pv-res-label">Subtotal</span>
-          <span class="pv-res-val" id="res-sub">R$ 0,00</span>
-        </div>
-        <div class="pv-res-row">
-          <span class="pv-res-label">Pagamento</span>
-          <span class="pv-res-val" id="res-pg">—</span>
-        </div>
-        <div class="pv-res-total">
-          <span class="pv-res-total-label">Total</span>
-          <span class="pv-res-total-val" id="res-total">R$ 0,00</span>
-        </div>
-        <button type="button" class="btn-finalizar" onclick="abrirModal()">
-          Finalizar Venda
-        </button>
       </div>
 
     </div>
+
+    <button type="button" class="btn-limpar" onclick="limparVenda()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      Limpar Venda
+    </button>
+
   </form>
 </div>
 
+<script type="application/json" id="json-estoque">{{ estoque | tojson }}</script>
+<script type="application/json" id="json-drinks">{{ drinks | tojson }}</script>
+
 <script>
-let total = 0;
-let totalModal = 0;
-let formaAtual = null;
-let pagamentos = [];
+/* ── PRODUTOS ── */
+const _estoque = JSON.parse(document.getElementById('json-estoque').textContent);
+const _drinks  = JSON.parse(document.getElementById('json-drinks').textContent);
 
-const nomeForma = { dinheiro:'Dinheiro', pix:'Pix', cartao:'Cartão' };
-const iconForma = { dinheiro:'💵', pix:'📱', cartao:'💳' };
+var PRODUTOS = [
+  ..._estoque.map(p => ({
+    id:      String(p.pid ?? ''),
+    tipo:    'estoque',
+    nome:    p.nome || '',
+    preco:   parseFloat(p.valor_venda) || 0,
+    estoque: p.quantidade,
+    cv:      parseFloat(p.conteudo_valor) || 0,
+    cu:      p.conteudo_unidade || ''
+  })),
+  ..._drinks.map(d => ({
+    id:    String(d.id ?? ''),
+    tipo:  'bar',
+    nome:  d.name || '',
+    preco: parseFloat(d.sale_price) || 0
+  }))
+];
 
-function format2(n){ return (Math.round(n*100)/100).toFixed(2); }
-function parsePreco(v){ return parseFloat(String(v||"").trim().replace(",",".")); }
-const fmt = n => 'R$ ' + format2(n).replace('.',',');
+const COMPONENTES_MAP = {};
+_drinks.forEach(d => {
+  COMPONENTES_MAP[String(d.id ?? '')] = d.componentes || [];
+});
 
-function totalPago(){ return pagamentos.reduce((s,p)=>s+p.valor, 0); }
-function restante(){ return Math.max(totalModal - totalPago(), 0); }
+/* ── ESTADO ── */
+let subtotal = 0;
 
-/* ── ITENS ── */
-function atualizarTotais(){
-  document.getElementById("total_venda").value = format2(total);
-  document.getElementById("res-sub").textContent   = "R$ " + format2(total).replace(".",",");
-  document.getElementById("res-total").textContent = "R$ " + format2(total).replace(".",",");
-  const qtd = [...document.querySelectorAll('input[name="quantidade[]"]')]
-    .reduce((s,el)=>s+parseInt(el.value||0),0);
-  document.getElementById("res-qtd").textContent = qtd + (qtd===1?" item":" itens");
-}
+function fmt2(n){ return (Math.round(n*100)/100).toFixed(2); }
+const fmtBR = n => 'R$ ' + fmt2(n).replace('.',',');
 
+/* ── AUTOCOMPLETE ── */
+(function(){
+  const input = document.getElementById('busca-produto');
+  const lista = document.getElementById('sugestoes-produto');
+
+  function normaliza(s){
+    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+
+  function mostrar(){
+    const termo = normaliza(input.value);
+    lista.innerHTML = '';
+    if(!termo){ lista.style.display='none'; return; }
+    const matches = PRODUTOS.filter(p => normaliza(p.nome).includes(termo)).slice(0,10);
+    if(!matches.length){ lista.style.display='none'; return; }
+    matches.forEach(p => {
+      const li = document.createElement('li');
+      const bc = p.tipo==='bar'?'bar':'estoque';
+      const bl = p.tipo==='bar'?'Drink':'Produto';
+      li.innerHTML = `<span class="sug-badge ${bc}">${bl}</span><span class="sug-nome">${p.nome}</span><span class="sug-preco">R$ ${fmt2(p.preco)}</span>`;
+      li.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        input.value = p.nome;
+        document.getElementById('sel-pid').value   = p.id;
+        document.getElementById('sel-tipo').value  = p.tipo;
+        document.getElementById('sel-nome').value  = p.nome;
+        document.getElementById('preco-input').value = fmt2(p.preco);
+        lista.style.display = 'none';
+        // toggle vender por conteúdo
+        const vpcRow   = document.getElementById('vpc-row');
+        const vpcCheck = document.getElementById('vpc-check');
+        document.getElementById('sel-vpc').value = '0';
+        vpcCheck.checked = false;
+        if (p.tipo === 'estoque' && p.cv > 1) {
+          vpcRow.style.display = 'flex';
+          document.getElementById('vpc-info').textContent = `1 unidade = ${p.cv} ${p.cu}`;
+        } else {
+          vpcRow.style.display = 'none';
+        }
+        document.getElementById('qtd').focus();
+      });
+      lista.appendChild(li);
+    });
+    lista.style.display = 'block';
+  }
+
+  input.addEventListener('input',  mostrar);
+  input.addEventListener('focus',  mostrar);
+  input.addEventListener('blur',   ()=>{ setTimeout(()=>{ lista.style.display='none'; }, 160); });
+})();
+
+/* ── ADICIONAR ITEM ── */
 function add(){
-  const sel = document.getElementById("produto");
-  const opt = sel.options[sel.selectedIndex];
-  const pid = opt.value||"", nome = opt.dataset.nome||"";
-  const precoStr = opt.getAttribute("data-preco")||"";
-  const preco = parsePreco(precoStr);
-  const qtd = parseInt(document.getElementById("qtd").value,10);
-  if(!pid||!qtd||qtd<=0) return;
-  if(!precoStr||Number.isNaN(preco)){ alert("Preço não encontrado."); return; }
+  const pid   = document.getElementById('sel-pid').value;
+  const tipo  = document.getElementById('sel-tipo').value;
+  const nome  = document.getElementById('sel-nome').value;
+  const vpc   = document.getElementById('sel-vpc').value;
+  const preco = parseFloat(document.getElementById('preco-input').value)||0;
+  const qtd   = parseInt(document.getElementById('qtd').value,10);
 
-  const subtotal = preco*qtd;
-  total += subtotal;
+  if(!pid)          { alert('Selecione um produto na lista.'); document.getElementById('busca-produto').focus(); return; }
+  if(!qtd||qtd<=0)  { alert('Informe a quantidade.'); document.getElementById('qtd').focus(); return; }
+  if(!preco||preco<=0){ alert('Informe o preço unitário.'); document.getElementById('preco-input').focus(); return; }
 
-  let tbody = document.querySelector("#pv-tabela tbody");
+  const itemTotal = preco*qtd;
+  subtotal += itemTotal;
+
+  let tbody = document.querySelector('#pv-tabela tbody');
   if(!tbody){
-    document.getElementById("itens-wrap").innerHTML = `
+    document.getElementById('itens-wrap').innerHTML = `
       <div class="pv-tabela-wrap">
         <table id="pv-tabela">
-          <thead><tr><th>Produto</th><th>Qtd</th><th>Preço</th><th>Total</th><th></th></tr></thead>
+          <thead><tr>
+            <th></th><th style="text-align:left;">Produto</th><th>Tipo</th>
+            <th>Quantidade</th><th>Preço Unitário</th><th>Total</th><th>Ações</th>
+          </tr></thead>
           <tbody></tbody>
         </table>
       </div>`;
-    tbody = document.querySelector("#pv-tabela tbody");
+    tbody = document.querySelector('#pv-tabela tbody');
   }
 
-  const tr = document.createElement("tr");
+  const bc    = tipo==='bar'?'bar':'estoque';
+  const bl    = tipo==='bar'?'Drink':'Produto';
+  const icone = tipo==='bar'?'🍹':'🛍️';
+  const verBtn = (tipo==='bar' && COMPONENTES_MAP[pid]?.length)
+    ? `<button type="button" class="btn-ver-itens" onclick="verItensPacote('${pid}','${nome.replace(/'/g,"&#39;")}')">Ver itens</button>`
+    : '';
+
+  const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td>${nome}</td><td>${qtd}</td>
-    <td>R$ ${format2(preco)}</td>
-    <td>R$ ${format2(subtotal)}</td>
+    <td><div class="prod-icon">${icone}</div></td>
+    <td style="text-align:left;"><strong>${nome}</strong>${verBtn}</td>
+    <td><span class="tipo-badge ${bc}">${bl}</span></td>
+    <td><strong>${qtd}</strong></td>
+    <td>R$ ${fmt2(preco)}</td>
+    <td><strong>R$ ${fmt2(itemTotal)}</strong></td>
     <td>
-      <button type="button" class="btn-x" onclick="rem(this,${subtotal})">X</button>
-      <input type="hidden" name="produto_pid[]" value="${pid}">
-      <input type="hidden" name="quantidade[]" value="${qtd}">
+      <button type="button" class="btn-del" onclick="rem(this,${itemTotal})" title="Remover">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      </button>
+      <input type="hidden" name="produto_pid[]"         value="${pid}">
+      <input type="hidden" name="quantidade[]"          value="${qtd}">
+      <input type="hidden" name="produto_tipo[]"        value="${tipo}">
+      <input type="hidden" name="preco_venda[]"         value="${fmt2(preco)}">
+      <input type="hidden" name="vender_por_conteudo[]" value="${vpc}">
     </td>`;
   tbody.appendChild(tr);
   atualizarTotais();
-  sel.value=""; document.getElementById("qtd").value="";
+
+  document.getElementById('busca-produto').value = '';
+  document.getElementById('sel-pid').value = '';
+  document.getElementById('sel-tipo').value = '';
+  document.getElementById('sel-nome').value = '';
+  document.getElementById('sel-vpc').value = '0';
+  document.getElementById('preco-input').value = '';
+  document.getElementById('qtd').value = '1';
+  document.getElementById('vpc-row').style.display = 'none';
+  document.getElementById('vpc-check').checked = false;
+  document.getElementById('busca-produto').focus();
 }
 
-function rem(btn,val){
-  btn.closest("tr").remove();
-  total -= val;
-  if(document.querySelectorAll("#pv-tabela tbody tr").length===0)
-    document.getElementById("itens-wrap").innerHTML='<div class="pv-vazio">Nenhum produto adicionado ainda.</div>';
+function rem(btn, val){
+  btn.closest('tr').remove();
+  subtotal -= val;
+  if(!document.querySelectorAll('#pv-tabela tbody tr').length)
+    document.getElementById('itens-wrap').innerHTML = '<div class="pv-vazio">Nenhum produto adicionado ainda.</div>';
   atualizarTotais();
 }
 
-/* ── MODAL ── */
-function abrirModal(){
-  const dataVal = document.getElementById("data_venda").value;
-  if(!dataVal){ alert("Informe a data da venda antes de continuar."); document.getElementById("data_venda").focus(); return; }
-  const itens = document.querySelectorAll('input[name="produto_pid[]"]');
-  if(itens.length===0||total<=0){ alert("Adicione pelo menos 1 item na venda."); return; }
+/* ── TOTAIS SIDEBAR ── */
+function atualizarTotais(){
+  const dv = parseFloat(document.getElementById('desc-val').value)||0;
+  const dt = document.getElementById('desc-tipo').value;
+  let desc = dt==='R$' ? Math.min(dv,subtotal) : subtotal*(Math.min(dv,100)/100);
+  const total = Math.max(subtotal-desc, 0);
+  const qtd = [...document.querySelectorAll('input[name="quantidade[]"]')].reduce((s,e)=>s+parseInt(e.value||0),0);
 
-  totalModal = total;
-  pagamentos = [];
-  formaAtual = null;
-
-  document.getElementById("txt-total").textContent = fmt(totalModal);
-  document.getElementById("falta-box").style.display = "none";
-  irParaTela(1);
-  document.getElementById("modal-bg").classList.add("open");
+  document.getElementById('res-qtd').textContent   = qtd+(qtd===1?' item':' itens');
+  document.getElementById('res-sub').textContent   = fmtBR(subtotal);
+  document.getElementById('res-total').textContent = fmtBR(total);
+  document.getElementById('total_venda').value      = fmt2(total);
 }
 
-function fecharModal(){ document.getElementById("modal-bg").classList.remove("open"); }
-
-function irParaTela(n){
-  document.querySelectorAll(".tela").forEach(t=>t.classList.remove("ativa"));
-  document.getElementById("tela-"+n).classList.add("ativa");
-
-  if(n===1){
-    const r = restante();
-    if(pagamentos.length>0 && r>0.005){
-      document.getElementById("falta-box").style.display="block";
-      document.getElementById("txt-falta").textContent = fmt(r);
-      // esconde formas já usadas
-      ["dinheiro","pix","cartao"].forEach(f=>{
-        const usado = pagamentos.some(p=>p.forma===f);
-        document.getElementById("opcao-"+f).style.display = usado ? "none" : "flex";
-      });
-    } else {
-      document.getElementById("falta-box").style.display="none";
-      ["dinheiro","pix","cartao"].forEach(f=>{
-        document.getElementById("opcao-"+f).style.display = "flex";
-      });
-    }
+/* ── ABRIR/FECHAR MODAL ── */
+function finalizar(){
+  const dataVal = document.getElementById('data_venda').value;
+  if(!dataVal){ alert('Informe a data da venda.'); document.getElementById('data_venda').focus(); return; }
+  if(!document.querySelectorAll('input[name="produto_pid[]"]').length || subtotal<=0){
+    alert('Adicione pelo menos 1 item na venda.'); return;
   }
-}
 
-function escolherForma(forma){
-  formaAtual = forma;
-  document.getElementById("txt-forma-atual").textContent = iconForma[forma]+" "+nomeForma[forma];
-  document.getElementById("input-valor").value = "";
+  const totalM = parseFloat(document.getElementById('total_venda').value)||0;
+  document.getElementById('fv-total').textContent = fmtBR(totalM);
 
-  // esconde a forma atual na lista de segunda opção
-  ["dinheiro","pix","cartao"].forEach(f=>{
-    const el = document.getElementById("sf-"+f);
-    const usado = pagamentos.some(p=>p.forma===f);
-    el.style.display = (f===forma||usado) ? "none" : "flex";
+  // reset modal
+  forma1M = null; forma2M = null;
+  ['dinheiro','pix','cartao'].forEach(f=>{
+    document.getElementById('fv-bt-'+f).classList.remove('ativo');
+    document.getElementById('fv-bt2-'+f).classList.remove('ativo');
+    document.getElementById('fv-bt2-'+f).style.display = 'flex';
   });
+  document.getElementById('fv-valor1').value = '';
+  document.getElementById('fv-valor2').value = '';
+  document.getElementById('fv-troco').textContent = 'R$ 0,00';
+  document.getElementById('fv-troco').className = 'fv-troco-val';
+  document.getElementById('fv-aviso').classList.remove('show');
+  document.getElementById('fv-sec2').classList.remove('show');
+  document.getElementById('fv-resumo').classList.remove('show');
+  document.getElementById('fv-btn-confirmar').disabled = true;
 
-  renderPagamentos();
-  calcularResultado();
-  irParaTela(2);
-  setTimeout(()=>{ document.getElementById("input-valor").focus(); }, 150);
+  document.getElementById('fv-overlay').classList.add('open');
 }
 
-function voltarTela1(){
-  formaAtual = null;
-  irParaTela(1);
+function fecharModal(){
+  document.getElementById('fv-overlay').classList.remove('open');
 }
 
-function renderPagamentos(){
-  const lista = document.getElementById("pagamentos-lista");
-  if(pagamentos.length===0){ lista.style.display="none"; lista.innerHTML=""; return; }
-  lista.style.display="block";
-  lista.innerHTML = pagamentos.map(p=>`
-    <div class="pagamento-item">
-      <span class="pagamento-forma">${iconForma[p.forma]} ${nomeForma[p.forma]}</span>
-      <span class="pagamento-valor">${fmt(p.valor)}</span>
-    </div>`).join("");
+document.getElementById('fv-overlay').addEventListener('click', function(e){
+  if(e.target === this) fecharModal();
+});
+
+/* ── LÓGICA DO MODAL ── */
+let forma1M = null, forma2M = null;
+const nomeFormaM = { dinheiro:'Dinheiro', pix:'Pix', cartao:'Cartão' };
+
+function selecionarForma1(forma){
+  forma1M = forma;
+  ['dinheiro','pix','cartao'].forEach(f => document.getElementById('fv-bt-'+f).classList.toggle('ativo', f===forma));
+
+  // Ocultar a mesma forma no complemento
+  ['dinheiro','pix','cartao'].forEach(f => {
+    document.getElementById('fv-bt2-'+f).style.display = f===forma ? 'none' : 'flex';
+    document.getElementById('fv-bt2-'+f).classList.remove('ativo');
+  });
+  forma2M = null;
+  document.getElementById('fv-valor2').value = '';
+
+  setTimeout(()=> document.getElementById('fv-valor1').focus(), 60);
+  calcModal();
 }
 
-function calcularResultado(){
-  const v    = parseFloat(document.getElementById("input-valor").value)||0;
-  const jaFoi = totalPago();
-  const pagoAgora = jaFoi + v;
-  const diff = pagoAgora - totalModal;
+function selecionarForma2(forma){
+  forma2M = forma;
+  ['dinheiro','pix','cartao'].forEach(f => {
+    const el = document.getElementById('fv-bt2-'+f);
+    if(el.style.display !== 'none') el.classList.toggle('ativo', f===forma);
+  });
+  const v1   = parseFloat(document.getElementById('fv-valor1').value)||0;
+  const totalM = parseFloat(document.getElementById('fv-total').textContent.replace('R$ ','').replace(',','.'))||0;
+  document.getElementById('fv-valor2').value = fmt2(Math.max(totalM-v1, 0));
+  setTimeout(()=> document.getElementById('fv-valor2').focus(), 60);
+  calcModal();
+}
 
-  const box   = document.getElementById("resultado-box");
-  const label = document.getElementById("resultado-label");
-  const val   = document.getElementById("resultado-val");
-  const btn   = document.getElementById("btn-confirmar");
-  const sfWrap= document.getElementById("segunda-forma-wrap");
+function calcModal(){
+  if(!forma1M) return;
+  const totalM  = parseFloat(document.getElementById('fv-total').textContent.replace('R$ ','').replace(',','.'))||0;
+  const v1      = parseFloat(document.getElementById('fv-valor1').value)||0;
+  const v2      = forma2M ? (parseFloat(document.getElementById('fv-valor2').value)||0) : 0;
+  const totalPago = v1 + v2;
+  const falta   = Math.max(totalM - v1, 0);
+  const troco   = Math.max(totalPago - totalM, 0);
 
-  if(v<=0){
-    box.className="resultado-box vazio"; label.textContent="Aguardando"; val.textContent="—";
-    btn.disabled=true; btn.textContent="Confirmar Pagamento →";
-    sfWrap.classList.remove("visivel");
-  } else if(diff < -0.005){
-    box.className="resultado-box falta"; label.textContent="Falta"; val.textContent=fmt(Math.abs(diff));
-    btn.disabled=true; btn.textContent="Confirmar Pagamento →";
-    sfWrap.classList.add("visivel");
-  } else if(diff > 0.005){
-    box.className="resultado-box troco"; label.textContent="Troco"; val.textContent=fmt(diff);
-    btn.disabled=false; btn.textContent="Confirmar Pagamento →";
-    sfWrap.classList.remove("visivel");
+  // Troco
+  const trocoEl = document.getElementById('fv-troco');
+  trocoEl.textContent = fmtBR(troco);
+  trocoEl.className = 'fv-troco-val' + (troco>0.005?' ok': (v1>0&&falta>0.005?' neg':''));
+
+  // Aviso falta
+  if(v1>0 && falta>0.005){
+    document.getElementById('fv-aviso').classList.add('show');
+    document.getElementById('fv-aviso-txt').textContent = `Faltam ${fmtBR(falta)} para completar o valor da venda.`;
+    document.getElementById('fv-sec2').classList.add('show');
+    document.getElementById('fv-falta-val').textContent = fmtBR(falta);
   } else {
-    box.className="resultado-box ok"; label.textContent="Pago exato ✓"; val.textContent="";
-    btn.disabled=false; btn.textContent="Confirmar Pagamento →";
-    sfWrap.classList.remove("visivel");
+    document.getElementById('fv-aviso').classList.remove('show');
+    if(falta<=0.005){ document.getElementById('fv-sec2').classList.remove('show'); forma2M=null; }
   }
+
+  // Resumo
+  if(v1>0){
+    document.getElementById('fv-resumo').classList.add('show');
+    let itens = `<div class="fv-resumo-row"><span>${nomeFormaM[forma1M]}</span><span>${fmtBR(v1)}</span></div>`;
+    if(forma2M && v2>0)
+      itens += `<div class="fv-resumo-row"><span>${nomeFormaM[forma2M]}</span><span>${fmtBR(v2)}</span></div>`;
+    document.getElementById('fv-resumo-itens').innerHTML = itens;
+    document.getElementById('fv-resumo-total').textContent = fmtBR(totalPago);
+  } else {
+    document.getElementById('fv-resumo').classList.remove('show');
+  }
+
+  // Botão confirmar
+  document.getElementById('fv-btn-confirmar').disabled = !(v1>0 && totalPago >= totalM-0.005);
 }
 
 function confirmarPagamento(){
-  const v = parseFloat(document.getElementById("input-valor").value)||0;
-  if(v<=0){ alert("Digite o valor pago."); return; }
+  const totalM = parseFloat(document.getElementById('fv-total').textContent.replace('R$ ','').replace(',','.'))||0;
+  const v1 = parseFloat(document.getElementById('fv-valor1').value)||0;
+  const v2 = forma2M ? (parseFloat(document.getElementById('fv-valor2').value)||0) : 0;
+  const troco = Math.max(v1+v2-totalM, 0);
 
-  pagamentos.push({ forma: formaAtual, valor: v });
+  const totais = {dinheiro:0, pix:0, cartao:0};
+  totais[forma1M] += v1;
+  if(forma2M) totais[forma2M] += v2;
 
-  // monta totais por forma
-  const totais = { dinheiro:0, pix:0, cartao:0 };
-  const formas = [];
-  pagamentos.forEach(p=>{
-    totais[p.forma] += p.valor;
-    if(!formas.includes(p.forma)) formas.push(p.forma);
-  });
+  const formas = forma2M ? [forma1M,forma2M] : [forma1M];
 
-  const totalPagoFinal = pagamentos.reduce((s,p)=>s+p.valor,0);
-  const troco = Math.max(totalPagoFinal - totalModal, 0);
-  const formaPrincipal = [...formas].sort((a,b)=>totais[b]-totais[a])[0];
-
-  document.getElementById("h-forma").value    = formas.join("+");
-  document.getElementById("h-dinheiro").value = format2(totais.dinheiro);
-  document.getElementById("h-pix").value      = format2(totais.pix);
-  document.getElementById("h-cartao").value   = format2(totais.cartao);
-  document.getElementById("h-troco").value    = format2(troco);
-
-  const pgLabel = formas.map(f=>nomeForma[f]);
-  document.getElementById("res-pg").textContent = pgLabel.join(" + ");
+  document.getElementById('h-forma').value    = formas.map(f=>nomeFormaM[f]).join('+');
+  document.getElementById('h-dinheiro').value = fmt2(totais.dinheiro);
+  document.getElementById('h-pix').value      = fmt2(totais.pix);
+  document.getElementById('h-cartao').value   = fmt2(totais.cartao);
+  document.getElementById('h-troco').value    = fmt2(troco);
 
   fecharModal();
-  document.getElementById("form-venda").submit();
+  document.getElementById('form-venda').submit();
 }
 
-document.getElementById("modal-bg").addEventListener("click",function(e){
-  if(e.target===this) fecharModal();
+/* ── LIMPAR ── */
+function limparVenda(){
+  if(!confirm('Limpar todos os itens da venda?')) return;
+  subtotal = 0;
+  document.getElementById('itens-wrap').innerHTML = '<div class="pv-vazio">Nenhum produto adicionado ainda.</div>';
+  document.getElementById('busca-produto').value = '';
+  document.getElementById('sel-pid').value = '';
+  document.getElementById('sel-tipo').value = '';
+  document.getElementById('sel-nome').value = '';
+  document.getElementById('preco-input').value = '';
+  document.getElementById('qtd').value = '1';
+  document.getElementById('desc-val').value = '0';
+  document.getElementById('desc-inline').classList.remove('show');
+  document.getElementById('btn-desconto').classList.remove('ativo');
+  atualizarTotais();
+}
+
+/* ── DESCONTO ── */
+function toggleDesconto(){
+  const inline = document.getElementById('desc-inline');
+  const btn    = document.getElementById('btn-desconto');
+  const aberto = inline.classList.toggle('show');
+  btn.classList.toggle('ativo', aberto);
+  if(!aberto){ document.getElementById('desc-val').value='0'; atualizarTotais(); }
+  else { document.getElementById('desc-val').focus(); }
+}
+
+/* ── OBSERVAÇÃO ── */
+function toggleObs(){ document.getElementById('obs-area').classList.toggle('aberta'); }
+
+/* ── MODAL VER ITENS PACOTE ── */
+function verItensPacote(pid, nomePacote) {
+  const comps = COMPONENTES_MAP[pid] || [];
+  document.getElementById('pi-title').textContent = nomePacote;
+  document.getElementById('pi-body').innerHTML = comps.length
+    ? comps.map(c => `
+        <div class="pi-item">
+          <span class="pi-item-nome">${c.nome}</span>
+          <span class="pi-item-qty">${c.quantidade} ${c.unidade_uso || 'UN'}</span>
+        </div>`).join('')
+    : '<p style="color:#666;font-size:13px;text-align:center;padding:12px 0;">Nenhum ingrediente cadastrado.</p>';
+  document.getElementById('pi-overlay').classList.add('open');
+}
+function fecharModalItens() {
+  document.getElementById('pi-overlay').classList.remove('open');
+}
+document.getElementById('pi-overlay').addEventListener('click', function(e){
+  if(e.target === this) fecharModalItens();
 });
 </script>
 

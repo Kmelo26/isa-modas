@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.container { max-width:1100px; margin:20px auto; padding:20px; }
+h2 { text-align:center; color:var(--accent); margin-bottom:20px; }
+.top { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:8px 16px;
+  border-radius:8px; cursor:pointer; font-weight:bold; font-size:13px;
+  text-decoration:none; display:inline-block; transition:background .15s; }
+.btn:hover { background:var(--accent-hover); }
+.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border); }
+.btn-sec:hover { background:var(--accent-dim); }
+table { width:100%; border-collapse:collapse; background:var(--card-bg);
+  border-radius:10px; overflow:hidden; box-shadow:var(--shadow); }
+th, td { border:1px solid var(--border); padding:9px 12px; text-align:center; color:var(--text); font-size:13px; }
+th { background:#2a2a2a; color:var(--accent); }
+tr:nth-child(even) { background:var(--table-even); }
+.badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:bold; }
+.badge-drink   { background:#0d1e3a; color:#60a5fa; border:1px solid #1e3a5f; }
+.badge-combo   { background:#0d2a1a; color:#86efac; border:1px solid #1a5a30; }
+.badge-caixa   { background:#2a2000; color:#fde047; border:1px solid #4a3a00; }
+.badge-bebida  { background:#0d1e3a; color:#60a5fa; border:1px solid #1e3a5f; }
+.badge-comida  { background:#1a2e0d; color:#86efac; border:1px solid #2d5a1a; }
+.badge-insumo  { background:#2a2000; color:#fde047; border:1px solid #4a3a00; }
+.badge-simple   { background:var(--card-bg); color:var(--text-muted); border:1px solid var(--border); }
+.badge-composite{ background:#1e0d2e; color:#c084fc; border:1px solid #3b1a5f; }
+.stock-ok   { color:#4ade80; font-weight:bold; }
+.stock-low  { color:#facc15; font-weight:bold; }
+.stock-zero { color:#f87171; font-weight:bold; }
+.nav-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+.nav-bar a { padding:7px 16px; border-radius:8px; text-decoration:none; font-size:13px;
+  font-weight:bold; background:var(--card-bg); color:var(--text-muted);
+  border:1px solid var(--border); transition:background .15s; }
+.nav-bar a:hover, .nav-bar a.ativo { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
+
+/* AÇÕES BTN */
+.act-btn{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;cursor:pointer;color:var(--text-muted,#888);font-size:1rem;
+  transition:.15s;line-height:1}
+.act-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* DROPDOWN MENU */
+#bp-dropdown{display:none;position:fixed;background:var(--card-bg);
+  border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.5);min-width:165px;z-index:9999;overflow:hidden}
+#bp-dropdown.aberto{display:block}
+#bp-dropdown a,#bp-dropdown button{display:flex;align-items:center;gap:8px;padding:10px 14px;
+  font-size:13px;text-decoration:none;color:var(--text);background:none;border:none;width:100%;
+  cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border);white-space:nowrap}
+#bp-dropdown a:last-child,#bp-dropdown button:last-child{border-bottom:none}
+#bp-dropdown a:hover,#bp-dropdown button:hover{background:var(--accent-dim);color:var(--accent)}
+#bp-dropdown .remover{color:#f87171}
+#bp-dropdown .remover:hover{background:#2a0f0f !important}
+
+/* MODAL VISUALIZAR */
+.bp-vis-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;
+  align-items:center;justify-content:center}
+.bp-vis-overlay.aberto{display:flex}
+.bp-vis-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
+  padding:24px;min-width:320px;max-width:480px;width:90%}
+.bp-vis-title{font-size:15px;font-weight:bold;color:var(--accent);margin-bottom:16px}
+.bp-vis-row{display:flex;justify-content:space-between;padding:7px 0;
+  border-bottom:1px solid var(--border);font-size:13px}
+.bp-vis-row:last-child{border-bottom:none}
+.bp-vis-label{color:var(--text-muted)}
+.bp-vis-val{color:var(--text);font-weight:500}
+.bp-vis-close{margin-top:16px;width:100%;padding:8px;border-radius:8px;
+  background:var(--btn-bg);color:var(--accent);border:none;cursor:pointer;font-weight:bold}
+</style>
+
+<!-- Dropdown menu -->
+<div id="bp-dropdown">
+  <a href="#" id="bp-acao-visualizar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Visualizar
+  </a>
+  <a href="#" id="bp-acao-editar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Editar
+  </a>
+  <button class="remover" id="bp-acao-excluir">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    Excluir
+  </button>
+</div>
+
+<!-- Modal Visualizar -->
+<div class="bp-vis-overlay" id="bp-vis-overlay" onclick="if(event.target===this)fecharVis()">
+  <div class="bp-vis-modal">
+    <div class="bp-vis-title">VISUALIZAR PACOTE</div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Nome</span><span class="bp-vis-val" id="bpv-nome">—</span></div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Categoria</span><span class="bp-vis-val" id="bpv-cat">—</span></div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Tipo</span><span class="bp-vis-val" id="bpv-tipo">—</span></div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Unidade</span><span class="bp-vis-val" id="bpv-unit">—</span></div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Preço de Venda</span><span class="bp-vis-val" id="bpv-preco">—</span></div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Estoque</span><span class="bp-vis-val" id="bpv-stock">—</span></div>
+    <button class="bp-vis-close" onclick="fecharVis()">Fechar</button>
+  </div>
+</div>
+
+<!-- Form oculto para excluir -->
+<form id="bp-form-excluir" method="POST" style="display:none"></form>
+
+<div class="container">
+  <h2>PACOTES</h2>
+
+  <div class="top">
+    <span style="color:var(--text-muted); font-size:13px;">{{ produtos|length }} produto(s) cadastrado(s)</span>
+    <a class="btn" href="/bar/produtos/novo">+ Novo Pacote</a>
+  </div>
+
+  {% if produtos %}
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Categoria</th>
+        <th>Tipo</th>
+        <th>Unidade</th>
+        <th>Preço Venda</th>
+        <th>Estoque</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in produtos %}
+      {% set qtd = stock.get(p.id, 0) %}
+      <tr>
+        <td style="text-align:left; font-weight:bold;">{{ p.name }}</td>
+        <td><span class="badge badge-{{ p.category }}">{{ p.category }}</span></td>
+        <td><span class="badge badge-{{ p.type }}">{{ p.type }}</span></td>
+        <td>{{ p.unit }}</td>
+        <td>R$ {{ "%.2f"|format(p.sale_price) }}</td>
+        <td>
+          {% if p.type == 'composite' %}
+            <span style="color:var(--text-muted); font-size:12px;">—</span>
+          {% elif qtd <= 0 %}
+            <span class="stock-zero">0 {{ p.unit }}</span>
+          {% elif qtd < 100 %}
+            <span class="stock-low">{{ "%.1f"|format(qtd) }} {{ p.unit }}</span>
+          {% else %}
+            <span class="stock-ok">{{ "%.1f"|format(qtd) }} {{ p.unit }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <button class="act-btn" type="button"
+            data-id="{{ p.id }}"
+            data-nome="{{ p.name }}"
+            data-cat="{{ p.category }}"
+            data-tipo="{{ p.type }}"
+            data-unit="{{ p.unit }}"
+            data-preco="{{ '%.2f'|format(p.sale_price) }}"
+            data-stock="{% if p.type == 'composite' %}—{% else %}{{ '%.1f'|format(qtd) }} {{ p.unit }}{% endif %}"
+            data-editar="/bar/produtos/{{ p.id }}/editar"
+            data-deletar="/bar/produtos/{{ p.id }}/deletar"
+            onclick="abrirMenu(this)">···</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center; padding:40px; color:var(--text-muted);">
+    Nenhum produto cadastrado. <a href="/bar/produtos/novo" style="color:var(--accent);">Cadastre o primeiro.</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  const dropdown = document.getElementById('bp-dropdown');
+  let btnAtivo = null;
+
+  window.abrirMenu = function(btn) {
+    if (btnAtivo === btn && dropdown.classList.contains('aberto')) { fecharMenu(); return; }
+    btnAtivo = btn;
+    document.getElementById('bp-acao-editar').href = btn.dataset.editar;
+    document.getElementById('bp-acao-visualizar').onclick = function(e){
+      e.preventDefault(); fecharMenu();
+      document.getElementById('bpv-nome').textContent  = btn.dataset.nome;
+      document.getElementById('bpv-cat').textContent   = btn.dataset.cat;
+      document.getElementById('bpv-tipo').textContent  = btn.dataset.tipo;
+      document.getElementById('bpv-unit').textContent  = btn.dataset.unit;
+      document.getElementById('bpv-preco').textContent = 'R$ ' + btn.dataset.preco;
+      document.getElementById('bpv-stock').textContent = btn.dataset.stock;
+      document.getElementById('bp-vis-overlay').classList.add('aberto');
+    };
+    document.getElementById('bp-acao-excluir').onclick = function(){
+      fecharMenu();
+      if (!confirm('Excluir o pacote "' + btn.dataset.nome + '"?')) return;
+      const f = document.getElementById('bp-form-excluir');
+      f.action = btn.dataset.deletar;
+      f.submit();
+    };
+    const r = btn.getBoundingClientRect();
+    dropdown.style.top  = (r.bottom + 4) + 'px';
+    dropdown.style.left = Math.min(r.left, window.innerWidth - 175) + 'px';
+    dropdown.classList.add('aberto');
+  };
+
+  function fecharMenu(){ dropdown.classList.remove('aberto'); btnAtivo = null; }
+  window.fecharVis = function(){ document.getElementById('bp-vis-overlay').classList.remove('aberto'); };
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.act-btn') && !e.target.closest('#bp-dropdown')) fecharMenu();
+  });
+  window.addEventListener('scroll', fecharMenu);
+  window.addEventListener('resize', fecharMenu);
+})();
+</script>
+{% endblock %}

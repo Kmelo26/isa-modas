@@ -1,0 +1,648 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+/* ── Layout ── */
+.pf-wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+.pf-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text-muted); font-size: 13px; text-decoration: none;
+  margin-bottom: 20px;
+}
+.pf-back:hover { color: var(--accent); }
+
+.pf-title { font-size: 26px; font-weight: 700; text-align: center; color: var(--text); }
+.pf-sub   { text-align: center; color: var(--text-muted); font-size: 13px; margin: 4px 0 28px; }
+
+/* ── Card ── */
+.pf-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+.pf-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.pf-card-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+
+.pf-step {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Grid fields ── */
+.pf-grid-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; }
+
+.pf-field { display: flex; flex-direction: column; gap: 5px; }
+.pf-field label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; }
+.pf-field label .req { color: #f87171; }
+
+.pf-field input,
+.pf-field select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s;
+}
+.pf-field input:focus,
+.pf-field select:focus { border-color: var(--accent); }
+
+/* ── Summary boxes ── */
+.pf-summary {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;
+  margin-top: 20px;
+}
+
+.pf-sum-box {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.pf-sum-label {
+  font-size: 11px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
+}
+
+.pf-sum-value {
+  font-size: 22px; font-weight: 700; color: #4ade80; line-height: 1;
+}
+
+.pf-sum-desc {
+  font-size: 11px; color: var(--text-muted); margin-top: 4px;
+}
+
+/* ── Items table ── */
+.pf-table-wrap { overflow-x: auto; }
+.pf-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.pf-table th {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .6px;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.pf-table td { padding: 10px; vertical-align: middle; }
+.pf-table tr + tr td { border-top: 1px solid var(--border); }
+
+.pf-prod-stock { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block; }
+
+.pf-unit-badge {
+  display: inline-block;
+  font-size: 12px; font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 3px 10px; border-radius: 20px;
+}
+
+.pf-qty-wrap { display: flex; align-items: center; gap: 6px; }
+.pf-qty-wrap input {
+  width: 80px; padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: var(--input-bg); color: var(--text);
+  font-size: 14px; outline: none; text-align: center;
+}
+.pf-qty-wrap input:focus { border-color: var(--accent); }
+.pf-qty-unit { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+.pf-cost-cell  { font-size: 14px; color: var(--text-muted); }
+.pf-cost-total { font-size: 14px; font-weight: 700; color: #4ade80; }
+
+.pf-btn-rm {
+  width: 32px; height: 32px;
+  background: rgba(248,113,113,.1);
+  border: 1px solid rgba(248,113,113,.3);
+  border-radius: 6px; cursor: pointer;
+  color: #f87171; font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.pf-btn-rm:hover { background: rgba(248,113,113,.2); }
+
+/* ── Add button ── */
+.pf-btn-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 8px; padding: 9px 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.pf-btn-add:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+
+/* ── Busca de insumo ── */
+.pf-busca-wrap { position: relative; width: 280px; }
+.pf-busca-inp {
+  width: 100%; padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text); font-size: 13px; outline: none; box-sizing: border-box;
+}
+.pf-busca-inp:focus { border-color: var(--accent); }
+.pf-busca-lista {
+  list-style: none; margin: 0; padding: 0;
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 999;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  max-height: 260px; overflow-y: auto; display: none;
+}
+.pf-busca-lista li {
+  padding: 10px 14px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border); gap: 10px;
+}
+.pf-busca-lista li:last-child { border-bottom: none; }
+.pf-busca-lista li:hover { background: var(--accent-dim); }
+.pf-busca-lista li:hover .bl-nome { color: var(--accent); }
+.bl-nome  { font-size: 13px; font-weight: 600; color: var(--text); }
+.bl-stock { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+/* ── Info box ── */
+.pf-info {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: rgba(96,165,250,.06);
+  border: 1px solid rgba(96,165,250,.2);
+  border-radius: 10px; padding: 14px 16px;
+  margin-top: 16px;
+}
+.pf-info-icon { color: #60a5fa; font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.pf-info-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.pf-info-text strong { display: block; color: var(--text); font-size: 13px; margin-bottom: 2px; }
+
+/* ── Resumo card ── */
+.pf-resumo-inner { display: flex; gap: 32px; align-items: flex-start; }
+.pf-resumo-list  { flex: 1; }
+.pf-resumo-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.pf-resumo-row:last-of-type { border-bottom: none; }
+.pf-resumo-row span:first-child { color: var(--text-muted); }
+.pf-resumo-row span:last-child  { font-weight: 600; color: var(--text); }
+.pf-resumo-row.highlight span:last-child { color: #4ade80; font-size: 16px; }
+.pf-resumo-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; }
+
+/* ── Donut ── */
+.pf-donut-wrap { flex-shrink: 0; text-align: center; }
+.pf-donut-svg { width: 150px; height: 150px; display: block; margin: 0 auto; }
+.pf-donut-center { font-size: 16px; font-weight: 700; fill: var(--text, #fff); }
+.pf-donut-lbl    { font-size: 10px; fill: var(--text-muted, #888); }
+.pf-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.pf-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.pf-legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Alerta ── */
+.pf-erro {
+  background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3);
+  color: #f87171; border-radius: 8px; padding: 10px 14px;
+  font-size: 13px; margin-bottom: 16px;
+}
+
+/* ── Buttons ── */
+.pf-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.pf-btn-submit {
+  width: 100%; padding: 14px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.pf-btn-submit:hover { opacity: .9; }
+.pf-btn-cancel {
+  width: 100%; padding: 12px; text-align: center;
+  color: var(--text-muted); font-size: 14px;
+  background: none; border: none; cursor: pointer; text-decoration: none;
+  display: block;
+}
+.pf-btn-cancel:hover { color: var(--text); }
+
+/* ── Empty state ── */
+.pf-empty {
+  text-align: center; padding: 32px 0;
+  color: var(--text-muted); font-size: 13px;
+}
+
+/* ── Select inside table ── */
+.pf-prod-select {
+  background: var(--input-bg); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; outline: none; width: 100%; min-width: 160px;
+}
+.pf-prod-select:focus { border-color: var(--accent); }
+
+.pf-unit-sel {
+  padding: 8px 6px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--input-bg); color: var(--accent);
+  font-size: 12px; font-weight: 700; outline: none; cursor: pointer;
+  min-width: 54px;
+}
+.pf-unit-sel:focus { border-color: var(--accent); }
+
+@media (max-width: 640px) {
+  .pf-grid-3 { grid-template-columns: 1fr; }
+  .pf-summary { grid-template-columns: 1fr; }
+  .pf-resumo-inner { flex-direction: column; }
+  .pf-donut-wrap { width: 100%; }
+}
+</style>
+
+<div class="pf-wrap">
+
+  <a href="{{ url_for('bar_produtos') }}" class="pf-back">← Voltar</a>
+
+  <h1 class="pf-title">{{ 'Editar Pacote' if produto else 'Novo Pacote' }}</h1>
+  <p class="pf-sub">{{ 'Edite as informações do pacote/combo.' if produto else 'Crie um novo pacote/combo utilizando produtos do seu estoque.' }}</p>
+
+  {% if erro %}
+  <div class="pf-erro">{{ erro }}</div>
+  {% endif %}
+
+  <form method="POST" onsubmit="return validarForm()">
+
+    <!-- ─── 1. Dados do Pacote ─── -->
+    <div class="pf-card">
+      <div class="pf-card-header">
+        <div class="pf-card-title">
+          <div class="pf-step">1</div>
+          Dados do Pacote
+        </div>
+      </div>
+
+      <div class="pf-grid-3">
+        <div class="pf-field">
+          <label>Nome do pacote <span class="req">*</span></label>
+          <input type="text" name="name" placeholder="Ex: Dose de Gin" required
+            value="{{ produto.name if produto else '' }}">
+        </div>
+
+        <div class="pf-field">
+          <label>Categoria <span class="req">*</span></label>
+          <select name="category" required>
+            <option value="drink"  {% if produto and produto.category == 'drink'  %}selected{% endif %}>Drink</option>
+            <option value="combo"  {% if not produto or produto.category == 'combo' %}selected{% endif %}>Combo</option>
+            <option value="porcao" {% if produto and produto.category == 'porcao' %}selected{% endif %}>Porção</option>
+          </select>
+        </div>
+
+        <div class="pf-field">
+          <label>Preço de venda (R$) <span class="req">*</span></label>
+          <input type="number" step="0.01" min="0" name="sale_price" id="sale_price"
+            placeholder="0,00" required
+            value="{{ '%.2f'|format(produto.sale_price) if produto else '' }}"
+            oninput="calcular()">
+        </div>
+      </div>
+
+      <!-- Summary boxes -->
+      <div class="pf-summary">
+        <div class="pf-sum-box">
+          <div class="pf-sum-label">Custo total do pacote</div>
+          <div class="pf-sum-value" id="sum-custo">R$ 0,00</div>
+          <div class="pf-sum-desc">Soma do custo de todos os itens</div>
+        </div>
+        <div class="pf-sum-box">
+          <div class="pf-sum-label">Margem de lucro</div>
+          <div class="pf-sum-value" id="sum-margem">0,00%</div>
+          <div class="pf-sum-desc">Calculada automaticamente</div>
+        </div>
+        <div class="pf-sum-box">
+          <div class="pf-sum-label">Lucro por unidade</div>
+          <div class="pf-sum-value" id="sum-lucro">R$ 0,00</div>
+          <div class="pf-sum-desc">Preço de venda - Custo total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 2. Itens do Pacote ─── -->
+    <div class="pf-card">
+      <div class="pf-card-header">
+        <div class="pf-card-title">
+          <div class="pf-step">2</div>
+          Itens do Pacote
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button type="button" class="pf-btn-add" id="btn-add-item" onclick="mostrarBusca()">+ Adicionar produto</button>
+          <div class="pf-busca-wrap" id="busca-wrap" style="display:none;">
+            <input type="text" id="busca-insumo" class="pf-busca-inp"
+              placeholder="🔍 Buscar produto..." autocomplete="off">
+            <ul id="busca-lista" class="pf-busca-lista"></ul>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:13px;color:var(--text-muted);margin:-8px 0 16px;">
+        Selecione os produtos do seu estoque que irão compor este pacote e informe a quantidade utilizada.
+      </p>
+
+      <div class="pf-table-wrap">
+        <table class="pf-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Quantidade e unidade</th>
+              <th>Custo / unidade</th>
+              <th>Custo total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="items-body">
+            <tr id="empty-row">
+              <td colspan="6" class="pf-empty">
+                Nenhum item adicionado.<br>Clique em "+ Adicionar item" para começar.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pf-info">
+        <div class="pf-info-icon">ℹ</div>
+        <div class="pf-info-text">
+          <strong>Como funciona</strong>
+          Ao vender este pacote, os itens acima serão baixados automaticamente do estoque nas quantidades informadas.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 3. Resumo do Pacote ─── -->
+    <div class="pf-card">
+      <div class="pf-card-header">
+        <div class="pf-card-title">
+          <div class="pf-step">3</div>
+          Resumo do Pacote
+        </div>
+      </div>
+
+      <div class="pf-resumo-inner">
+        <div class="pf-resumo-list">
+          <div class="pf-resumo-row">
+            <span>Preço de venda</span>
+            <span id="res-venda">R$ 0,00</span>
+          </div>
+          <div class="pf-resumo-row">
+            <span>Custo total dos itens</span>
+            <span id="res-custo">R$ 0,00</span>
+          </div>
+          <div class="pf-resumo-row">
+            <span>Lucro por unidade</span>
+            <span id="res-lucro">R$ 0,00</span>
+          </div>
+          <div class="pf-resumo-row highlight">
+            <span>Margem de lucro</span>
+            <span id="res-margem">0,00%</span>
+          </div>
+          <p class="pf-resumo-note">
+            * Os custos são baseados no custo unitário atual dos produtos em estoque.
+          </p>
+        </div>
+
+        <div class="pf-donut-wrap">
+          <svg class="pf-donut-svg" viewBox="0 0 150 150">
+            <!-- track -->
+            <circle cx="75" cy="75" r="56" fill="none" stroke="var(--border,#333)" stroke-width="22"/>
+            <!-- lucro (verde) — renderizado por cima do custo -->
+            <circle id="donut-profit" cx="75" cy="75" r="56" fill="none"
+              stroke="#4ade80" stroke-width="22"
+              stroke-dasharray="0 351.9" stroke-dashoffset="0"
+              transform="rotate(-90 75 75)"/>
+            <!-- custo (vermelho) — atrás, preenchimento restante -->
+            <circle id="donut-cost" cx="75" cy="75" r="56" fill="none"
+              stroke="#f87171" stroke-width="22"
+              stroke-dasharray="351.9 0" stroke-dashoffset="0"
+              transform="rotate(-90 75 75)"/>
+            <text id="donut-pct" x="75" y="71" text-anchor="middle" class="pf-donut-center">0%</text>
+            <text x="75" y="85" text-anchor="middle" class="pf-donut-lbl">Margem</text>
+          </svg>
+          <div class="pf-legend">
+            <div class="pf-legend-item">
+              <div class="pf-legend-dot" style="background:#4ade80"></div>
+              <span id="leg-lucro">Lucro (R$ 0,00)</span>
+            </div>
+            <div class="pf-legend-item">
+              <div class="pf-legend-dot" style="background:#f87171"></div>
+              <span id="leg-custo">Custo (R$ 0,00)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Ações ─── -->
+    <div class="pf-actions">
+      <button type="submit" class="pf-btn-submit">
+        &#128248; {{ 'Salvar Alterações' if produto else 'Cadastrar Pacote' }}
+      </button>
+      <a href="{{ url_for('bar_produtos') }}" class="pf-btn-cancel">Cancelar</a>
+    </div>
+
+  </form>
+</div>
+
+<script type="application/json" id="json-insumos">{{ insumos | tojson }}</script>
+<script type="application/json" id="json-components">{{ components | tojson }}</script>
+
+<script>
+const INSUMOS = JSON.parse(document.getElementById('json-insumos').textContent);
+const COMPONENTS_INIT = JSON.parse(document.getElementById('json-components').textContent);
+
+let rowCount = 0;
+const CIRC = 2 * Math.PI * 56;
+
+function fmt(v)    { return 'R$ ' + Math.abs(v).toFixed(2).replace('.', ','); }
+function fmtV(v)   { return (v < 0 ? '-' : '') + fmt(v); }
+function fmtPct(v) { return v.toFixed(2).replace('.', ',') + '%'; }
+function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+
+/* ── Busca de produto ── */
+const buscaInp   = document.getElementById('busca-insumo');
+const buscaLista = document.getElementById('busca-lista');
+
+function buscarInsumo(termo) {
+  buscaLista.innerHTML = '';
+  if (!normaliza(termo)) { buscaLista.style.display = 'none'; return; }
+  const matches = INSUMOS.filter(p => normaliza(p.name).includes(normaliza(termo))).slice(0, 8);
+  if (!matches.length) { buscaLista.style.display = 'none'; return; }
+  matches.forEach(p => {
+    const li = document.createElement('li');
+    const cv = parseFloat(p.conteudo_valor || 0);
+    const cu = p.conteudo_unidade || '';
+    let stockInfo = p.stock + ' unid.';
+    if (cv > 0 && cu) stockInfo += ' • ' + (p.stock * cv).toFixed(1) + ' ' + cu;
+    li.innerHTML = `<span class="bl-nome">${p.name}</span><span class="bl-stock">${stockInfo}</span>`;
+    li.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      adicionarItem(p, null, null);
+      buscaInp.value = '';
+      buscaLista.style.display = 'none';
+    });
+    buscaLista.appendChild(li);
+  });
+  buscaLista.style.display = 'block';
+}
+
+function mostrarBusca() {
+  document.getElementById('busca-wrap').style.display = '';
+  document.getElementById('btn-add-item').style.display = 'none';
+  buscaInp.focus();
+}
+
+buscaInp.addEventListener('input',  () => buscarInsumo(buscaInp.value));
+buscaInp.addEventListener('focus',  () => buscarInsumo(buscaInp.value));
+buscaInp.addEventListener('blur',   () => setTimeout(() => {
+  buscaLista.style.display = 'none';
+  buscaInp.value = '';
+  document.getElementById('busca-wrap').style.display = 'none';
+  document.getElementById('btn-add-item').style.display = '';
+}, 150));
+
+/* ── Adicionar item (produto já resolvido) ── */
+function adicionarItem(insumo, qty, unitUso) {
+  if (!insumo) return;
+  rowCount++;
+  const rid = 'row-' + rowCount;
+  const cv  = parseFloat(insumo.conteudo_valor || 0);
+  const cu  = insumo.conteudo_unidade || '';
+
+  const unidades = [];
+  if (cu && cu !== 'UN') unidades.push(cu);
+  unidades.push('UN');
+  const sel0 = unitUso || cu || 'UN';
+  const unitOpts = unidades.map(u =>
+    `<option value="${u}" ${u === sel0 ? 'selected' : ''}>${u}</option>`
+  ).join('');
+
+  let stockText = insumo.stock + ' unid.';
+  if (cv > 0 && cu) stockText += ' • ' + (insumo.stock * cv).toFixed(1) + ' ' + cu + ' disponível';
+
+  const tr = document.createElement('tr');
+  tr.id = rid;
+  tr.dataset.cost = insumo.cost;
+  tr.dataset.cv   = cv;
+  tr.innerHTML = `
+    <td>
+      <input type="hidden" name="component_id[]" value="${insumo.id}">
+      <strong style="font-size:13px;color:var(--text);">${insumo.name}</strong>
+      <span class="pf-prod-stock">${stockText}</span>
+    </td>
+    <td>
+      <div class="pf-qty-wrap">
+        <input type="number" name="component_qty[]"
+          step="0.001" min="0.001" placeholder="0"
+          value="${qty != null ? qty : ''}"
+          oninput="calcular()">
+        <select name="unidade_uso[]" class="pf-unit-sel" onchange="calcular()">${unitOpts}</select>
+      </div>
+    </td>
+    <td class="pf-cost-cell pf-cu">—</td>
+    <td class="pf-cost-total pf-ct">R$ 0,00</td>
+    <td><button type="button" class="pf-btn-rm" onclick="removerItem('${rid}')">×</button></td>
+  `;
+
+  document.getElementById('empty-row').style.display = 'none';
+  document.getElementById('items-body').appendChild(tr);
+  calcular();
+}
+
+function removerItem(rid) {
+  const el = document.getElementById(rid);
+  if (el) el.remove();
+  if (!document.querySelector('#items-body tr[id^="row-"]'))
+    document.getElementById('empty-row').style.display = '';
+  calcular();
+}
+
+/* ── Cálculo de custo ── */
+function calcular() {
+  let custo = 0;
+  document.querySelectorAll('#items-body tr[id^="row-"]').forEach(row => {
+    const cost    = parseFloat(row.dataset.cost || 0);
+    const cv      = parseFloat(row.dataset.cv   || 0);
+    const unitSel = row.querySelector('select[name="unidade_uso[]"]');
+    const qty     = parseFloat(row.querySelector('input[name="component_qty[]"]')?.value || 0);
+    const unidUso = unitSel?.value || 'UN';
+
+    let cpq;
+    if (unidUso !== 'UN' && cv > 0) {
+      cpq = cost / cv;
+      row.querySelector('.pf-cu').textContent = fmt(cpq) + '/' + unidUso;
+    } else {
+      cpq = cost;
+      row.querySelector('.pf-cu').textContent = cost > 0 ? fmt(cost) : '—';
+    }
+    const item = qty * cpq;
+    custo += item;
+    row.querySelector('.pf-ct').textContent = fmt(item);
+  });
+
+  const venda  = parseFloat(document.getElementById('sale_price').value || 0);
+  const lucro  = venda - custo;
+  const margem = venda > 0 ? (lucro / venda) * 100 : 0;
+
+  document.getElementById('sum-custo').textContent  = fmt(custo);
+  document.getElementById('sum-lucro').textContent  = fmtV(lucro);
+  document.getElementById('sum-margem').textContent = fmtPct(margem);
+  document.getElementById('res-venda').textContent  = fmt(venda);
+  document.getElementById('res-custo').textContent  = fmt(custo);
+  document.getElementById('res-lucro').textContent  = fmtV(lucro);
+  document.getElementById('res-margem').textContent = fmtPct(margem);
+  document.getElementById('leg-lucro').textContent  = 'Lucro (' + fmtV(lucro) + ')';
+  document.getElementById('leg-custo').textContent  = 'Custo (' + fmt(custo) + ')';
+  updateDonut(margem);
+}
+
+function updateDonut(margem) {
+  const clamped   = Math.max(0, Math.min(100, margem));
+  const profitLen = (clamped / 100) * CIRC;
+  const costLen   = CIRC - profitLen;
+  const dp = document.getElementById('donut-profit');
+  dp.setAttribute('stroke-dasharray', profitLen + ' ' + (CIRC - profitLen));
+  dp.setAttribute('stroke-dashoffset', 0);
+  const dc = document.getElementById('donut-cost');
+  dc.setAttribute('stroke-dasharray', costLen + ' ' + (CIRC - costLen));
+  dc.setAttribute('stroke-dashoffset', -profitLen);
+  document.getElementById('donut-pct').textContent = clamped.toFixed(1) + '%';
+}
+
+function validarForm() {
+  const rows = document.querySelectorAll('#items-body tr[id^="row-"]');
+  if (rows.length === 0) { alert('Adicione ao menos um item ao pacote.'); return false; }
+  let ok = true;
+  rows.forEach(row => {
+    const qty = parseFloat(row.querySelector('input[name="component_qty[]"]')?.value || 0);
+    if (qty <= 0) ok = false;
+  });
+  if (!ok) { alert('Preencha a quantidade de todos os itens.'); return false; }
+  return true;
+}
+
+document.getElementById('sale_price').addEventListener('input', calcular);
+
+/* Edit mode: pré-popular itens */
+if (COMPONENTS_INIT && COMPONENTS_INIT.length > 0) {
+  COMPONENTS_INIT.forEach(c => {
+    const normCid = (c.component_id || '').replace(/-/g, '');
+    const insumo  = INSUMOS.find(p => p.id === normCid);
+    if (insumo) adicionarItem(insumo, c.quantity, c.unidade_uso || 'UN');
+  });
+}
+
+calcular();
+</script>
+
+{% endblock %}

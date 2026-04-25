@@ -2,245 +2,475 @@
 {% block conteudo %}
 
 <style>
-.page { max-width:900px; margin:20px auto; padding:20px; }
-h2 { text-align:center; color:var(--accent); margin-bottom:6px; }
-.sub { text-align:center; color:var(--text-muted); font-size:13px; margin-bottom:22px; }
+/* ── Reset page padding from base ── */
+.cd-page { padding: 0; }
 
-.btn {
-  background:var(--btn-bg); color:var(--accent); border:none;
-  padding:8px 16px; border-radius:8px; cursor:pointer;
-  font-weight:bold; font-size:13px; transition:background 0.15s;
-  text-decoration:none; display:inline-block;
+/* ── Header bar ── */
+.cd-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+  flex-wrap: wrap; gap: 12px;
 }
-.btn:hover { background:var(--accent-hover); }
-.btn-sec {
-  background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+.cd-header-left { display: flex; align-items: center; gap: 14px; }
+.cd-header-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); font-size: 22px; flex-shrink: 0;
 }
-.btn-danger {
-  background:#2a0f0f; color:#f87171; border:1px solid #5a1f1f;
+.cd-header-name { font-size: 26px; font-weight: 800; color: var(--text); }
+.cd-header-center { display: flex; align-items: center; gap: 28px; }
+.cd-header-info { display: flex; align-items: center; gap: 8px; }
+.cd-header-info-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.cd-header-info-val   { font-size: 15px; font-weight: 600; color: var(--text); }
+.cd-header-sep { width: 1px; height: 32px; background: var(--border); }
+.cd-header-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--accent); font-size: 14px; font-weight: 600;
+  text-decoration: none;
 }
-.btn-danger:hover { background:#3a1515; }
+.cd-header-back:hover { opacity: .8; }
 
-.alerta { background:#2a0f0f; border:1px solid #5a1f1f; padding:10px 14px;
-  border-radius:8px; margin-bottom:16px; color:#f87171; font-weight:bold; }
+/* ── Main layout ── */
+.cd-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+.cd-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
 
-/* ── GRID ── */
-.layout { display:grid; grid-template-columns:1fr 290px; gap:20px; align-items:start; }
+/* ── Cards ── */
+.cd-card {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 22px;
+  margin-bottom: 16px;
+}
+.cd-card:last-child { margin-bottom: 0; }
+.cd-card-title {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  margin-bottom: 18px;
+}
 
-.card { background:var(--card-bg); border-radius:12px; padding:18px 20px;
-  box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:16px; }
-.card:last-child { margin-bottom:0; }
-.card-title { font-size:11px; font-weight:bold; color:var(--accent); text-transform:uppercase;
-  letter-spacing:1.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+/* ── Add item form ── */
+.cd-add-grid {
+  display: grid; grid-template-columns: 1fr 180px auto;
+  gap: 12px; align-items: end;
+}
+.cd-field { display: flex; flex-direction: column; gap: 6px; }
+.cd-field label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
 
-.add-row { display:grid; grid-template-columns:1fr 90px auto; gap:10px; align-items:end; }
-.field { display:flex; flex-direction:column; gap:5px; }
-.field label { font-size:12px; font-weight:bold; color:var(--accent); }
-.field select, .field input { padding:8px 10px; border:1px solid var(--border); border-radius:8px;
-  font-size:13px; outline:none; width:100%; background:var(--input-bg); color:var(--text); }
-.field select:focus, .field input:focus { border-color:var(--accent); }
+/* Search dropdown */
+.cd-search-wrap { position: relative; }
+.cd-search-inp {
+  width: 100%; padding: 10px 36px 10px 14px;
+  border-radius: 9px; border: 1px solid var(--border);
+  background: var(--input-bg); color: var(--text);
+  font-size: 14px; outline: none; box-sizing: border-box;
+}
+.cd-search-inp:focus { border-color: var(--accent); }
+.cd-search-arrow {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none; font-size: 12px;
+}
+.cd-search-list {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 999;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  max-height: 240px; overflow-y: auto; list-style: none; margin: 0; padding: 0;
+}
+.cd-search-list li {
+  padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.cd-search-list li:last-child { border-bottom: none; }
+.cd-search-list li:hover { background: var(--accent-dim); }
+.cd-search-list li:hover .sli-nome { color: var(--accent); }
+.sli-nome  { font-size: 13px; font-weight: 600; color: var(--text); }
+.sli-right { font-size: 11px; color: var(--text-muted); text-align: right; white-space: nowrap; }
+input[name="produto_pid"] { display: none; }
 
-.itens-wrap { margin-top:16px; }
-.vazio-itens { text-align:center; padding:24px; color:var(--text-muted); font-size:13px;
-  border:2px dashed var(--border); border-radius:8px; margin-top:12px; }
+/* Stepper */
+.cd-stepper { display: flex; align-items: center; gap: 0; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.cd-step-btn {
+  width: 38px; height: 40px; border: none; background: var(--input-bg);
+  color: var(--text); font-size: 18px; cursor: pointer; font-weight: 300;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background .12s;
+}
+.cd-step-btn:hover { background: var(--accent-dim); color: var(--accent); }
+.cd-step-inp {
+  width: 54px; padding: 0 6px; text-align: center;
+  border: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  background: var(--input-bg); color: var(--text); font-size: 15px; font-weight: 600;
+  height: 40px; outline: none;
+}
 
-table { width:100%; border-collapse:collapse; font-size:13px; }
-table th { background:#2a2a2a; color:var(--accent); padding:8px 10px; text-align:center; }
-table td { border:1px solid var(--border); padding:8px 10px; text-align:center; color:var(--text); }
-table tr:nth-child(even) { background:var(--table-even); }
+/* Add button */
+.cd-btn-add {
+  height: 40px; padding: 0 20px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: 9px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.cd-btn-add:hover { opacity: .88; }
 
-.btn-rem { background:#2a0f0f; color:#f87171; border:1px solid #5a1f1f;
-  padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
-.btn-rem:hover { background:#3a1515; }
+/* ── Items table ── */
+.cd-table { width: 100%; border-collapse: collapse; }
+.cd-table th {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);
+}
+.cd-table td { padding: 12px 12px; vertical-align: middle; }
+.cd-table tr + tr td { border-top: 1px solid var(--border); }
 
-.sidebar { position:sticky; top:20px; }
-.res-row { display:flex; justify-content:space-between; padding:9px 0;
-  border-bottom:1px solid var(--border); font-size:13px; }
-.res-row:last-of-type { border-bottom:none; }
-.res-label { color:var(--text-muted); }
-.res-val { font-weight:bold; color:var(--text); }
-.res-total { display:flex; justify-content:space-between; align-items:center;
-  padding-top:14px; margin-top:6px; border-top:2px solid var(--border); }
-.res-total-label { font-size:14px; font-weight:bold; color:var(--accent); }
-.res-total-val { font-size:26px; font-weight:bold; color:var(--accent); }
+.cd-prod-cell { display: flex; align-items: center; gap: 10px; }
+.cd-prod-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.cd-prod-nome { font-size: 13px; font-weight: 600; color: var(--text); }
 
-.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
-  backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; }
-.modal-bg.open { display:flex; }
-.modal-box { background:var(--card-bg); border:1px solid var(--border); border-radius:16px;
-  padding:28px; width:100%; max-width:380px; position:relative;
-  box-shadow:0 24px 64px rgba(0,0,0,0.6); animation:modal-in 0.25s cubic-bezier(0.22,1,0.36,1) both; }
-@keyframes modal-in { from{opacity:0;transform:translateY(16px) scale(0.97);}to{opacity:1;transform:none;} }
-.modal-titulo { font-size:18px; font-weight:bold; color:var(--accent); margin-bottom:4px; }
-.modal-total-pill { display:inline-flex; align-items:center; gap:6px; background:var(--accent-dim);
-  border:1px solid var(--border); border-radius:20px; padding:5px 14px; font-size:13px;
-  color:var(--accent); font-weight:bold; margin:10px 0 20px; }
-.formas { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
-.forma-btn { border:1px solid var(--border); border-radius:10px; padding:13px 16px;
-  background:#242424; cursor:pointer; display:flex; align-items:center; gap:12px;
-  transition:border-color 0.15s,background 0.15s; }
-.forma-btn:hover, .forma-btn.sel { background:var(--accent-dim); border-color:var(--accent); }
-.forma-icon { font-size:22px; width:36px; text-align:center; }
-.forma-nome { font-size:14px; font-weight:bold; color:var(--accent); }
-.forma-sub  { font-size:11px; color:var(--text-muted); }
-.btn-confirmar { width:100%; padding:13px; background:var(--btn-bg); color:var(--accent); border:none;
-  border-radius:10px; font-size:15px; font-weight:bold; cursor:pointer; transition:background 0.15s; }
-.btn-confirmar:hover { background:var(--accent-hover); }
-.modal-close { position:absolute; top:14px; right:14px; background:#2a2a2a; border:none;
-  border-radius:8px; width:30px; height:30px; cursor:pointer; font-size:16px;
-  color:var(--text-muted); display:flex; align-items:center; justify-content:center; }
-.modal-close:hover { background:var(--accent-dim); color:var(--accent); }
+.cd-hora-cell { font-size: 13px; color: var(--text-muted); }
+.cd-num-cell  { font-size: 13px; color: var(--text); text-align: center; }
+.cd-price-cell { font-size: 13px; color: var(--text-muted); text-align: right; }
+.cd-sub-cell  { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
+
+.cd-btn-rm {
+  width: 32px; height: 32px; border-radius: 7px;
+  background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25);
+  color: #f87171; font-size: 15px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.cd-btn-rm:hover { background: rgba(248,113,113,.22); }
+
+.cd-empty {
+  text-align: center; padding: 32px;
+  color: var(--text-muted); font-size: 13px;
+  border: 2px dashed var(--border); border-radius: 10px; margin-top: 4px;
+}
+
+/* ── Sidebar ── */
+.cd-sidebar { position: sticky; top: 20px; }
+
+.cd-res-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.cd-res-row:last-of-type { border-bottom: none; }
+.cd-res-label { color: var(--text-muted); }
+.cd-res-val   { font-weight: 600; color: var(--text); }
+.cd-res-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0 8px; border-top: 2px solid var(--border); margin-top: 4px;
+}
+.cd-res-total-label { font-size: 15px; font-weight: 700; color: var(--text); }
+.cd-res-total-val   { font-size: 28px; font-weight: 800; color: #4ade80; line-height: 1; }
+
+/* Last item box */
+.cd-last-box {
+  background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; margin-top: 14px;
+}
+.cd-last-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.cd-last-nome  { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+.cd-last-hora  { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+
+/* Sidebar buttons */
+.cd-sb-btn {
+  width: 100%; padding: 13px; border-radius: 10px; border: none;
+  font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  text-decoration: none;
+}
+.cd-sb-btn:hover { opacity: .88; }
+.cd-sb-btn-close  { background: var(--accent); color: #000; }
+.cd-sb-btn-cancel { background: var(--card-bg); color: var(--text); border: 1px solid var(--border) !important; margin-top: 10px; }
+.cd-sb-btn-close:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Error ── */
+.cd-alerta {
+  background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3);
+  color: #f87171; border-radius: 10px; padding: 12px 16px;
+  font-size: 13px; font-weight: 600; margin-bottom: 16px;
+}
+
+/* ── Status bar ── */
+.cd-statusbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--card-bg); border-top: 1px solid var(--border);
+  padding: 12px 28px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-muted);
+  z-index: 100;
+}
+.cd-statusbar-dot { color: #4ade80; font-size: 16px; }
+
+/* ── Modal fechar comanda ── */
+.cd-modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+  z-index: 10000; align-items: center; justify-content: center;
+}
+.cd-modal-bg.open { display: flex; }
+.cd-modal-box {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px;
+  width: 100%; max-width: 400px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  animation: cd-modal-in .2s cubic-bezier(.22,1,.36,1) both;
+  position: relative;
+}
+@keyframes cd-modal-in { from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none} }
+.cd-modal-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.cd-modal-total-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent-dim); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 13px; color: var(--accent); font-weight: 700;
+  margin: 10px 0 20px;
+}
+.cd-formas { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.cd-forma-btn {
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 13px 16px; background: var(--input-bg);
+  cursor: pointer; display: flex; align-items: center; gap: 12px;
+  transition: border-color .15s, background .15s;
+}
+.cd-forma-btn:hover, .cd-forma-btn.sel { background: var(--accent-dim); border-color: var(--accent); }
+.cd-forma-icon { font-size: 22px; width: 36px; text-align: center; }
+.cd-forma-nome { font-size: 14px; font-weight: 700; color: var(--accent); }
+.cd-forma-sub  { font-size: 11px; color: var(--text-muted); }
+.cd-btn-confirmar {
+  width: 100%; padding: 13px; background: var(--accent); color: #000;
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.cd-btn-confirmar:hover { opacity: .9; }
+.cd-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  background: #2a2a2a; border: none; border-radius: 8px;
+  width: 30px; height: 30px; cursor: pointer; font-size: 16px;
+  color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+}
+.cd-modal-close:hover { background: var(--accent-dim); color: var(--accent); }
+
+@media (max-width: 760px) {
+  .cd-layout { grid-template-columns: 1fr; }
+  .cd-add-grid { grid-template-columns: 1fr; }
+  .cd-header-center { display: none; }
+  .cd-sidebar { position: static; }
+}
 </style>
 
-<!-- MODAL FECHAR COMANDA -->
-<div class="modal-bg" id="modal-bg">
-  <div class="modal-box">
-    <button class="modal-close" onclick="fecharModal()">✕</button>
-    <div class="modal-titulo">Fechar Comanda</div>
-    <div class="modal-total-pill">Total: <strong id="modal-total">R$ 0,00</strong></div>
-
-    <form method="post" action="/comandas/{{ comanda.cid }}/fechar" id="form-fechar">
+<!-- Modal fechar comanda -->
+<div class="cd-modal-bg" id="cd-modal">
+  <div class="cd-modal-box">
+    <button class="cd-modal-close" onclick="fecharModal()">✕</button>
+    <div class="cd-modal-title">Fechar Comanda</div>
+    <div class="cd-modal-total-pill">Total: <strong id="modal-total-val">R$ 0,00</strong></div>
+    <form method="post" action="/comandas/{{ comanda.cid }}/fechar">
       <input type="hidden" name="forma_pagamento" id="h-forma" value="dinheiro">
-
-      <div class="formas">
-        <div class="forma-btn sel" id="fb-dinheiro" onclick="selecionarForma('dinheiro')">
-          <span class="forma-icon">💵</span>
-          <div><div class="forma-nome">Dinheiro</div><div class="forma-sub">Pagamento em espécie</div></div>
+      <div class="cd-formas">
+        <div class="cd-forma-btn sel" onclick="selecionarForma('dinheiro')">
+          <span class="cd-forma-icon">💵</span>
+          <div><div class="cd-forma-nome">Dinheiro</div><div class="cd-forma-sub">Pagamento em espécie</div></div>
         </div>
-        <div class="forma-btn" id="fb-pix" onclick="selecionarForma('pix')">
-          <span class="forma-icon">📱</span>
-          <div><div class="forma-nome">Pix</div><div class="forma-sub">Transferência instantânea</div></div>
+        <div class="cd-forma-btn" onclick="selecionarForma('pix')">
+          <span class="cd-forma-icon">📱</span>
+          <div><div class="cd-forma-nome">Pix</div><div class="cd-forma-sub">Transferência instantânea</div></div>
         </div>
-        <div class="forma-btn" id="fb-cartao" onclick="selecionarForma('cartao')">
-          <span class="forma-icon">💳</span>
-          <div><div class="forma-nome">Cartão</div><div class="forma-sub">Débito ou crédito</div></div>
+        <div class="cd-forma-btn" onclick="selecionarForma('cartao')">
+          <span class="cd-forma-icon">💳</span>
+          <div><div class="cd-forma-nome">Cartão</div><div class="cd-forma-sub">Débito ou crédito</div></div>
         </div>
       </div>
-
-      <button type="submit" class="btn-confirmar">Confirmar e Fechar →</button>
+      <button type="submit" class="cd-btn-confirmar">Confirmar e Fechar →</button>
     </form>
   </div>
 </div>
 
-<div class="page">
-  <h2>{{ comanda.nome }}</h2>
-  <div class="sub">
-    Aberta em {{ comanda.data_abertura|br_date }} às {{ comanda.hora_abertura }}
-    &nbsp;·&nbsp;
-    <a href="/comandas" style="color:var(--accent);">← Voltar às comandas</a>
+<!-- Header bar -->
+<div class="cd-header">
+  <div class="cd-header-left">
+    <div class="cd-header-icon">🗒</div>
+    <div class="cd-header-name">{{ comanda.nome }}</div>
   </div>
+  <div class="cd-header-center">
+    <div class="cd-header-info">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <div>
+        <div class="cd-header-info-label">Data</div>
+        <div class="cd-header-info-val">{{ comanda.data_abertura|br_date }}</div>
+      </div>
+    </div>
+    <div class="cd-header-sep"></div>
+    <div class="cd-header-info">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <div>
+        <div class="cd-header-info-label">Hora</div>
+        <div class="cd-header-info-val">{{ comanda.hora_abertura }}</div>
+      </div>
+    </div>
+  </div>
+  <a href="/comandas" class="cd-header-back">← Voltar às comandas</a>
+</div>
+
+<div class="cd-wrap">
 
   {% if erro %}
-    <div class="alerta">{{ erro }}</div>
+  <div class="cd-alerta">{{ erro }}</div>
   {% endif %}
 
-  <div class="layout">
+  <div class="cd-layout">
+    <!-- Left column -->
     <div>
-      <!-- Adicionar item -->
+
       {% if comanda.status == "aberta" %}
-      <div class="card">
-        <div class="card-title">Adicionar item</div>
-        <form method="post" action="/comandas/{{ comanda.cid }}/adicionar">
-          <div class="add-row">
-            <div class="field">
-              <label>Produto</label>
-              <select name="produto_pid" id="sel-produto">
-                <option value="">Selecione...</option>
-                {% for p in estoque %}
-                  <option value="{{ p.pid }}" data-preco="{{ '%.2f'|format(p.valor_venda|float) }}">
-                    {{ p.nome }} — R$ {{ '%.2f'|format(p.valor_venda|float) }}
-                    ({{ p.quantidade }} em estoque)
-                  </option>
-                {% endfor %}
-              </select>
+      <!-- Adicionar item -->
+      <div class="cd-card">
+        <div class="cd-card-title">Adicionar item</div>
+        <form method="post" action="/comandas/{{ comanda.cid }}/adicionar" id="form-add">
+          <input type="hidden" name="produto_pid" id="pid-hidden">
+          <input type="hidden" name="produto_tipo" id="tipo-hidden" value="estoque">
+          <input type="hidden" name="vender_por_conteudo" id="vpc-hidden" value="0">
+          <div class="cd-add-grid">
+            <div class="cd-field">
+              <label>Produto ou Pacote</label>
+              <div class="cd-search-wrap">
+                <input type="text" id="cd-search" class="cd-search-inp"
+                  placeholder="Buscar produto ou pacote..." autocomplete="off">
+                <span class="cd-search-arrow">▾</span>
+                <ul id="cd-search-list" class="cd-search-list"></ul>
+              </div>
             </div>
-            <div class="field">
-              <label>Qtd</label>
-              <input type="number" name="quantidade" id="inp-qtd" value="1" min="1">
+            <div class="cd-field">
+              <label>Quantidade</label>
+              <div class="cd-stepper">
+                <button type="button" class="cd-step-btn" onclick="stepQtd(-1)">−</button>
+                <input type="number" name="quantidade" id="inp-qtd" class="cd-step-inp" value="1" min="1">
+                <button type="button" class="cd-step-btn" onclick="stepQtd(1)">+</button>
+              </div>
             </div>
-            <div class="field">
+            <div class="cd-field">
               <label>&nbsp;</label>
-              <button type="submit" class="btn">Adicionar</button>
+              <button type="submit" class="cd-btn-add" id="btn-add">
+                + Adicionar
+              </button>
             </div>
+          </div>
+          <!-- Toggle vender por unidade de conteúdo -->
+          <div id="vpc-row" style="display:none;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:rgba(255,200,50,0.07);border:1px solid rgba(255,200,50,0.25);border-radius:8px;">
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text);user-select:none;">
+              <input type="checkbox" id="vpc-check" onchange="toggleVpc(this)" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;">
+              Vender por unidade solta
+            </label>
+            <span id="vpc-hint" style="font-size:11px;color:var(--text-muted);"></span>
           </div>
         </form>
       </div>
       {% endif %}
 
       <!-- Itens consumidos -->
-      <div class="card">
-        <div class="card-title">Itens consumidos</div>
+      <div class="cd-card">
+        <div class="cd-card-title">Itens consumidos</div>
         {% if comanda.itens %}
-          <table>
-            <thead>
-              <tr>
-                <th>Hora</th>
-                <th>Produto</th>
-                <th>Qtd</th>
-                <th>Preço Unit.</th>
-                <th>Subtotal</th>
-                {% if comanda.status == "aberta" %}<th></th>{% endif %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in comanda.itens %}
-              <tr>
-                <td>{{ item.hora }}</td>
-                <td>{{ item.nome }}</td>
-                <td>{{ item.quantidade }}</td>
-                <td>R$ {{ "%.2f"|format(item.valor_venda) }}</td>
-                <td>R$ {{ "%.2f"|format(item.valor_venda * item.quantidade) }}</td>
-                {% if comanda.status == "aberta" %}
-                <td>
-                  <form method="post" action="/comandas/{{ comanda.cid }}/remover/{{ item.item_id }}"
-                        onsubmit="return confirm('Remover {{ item.nome }} da comanda? O estoque será reposto.')">
-                    <button type="submit" class="btn-rem">Remover</button>
-                  </form>
-                </td>
-                {% endif %}
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <table class="cd-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Produto</th>
+              <th style="text-align:center">Qtd</th>
+              <th style="text-align:right">Preço unit.</th>
+              <th style="text-align:right">Subtotal</th>
+              {% if comanda.status == "aberta" %}<th></th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in comanda.itens %}
+            <tr>
+              <td class="cd-hora-cell">{{ item.hora }}</td>
+              <td>
+                <div class="cd-prod-cell">
+                  <div class="cd-prod-icon">{% if item.produto_tipo == 'bar' %}🍹{% else %}🛒{% endif %}</div>
+                  <div>
+                    <div class="cd-prod-nome">{{ item.nome }}</div>
+                    {% if item.produto_tipo == 'bar' %}
+                    <span style="font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:1px 7px;border-radius:10px;">Pacote</span>
+                    {% elif item.vender_por_conteudo %}
+                    <span style="font-size:10px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.12);padding:1px 7px;border-radius:10px;">Solto</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td class="cd-num-cell">{{ item.quantidade }}</td>
+              <td class="cd-price-cell">R$ {{ "%.2f"|format(item.valor_venda) }}</td>
+              <td class="cd-sub-cell">R$ {{ "%.2f"|format(item.valor_venda * item.quantidade) }}</td>
+              {% if comanda.status == "aberta" %}
+              <td>
+                <form method="post" action="/comandas/{{ comanda.cid }}/remover/{{ item.item_id }}"
+                      onsubmit="return confirm('Remover {{ item.nome }} da comanda? O estoque será reposto.')">
+                  <button type="submit" class="cd-btn-rm" title="Remover">🗑</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
-          <div class="vazio-itens">Nenhum item adicionado ainda.</div>
+        <div class="cd-empty">Nenhum item adicionado ainda.</div>
         {% endif %}
       </div>
     </div>
 
-    <!-- Sidebar resumo -->
-    <div class="sidebar">
-      <div class="card">
-        <div class="card-title">Resumo</div>
-        <div class="res-row">
-          <span class="res-label">Itens</span>
-          <span class="res-val">{{ comanda.itens|length }}</span>
+    <!-- Sidebar -->
+    <div class="cd-sidebar">
+      <div class="cd-card">
+        <div class="cd-card-title">Resumo da comanda</div>
+
+        <div class="cd-res-row">
+          <span class="cd-res-label">Itens diferentes</span>
+          <span class="cd-res-val">{{ comanda.itens|length }}</span>
         </div>
-        <div class="res-row">
-          <span class="res-label">Qtd total</span>
-          <span class="res-val">
-            {{ comanda.itens | sum(attribute='quantidade') }}
-          </span>
-        </div>
-        <div class="res-total">
-          <span class="res-total-label">Total</span>
-          <span class="res-total-val">R$ {{ "%.2f"|format(total) }}</span>
+        <div class="cd-res-row">
+          <span class="cd-res-label">Qtd total de itens</span>
+          <span class="cd-res-val">{{ comanda.itens | sum(attribute='quantidade') }}</span>
         </div>
 
+        <div class="cd-res-total">
+          <span class="cd-res-total-label">Total</span>
+          <span class="cd-res-total-val">R$ {{ "%.2f"|format(total)|replace(".", ",") }}</span>
+        </div>
+
+        {% if comanda.itens %}
+        <div class="cd-last-box">
+          <div class="cd-last-label">Último item adicionado</div>
+          <div class="cd-last-nome">{{ comanda.itens[-1].nome }}</div>
+          <div class="cd-last-hora">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            {{ comanda.itens[-1].hora }}
+          </div>
+        </div>
+        {% endif %}
+
         {% if comanda.status == "aberta" %}
-          {% if comanda.itens %}
-            <button class="btn" style="width:100%;margin-top:16px;padding:12px;font-size:15px;"
-                    onclick="abrirModal()">
-              Fechar Comanda →
-            </button>
-          {% else %}
-            <button class="btn" style="width:100%;margin-top:16px;padding:12px;font-size:15px;opacity:0.5;cursor:not-allowed;" disabled>
-              Fechar Comanda →
-            </button>
-          {% endif %}
-        {% else %}
-          <div style="margin-top:16px;text-align:center;color:#16a34a;font-weight:bold;font-size:13px;">
+          <button class="cd-sb-btn cd-sb-btn-close"
+                  onclick="abrirModal()"
+                  {% if not comanda.itens %}disabled{% endif %}>
+            🔒 Fechar comanda
+          </button>
+          <button class="cd-sb-btn cd-sb-btn-cancel"
+                  onclick="cancelarComanda()">
+            × Cancelar comanda
+          </button>
+        {% elif comanda.status == "fechada" %}
+          <div style="margin-top:16px;text-align:center;color:#4ade80;font-weight:700;font-size:13px;">
             ✓ Comanda fechada em {{ comanda.data_fechamento|br_date }}
+          </div>
+        {% elif comanda.status == "cancelada" %}
+          <div style="margin-top:16px;text-align:center;color:#f87171;font-weight:700;font-size:13px;">
+            ✕ Comanda cancelada
           </div>
         {% endif %}
       </div>
@@ -248,29 +478,138 @@ table tr:nth-child(even) { background:var(--table-even); }
   </div>
 </div>
 
+<!-- Status bar -->
+<div class="cd-statusbar">
+  <span class="cd-statusbar-dot">✓</span>
+  <span>Comanda aberta em {{ comanda.data_abertura|br_date }} às {{ comanda.hora_abertura }}</span>
+</div>
+
+<!-- Dados -->
+<script type="application/json" id="data-total">{{ total | tojson }}</script>
+<script type="application/json" id="data-estoque">
+[{% for p in estoque %}
+  {"pid":{{ p.pid|tojson }},"nome":{{ p.nome|tojson }},
+   "preco":{{ p.valor_venda|float }},"qtd":{{ p.quantidade|int }},"tipo":"estoque",
+   "cv":{{ (p.conteudo_valor or 0)|float }},"cu":{{ (p.conteudo_unidade or "")|tojson }}}
+  {%- if not loop.last %},{% endif %}
+{% endfor %}]
+</script>
+<script type="application/json" id="data-pacotes">
+[{% for p in bar_pacotes %}
+  {"pid":{{ p.id|tojson }},"nome":{{ p.name|tojson }},
+   "preco":{{ p.sale_price|float }},"tipo":"bar"}
+  {%- if not loop.last %},{% endif %}
+{% endfor %}]
+</script>
+
 <script>
-const totalComanda = {{ total }};
+const ESTOQUE  = JSON.parse(document.getElementById('data-estoque').textContent);
+const PACOTES  = JSON.parse(document.getElementById('data-pacotes').textContent);
+const CATALOGO = [...ESTOQUE, ...PACOTES];
+const TOTAL_COMANDA = JSON.parse(document.getElementById('data-total').textContent);
 
-function abrirModal(){
-  document.getElementById("modal-total").textContent =
-    "R$ " + totalComanda.toFixed(2).replace(".", ",");
-  document.getElementById("modal-bg").classList.add("open");
+function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+
+/* ── Busca unificada ── */
+const searchInp  = document.getElementById('cd-search');
+const searchList = document.getElementById('cd-search-list');
+const pidHidden  = document.getElementById('pid-hidden');
+const tipoHidden = document.getElementById('tipo-hidden');
+
+if (searchInp) {
+  searchInp.addEventListener('input', () => buscar(searchInp.value));
+  searchInp.addEventListener('focus', () => buscar(searchInp.value));
+  searchInp.addEventListener('blur',  () => setTimeout(() => { searchList.style.display = 'none'; }, 150));
+
+  function buscar(termo) {
+    searchList.innerHTML = '';
+    const t = normaliza(termo);
+    if (!t) { searchList.style.display = 'none'; return; }
+    const matches = CATALOGO.filter(p => normaliza(p.nome).includes(t)).slice(0, 10);
+    if (!matches.length) { searchList.style.display = 'none'; return; }
+    matches.forEach(p => {
+      const li = document.createElement('li');
+      const badgeColor = p.tipo === 'bar' ? 'var(--accent)' : '#9ca3af';
+      const badgeLabel = p.tipo === 'bar' ? 'Pacote' : 'Estoque';
+      const rightInfo  = p.tipo === 'bar'
+        ? `R$ ${p.preco.toFixed(2).replace('.',',')}`
+        : `R$ ${p.preco.toFixed(2).replace('.',',')} · ${p.qtd} unid.`;
+      li.innerHTML = `
+        <span style="display:flex;align-items:center;gap:7px;">
+          <span style="font-size:11px;font-weight:700;color:${badgeColor};background:color-mix(in srgb,${badgeColor} 14%,transparent);padding:1px 7px;border-radius:10px;white-space:nowrap">${badgeLabel}</span>
+          <span class="sli-nome">${p.nome}</span>
+        </span>
+        <span class="sli-right">${rightInfo}</span>
+      `;
+      li.addEventListener('mousedown', e => {
+        e.preventDefault();
+        searchInp.value  = p.nome;
+        pidHidden.value  = p.pid;
+        tipoHidden.value = p.tipo;
+        searchList.style.display = 'none';
+        // toggle vender por conteúdo
+        const vpcRow   = document.getElementById('vpc-row');
+        const vpcCheck = document.getElementById('vpc-check');
+        const vpcHint  = document.getElementById('vpc-hint');
+        const vpcHidden = document.getElementById('vpc-hidden');
+        if (p.tipo === 'estoque' && p.cv > 1) {
+          vpcRow.style.display = 'flex';
+          vpcHint.textContent = `1 unidade = ${p.cv} ${p.cu}`;
+          vpcCheck.checked = false;
+          vpcHidden.value = '0';
+          const qtpInp = document.getElementById('inp-qtd');
+          qtpInp.step = '1'; qtpInp.min = '1'; qtpInp.value = '1';
+        } else {
+          vpcRow.style.display = 'none';
+          vpcCheck.checked = false;
+          vpcHidden.value = '0';
+        }
+      });
+      searchList.appendChild(li);
+    });
+    searchList.style.display = 'block';
+  }
 }
 
-function fecharModal(){
-  document.getElementById("modal-bg").classList.remove("open");
+/* ── Toggle vender por conteúdo ── */
+function toggleVpc(chk) {
+  document.getElementById('vpc-hidden').value = chk.checked ? '1' : '0';
 }
 
-function selecionarForma(forma){
-  ["dinheiro","pix","cartao"].forEach(f => {
-    document.getElementById("fb-"+f).classList.toggle("sel", f === forma);
-  });
-  document.getElementById("h-forma").value = forma;
+/* ── Stepper ── */
+function stepQtd(delta) {
+  const inp = document.getElementById('inp-qtd');
+  const val = parseInt(inp.value || 1) + delta;
+  inp.value = Math.max(1, val);
 }
 
-document.getElementById("modal-bg").addEventListener("click", function(e){
-  if(e.target === this) fecharModal();
+/* ── Modal fechar ── */
+function abrirModal() {
+  document.getElementById('modal-total-val').textContent =
+    'R$ ' + TOTAL_COMANDA.toFixed(2).replace('.', ',');
+  document.getElementById('cd-modal').classList.add('open');
+}
+function fecharModal() {
+  document.getElementById('cd-modal').classList.remove('open');
+}
+function selecionarForma(forma) {
+  document.querySelectorAll('.cd-forma-btn').forEach(el => el.classList.remove('sel'));
+  document.querySelector('.cd-forma-btn[onclick*="' + forma + '"]').classList.add('sel');
+  document.getElementById('h-forma').value = forma;
+}
+document.getElementById('cd-modal').addEventListener('click', function(e){
+  if (e.target === this) fecharModal();
 });
+
+/* ── Cancelar comanda ── */
+function cancelarComanda() {
+  if (!confirm('Cancelar a comanda "{{ comanda.nome }}"? Os produtos voltarão ao estoque.')) return;
+  const f = document.createElement('form');
+  f.method = 'post';
+  f.action = '/comandas/{{ comanda.cid }}/remover';
+  document.body.appendChild(f);
+  f.submit();
+}
 </script>
 
 {% endblock %}

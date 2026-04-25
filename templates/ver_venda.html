@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:700px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:var(--accent); margin-bottom:15px }
+.card { background:var(--card-bg); padding:18px; border-radius:10px;
+  box-shadow:var(--shadow); border:1px solid var(--border);
+  display:flex; flex-direction:column; gap:10px; }
+.campo { display:flex; flex-direction:column; gap:4px; }
+label { font-weight:bold; color:var(--accent); font-size:13px; }
+.valor { padding:10px; border:1px solid var(--border); border-radius:8px;
+  background:#242424; color:var(--text); font-size:14px; }
+.linha-botoes { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+  text-decoration:none; display:inline-block; text-align:center;
+  padding:10px 14px; border-radius:8px; font-weight:bold; }
+.btn-sec:hover { background:var(--accent-dim); }
+.btn-edit { background:var(--btn-bg); color:var(--accent); border:none;
+  text-decoration:none; display:inline-block; text-align:center;
+  padding:10px 14px; border-radius:8px; font-weight:bold; cursor:pointer; }
+.btn-edit:hover { background:var(--accent-hover); }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.badge-margem { display:inline-block; padding:4px 10px; border-radius:6px;
+  font-size:13px; font-weight:700; }
+.badge-verde  { background:#14532d; color:#4ade80; }
+.badge-amarelo { background:#422006; color:#fbbf24; }
+.badge-laranja { background:#431407; color:#fb923c; }
+.badge-vermelho { background:#2a0f0f; color:#f87171; }
+.secao-titulo { font-size:11px; font-weight:700; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:1px; margin-top:6px;
+  padding-bottom:6px; border-bottom:1px solid var(--border); }
+</style>
+
+<div class="container">
+  <h2>Detalhes da Venda</h2>
+
+  <div class="card">
+    <div class="secao-titulo">Identificação</div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label>ID da Venda</label>
+        <div class="valor">{{ venda.id_venda or '—' }}</div>
+      </div>
+      <div class="campo">
+        <label>Data</label>
+        <div class="valor">{{ venda.data or '—' }}</div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Produto</div>
+
+    <div class="campo">
+      <label>Nome do Produto</label>
+      <div class="valor">{{ venda.nome or '—' }}</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label>Quantidade</label>
+        <div class="valor">{{ venda.quantidade or 0 }}</div>
+      </div>
+      <div class="campo">
+        <label>Forma de Pagamento</label>
+        <div class="valor">{{ (venda.forma_pagamento or '—')|capitalize }}</div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Financeiro</div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label>Preço de Venda (unit.)</label>
+        <div class="valor">R$ {{ '%.2f'|format(venda.valor_venda or 0) }}</div>
+      </div>
+      <div class="campo">
+        <label>Custo Médio (unit.)</label>
+        <div class="valor">R$ {{ '%.2f'|format(venda.valor_investido or 0) }}</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label>Total da Venda</label>
+        <div class="valor">R$ {{ '%.2f'|format((venda.valor_venda or 0) * (venda.quantidade or 0)) }}</div>
+      </div>
+      <div class="campo">
+        <label>Margem de Lucro</label>
+        <div class="valor">
+          {% if margem >= 40 %}
+            <span class="badge-margem badge-verde">{{ '%.1f'|format(margem) }}%</span>
+          {% elif margem >= 20 %}
+            <span class="badge-margem badge-amarelo">{{ '%.1f'|format(margem) }}%</span>
+          {% elif margem >= 0 %}
+            <span class="badge-margem badge-laranja">{{ '%.1f'|format(margem) }}%</span>
+          {% else %}
+            <span class="badge-margem badge-vermelho">{{ '%.1f'|format(margem) }}%</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="linha-botoes">
+      {% if tipo == 'admin' or 'vendas' in permissoes %}
+        <a class="btn-edit" href="/vendas/editar/{{ venda.uid }}">Editar</a>
+      {% endif %}
+      <a class="btn-sec" href="/vendas">Voltar para Vendas</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

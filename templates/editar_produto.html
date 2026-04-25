@@ -2,43 +2,417 @@
 {% block conteudo %}
 
 <style>
-.container { max-width:700px; margin:20px auto; padding:20px }
-.box { background:var(--card-bg); padding:18px; border-radius:10px;
-  box-shadow:var(--shadow); border:1px solid var(--border); }
-h2 { color:var(--accent); margin:0 0 10px; text-align:center }
-label { font-weight:bold; color:var(--accent); display:block; margin-top:10px }
-input { width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;
-  margin-top:6px; background:var(--input-bg); color:var(--text); }
-.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
-  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
-.btn { margin-top:14px; display:inline-block; padding:10px 14px; border-radius:8px;
-  text-decoration:none; font-weight:bold; border:1px solid var(--border);
-  color:var(--accent); background:var(--card-bg); cursor:pointer; }
-.btn:hover { background:var(--accent-dim); }
+  .cp-container { max-width:960px; margin:30px auto; padding:0 20px 40px; }
+  .cp-header { text-align:center; margin-bottom:28px; }
+  .cp-header h2 { color:var(--text); font-size:1.6rem; font-weight:700;
+    display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 6px; }
+  .cp-header p { color:var(--text-muted); font-size:0.875rem; margin:0; }
+
+  .cp-secao { background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+    padding:20px 24px; margin-bottom:16px; box-shadow:var(--shadow); }
+  .cp-secao-titulo { font-size:1rem; font-weight:700; color:var(--accent); margin:0 0 6px;
+    display:flex; align-items:center; gap:8px; }
+  .cp-secao-desc { font-size:0.78rem; color:var(--text-muted); margin:0 0 18px; }
+
+  .cp-grid { display:grid; gap:16px; }
+  .cp-grid-3 { grid-template-columns:1fr 1fr 1fr; }
+  .cp-grid-2 { grid-template-columns:1fr 1fr; }
+
+  .cp-field { display:flex; flex-direction:column; gap:5px; }
+  .cp-field label { font-size:0.8rem; font-weight:600; color:var(--text-muted);
+    display:flex; align-items:center; gap:5px; }
+  .cp-field label .req { color:#f87171; }
+  .cp-field input, .cp-field select, .cp-field textarea {
+    padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+    background:var(--input-bg); color:var(--text); font-size:0.9rem;
+    width:100%; box-sizing:border-box; transition:border-color 0.2s; }
+  .cp-field input:focus, .cp-field select:focus, .cp-field textarea:focus {
+    outline:none; border-color:var(--accent); }
+  .cp-field input[readonly] { background:var(--accent-dim); color:var(--accent); font-weight:600; cursor:default; }
+  .cp-hint { font-size:0.75rem; color:var(--text-muted); }
+  .cp-field textarea { resize:vertical; min-height:80px; }
+
+  .cp-inline { display:flex; gap:8px; }
+  .cp-inline input { flex:1; }
+  .cp-inline select { width:80px; flex-shrink:0; }
+
+  .cp-condicional { display:none; }
+  .cp-condicional.visivel { display:flex; flex-direction:column; gap:5px; }
+
+  .cp-infobox { background:var(--accent-dim); border:1px solid var(--border);
+    border-radius:8px; padding:14px 16px; font-size:0.8rem; color:var(--text-muted); }
+  .cp-infobox strong { color:var(--accent); display:flex; align-items:center;
+    gap:6px; margin-bottom:8px; font-size:0.85rem; }
+  .cp-infobox ul { margin:0; padding-left:16px; line-height:1.9; }
+
+  .cp-conv-layout { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; }
+  .cp-conv-campos { display:flex; flex-direction:column; gap:16px; }
+
+  .cp-preview { display:none; background:var(--input-bg); border:1px solid var(--border);
+    border-radius:8px; padding:10px 14px; font-size:0.82rem; color:var(--text-muted); margin-top:4px; }
+  .cp-preview strong { color:var(--accent); }
+
+  .alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
+    border:1px solid #5a1f1f; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:0.875rem; }
+
+  .cp-footer { display:flex; justify-content:space-between; align-items:center;
+    margin-top:24px; flex-wrap:wrap; gap:12px; }
+  .btn-voltar { display:inline-flex; align-items:center; gap:6px; padding:10px 18px;
+    border-radius:8px; text-decoration:none; font-weight:600; font-size:0.875rem;
+    border:1px solid var(--border); color:var(--text); background:var(--card-bg); transition:background 0.2s; }
+  .btn-voltar:hover { background:var(--accent-dim); }
+  .btn-salvar { display:inline-flex; align-items:center; gap:8px; padding:11px 28px;
+    border-radius:8px; font-weight:700; font-size:0.95rem; border:none; cursor:pointer;
+    background:var(--btn-bg); color:var(--accent); transition:background 0.2s; }
+  .btn-salvar:hover { background:var(--accent-hover); }
+
+  /* ── TRÊS PONTOS ── */
+  .tp-wrap { position:fixed; top:18px; right:20px; z-index:500; }
+  .tp-btn { background:var(--card-bg); border:1px solid var(--border); border-radius:8px;
+    width:36px; height:36px; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; color:var(--text-muted); font-size:18px; font-weight:bold;
+    transition:background 0.15s, color 0.15s; letter-spacing:0; line-height:1; }
+  .tp-btn:hover { background:var(--accent-dim); color:var(--accent); }
+  .tp-dropdown { display:none; position:absolute; top:calc(100% + 6px); right:0;
+    background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+    box-shadow:0 6px 24px rgba(0,0,0,0.5); min-width:180px; overflow:hidden; }
+  .tp-dropdown.aberto { display:block; }
+  .tp-dropdown a { display:flex; align-items:center; gap:8px; padding:11px 15px;
+    font-size:13px; text-decoration:none; color:var(--text);
+    border-bottom:1px solid var(--border); transition:background 0.12s; white-space:nowrap; }
+  .tp-dropdown a:last-child { border-bottom:none; }
+  .tp-dropdown a:hover { background:var(--accent-dim); color:var(--accent); }
+
+  @media (max-width:640px) {
+    .cp-grid-3, .cp-grid-2, .cp-conv-layout { grid-template-columns:1fr; }
+    .cp-inline select { width:100%; }
+    .cp-inline { flex-direction:column; }
+  }
 </style>
 
-<div class="container">
-  <div class="box">
-    <h2>Editar Produto</h2>
-
-    {% if erro %}
-      <div class="alerta">{{ erro }}</div>
-    {% endif %}
-
-    <form method="post">
-      <label>Nome</label>
-      <input type="text" name="nome" value="{{ produto.get('nome','') }}" required>
-
-      <label>Data</label>
-      <input type="text" name="data" value="{{ produto.get('data','') }}" placeholder="2026-02-09">
-
-      <label>Preço de venda</label>
-      <input type="number" step="0.01" name="valor_venda" value="{{ produto.get('valor_venda',0) }}" required>
-
-      <button class="btn" type="submit">Salvar</button>
-      <a class="btn" href="{{ url_for('estoque_produto', pid=produto.get('pid')) }}">Cancelar</a>
-    </form>
+<!-- Botão três pontos fixo no canto superior direito -->
+<div class="tp-wrap" id="tp-wrap">
+  <button class="tp-btn" onclick="toggleTp(event)" title="Mais opções">⋮</button>
+  <div class="tp-dropdown" id="tp-dropdown">
+    <a href="{{ url_for('estoque_produto', pid=produto.get('pid')) }}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+      Lotes do produto
+    </a>
   </div>
 </div>
+
+<div class="cp-container">
+
+  <div class="cp-header">
+    <h2>✏️ Editar Produto</h2>
+    <p>Atualize as informações do produto no estoque.</p>
+  </div>
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+
+  <form method="POST">
+
+    <!-- 1. INFORMAÇÕES BÁSICAS -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">1. Informações Básicas</div>
+
+      <div class="cp-grid cp-grid-3">
+        <div class="cp-field">
+          <label>Data de cadastro</label>
+          <input type="date" name="data" value="{{ produto.get('data','') }}">
+        </div>
+        <div class="cp-field">
+          <label>Nome do produto <span class="req">*</span></label>
+          <input type="text" name="nome" value="{{ produto.get('nome','') }}" required>
+        </div>
+        <div class="cp-field">
+          <label>Categoria</label>
+          <select name="categoria" id="categoria" onchange="atualizarConteudoPorCategoria()">
+            <option value="">Selecione</option>
+            <option value="bebida"   {% if produto.get('categoria')=='bebida'   %}selected{% endif %}>Bebida</option>
+            <option value="comida"   {% if produto.get('categoria')=='comida'   %}selected{% endif %}>Comida</option>
+            <option value="insumo"   {% if produto.get('categoria')=='insumo'   %}selected{% endif %}>Insumo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="cp-grid cp-grid-3" style="margin-top:16px;">
+        <div class="cp-field">
+          <label>Tipo de controle</label>
+          <select name="tipo_controle" id="tipo_controle">
+            <option value="UN" {% if produto.get('tipo_controle','UN')=='UN' %}selected{% endif %}>Unidade (UN)</option>
+            <option value="KG" {% if produto.get('tipo_controle')=='KG' %}selected{% endif %}>Peso (KG)</option>
+            <option value="ML" {% if produto.get('tipo_controle')=='ML' %}selected{% endif %}>Volume (ML)</option>
+          </select>
+          <span class="cp-hint">Unidade (UN) • Peso (KG) • Volume (ML)</span>
+        </div>
+
+        <div class="cp-field" id="bloco_conteudo">
+          <label>Conteúdo por unidade <span style="font-weight:400;">(opcional)</span></label>
+          <div class="cp-inline">
+            <input type="number" step="0.001" name="conteudo_valor" id="conteudo_valor"
+              value="{{ produto.get('conteudo_valor','') or '' }}" placeholder="Ex.: 269" disabled>
+            <select id="conteudo_unidade" disabled onchange="onConteudoUnidadeChange()">
+              <option value="">—</option>
+            </select>
+            <input type="text" id="conteudo_unidade_custom" placeholder="Ex: cigarro"
+              style="display:none; width:90px;" oninput="void(0)">
+          </div>
+          <span class="cp-hint" id="conteudo_hint">Selecione uma categoria primeiro</span>
+        </div>
+
+        <div class="cp-field">
+          <label>Unidade de venda</label>
+          <select name="unidade_venda">
+            <option value="UN" {% if produto.get('unidade_venda','UN')=='UN' %}selected{% endif %}>Unidade (UN)</option>
+            <option value="KG" {% if produto.get('unidade_venda')=='KG' %}selected{% endif %}>Quilograma (KG)</option>
+            <option value="ML" {% if produto.get('unidade_venda')=='ML' %}selected{% endif %}>Mililitro (ML)</option>
+          </select>
+          <span class="cp-hint">Como será vendido ao cliente</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. ESTOQUE -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">2. Estoque</div>
+
+      <div class="cp-grid cp-grid-2">
+        <div class="cp-field">
+          <label>Quantidade atual em estoque</label>
+          <input type="number" value="{{ produto.get('quantidade', 0) }}" readonly>
+          <span class="cp-hint">Para ajustar o estoque, adicione um novo lote</span>
+        </div>
+        <div class="cp-field">
+          <label>Estoque mínimo</label>
+          <input type="number" name="estoque_minimo" min="0"
+            value="{{ produto.get('estoque_minimo', 0) }}" placeholder="Ex.: 10">
+          <span class="cp-hint">Quantidade mínima para alerta de estoque</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. PREÇOS -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">3. Preços</div>
+
+      <div class="cp-grid cp-grid-3">
+        <div class="cp-field">
+          <label>Custo médio (unitário)</label>
+          <input type="number" step="0.01" name="valor_investido" id="custo" min="0"
+            value="{{ '%.2f'|format(produto.get('valor_investido',0)|float) }}" placeholder="R$ 0,00">
+          <span class="cp-hint">Custo médio atual por unidade</span>
+        </div>
+        <div class="cp-field">
+          <label>Preço de venda (unitário) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="valor_venda" id="venda" min="0.01" required
+            value="{{ '%.2f'|format(produto.get('valor_venda',0)|float) }}" placeholder="R$ 0,00">
+          <span class="cp-hint">Valor cobrado por unidade ao cliente</span>
+        </div>
+        <div class="cp-field">
+          <label>Margem de lucro</label>
+          <input type="text" id="margem" readonly placeholder="0,00%">
+          <span class="cp-hint">Calculado automaticamente</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. INFORMAÇÕES ADICIONAIS -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">4. Informações Adicionais</div>
+
+      <div class="cp-grid cp-grid-2">
+        <div class="cp-field">
+          <label>Validade <span style="font-weight:400;">(opcional)</span></label>
+          <input type="date" name="validade" value="{{ produto.get('validade','') }}">
+          <span class="cp-hint">Data de validade do produto</span>
+        </div>
+        <div class="cp-field">
+          <label>Fornecedor</label>
+          <input type="text" name="fornecedor" value="{{ produto.get('fornecedor','') }}" placeholder="Nome do fornecedor">
+          <span class="cp-hint">Fornecedor do produto</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. CONVERSÃO CAIXA / FARDO -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">5. Conversão (Caixa/Fardo) <span style="font-weight:400;color:var(--text-muted);font-size:0.85rem;">— Opcional</span></div>
+      <p class="cp-secao-desc">Defina a relação entre caixas/fardos e unidades (ex.: 1 caixa = 12 unidades)</p>
+
+      <div class="cp-conv-layout">
+        <div class="cp-conv-campos">
+          <div class="cp-grid cp-grid-2">
+            <div class="cp-field">
+              <label>Tipo de conversão</label>
+              <select name="tipo_conversao" id="tipo_conversao">
+                <option value="">Selecione</option>
+                <option value="caixa" {% if produto.get('tipo_conversao')=='caixa' %}selected{% endif %}>Caixa</option>
+                <option value="fardo" {% if produto.get('tipo_conversao')=='fardo' %}selected{% endif %}>Fardo</option>
+              </select>
+            </div>
+            <div class="cp-field">
+              <label>Unidades por caixa/fardo</label>
+              <input type="number" name="unidades_por_caixa" id="unidades_por_caixa" min="1"
+                value="{{ produto.get('unidades_por_caixa','') or '' }}" placeholder="Ex.: 12">
+              <span class="cp-hint">Quantidade de unidades por caixa/fardo</span>
+            </div>
+          </div>
+
+          <div class="cp-preview" id="preview_conversao">
+            📦 Ao dar entrada de <strong>1</strong> <strong id="prev_tipo">caixa</strong>,
+            o sistema registrará <strong id="prev_total">12</strong> unidades no estoque.
+          </div>
+        </div>
+
+        <div class="cp-infobox">
+          <strong>ℹ️ Como funciona:</strong>
+          <ul>
+            <li>Ao comprar por caixa/fardo, o estoque será convertido automaticamente em unidades</li>
+            <li>Você poderá vender por unidade ou por múltiplos equivalentes</li>
+            <li>O produto sempre representa a unidade base no sistema</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. OBSERVAÇÕES -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">6. Observações <span style="font-weight:400;color:var(--text-muted);font-size:0.85rem;">(opcional)</span></div>
+      <div class="cp-field">
+        <label>Observações</label>
+        <textarea name="observacoes" placeholder="Informações adicionais sobre o produto...">{{ produto.get('observacoes','') }}</textarea>
+      </div>
+    </div>
+
+    <div class="cp-footer">
+      <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
+      <button type="submit" class="btn-salvar">💾 Salvar Alterações</button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  /* ─── Margem de lucro ─── */
+  const campoCusto  = document.getElementById('custo');
+  const campoVenda  = document.getElementById('venda');
+  const campoMargem = document.getElementById('margem');
+
+  function calcularMargem() {
+    const custo = parseFloat(campoCusto.value) || 0;
+    const venda = parseFloat(campoVenda.value) || 0;
+    if (custo > 0 && venda > 0) {
+      const m = ((venda - custo) / custo) * 100;
+      campoMargem.value = m.toFixed(2) + '%';
+      campoMargem.style.color = m >= 0 ? 'var(--accent)' : '#f87171';
+    } else {
+      campoMargem.value = '0,00%';
+      campoMargem.style.color = 'var(--accent)';
+    }
+  }
+
+  campoCusto.addEventListener('input', calcularMargem);
+  campoVenda.addEventListener('input', calcularMargem);
+  calcularMargem();
+
+  /* ─── Conteúdo por unidade (condicional) ─── */
+  /* ─── Conteúdo por unidade por categoria ─── */
+  const UNIDADES_CAT = {
+    'bebida': { units: ['ml', 'L'],  hint: 'Volume por unidade (ex: 269 ml, 1 L)' },
+    'comida': { units: ['kg', 'UN'], hint: 'Peso ou quantidade por porção (ex: 0.5 kg, 1 UN)' },
+    'insumo': { units: ['UN'],       hint: 'Quantidade por unidade (ex: 1 UN)' },
+  };
+  const CONTEUDO_ATUAL = "{{ produto.get('conteudo_unidade') or '' }}";
+
+  function atualizarConteudoPorCategoria() {
+    const cat  = document.getElementById('categoria').value;
+    const inp  = document.getElementById('conteudo_valor');
+    const sel  = document.getElementById('conteudo_unidade');
+    const cust = document.getElementById('conteudo_unidade_custom');
+    const hint = document.getElementById('conteudo_hint');
+    const cfg  = UNIDADES_CAT[cat];
+    if (!cfg) {
+      inp.disabled = true; sel.disabled = true;
+      sel.innerHTML = '<option value="">—</option>';
+      hint.textContent = 'Selecione uma categoria primeiro';
+      cust.style.display = 'none'; cust.removeAttribute('name');
+      sel.setAttribute('name', 'conteudo_unidade');
+      return;
+    }
+    inp.disabled = false; sel.disabled = false;
+    const baseUnits = cfg.units;
+    const isKnown = baseUnits.includes(CONTEUDO_ATUAL) || !CONTEUDO_ATUAL;
+    sel.innerHTML = [...baseUnits, '__outro__'].map(u => {
+      if (u === '__outro__') return `<option value="__outro__" ${!isKnown && CONTEUDO_ATUAL ? 'selected' : ''}>Outro...</option>`;
+      return `<option value="${u}" ${u === CONTEUDO_ATUAL ? 'selected' : ''}>${u}</option>`;
+    }).join('');
+    hint.textContent = cfg.hint;
+    if (!isKnown && CONTEUDO_ATUAL) {
+      sel.value = '__outro__';
+      sel.removeAttribute('name');
+      cust.setAttribute('name', 'conteudo_unidade');
+      cust.value = CONTEUDO_ATUAL;
+      cust.style.display = '';
+    } else {
+      sel.setAttribute('name', 'conteudo_unidade');
+      cust.removeAttribute('name');
+      cust.style.display = 'none';
+    }
+  }
+
+  function onConteudoUnidadeChange() {
+    const sel  = document.getElementById('conteudo_unidade');
+    const cust = document.getElementById('conteudo_unidade_custom');
+    if (sel.value === '__outro__') {
+      sel.removeAttribute('name');
+      cust.setAttribute('name', 'conteudo_unidade');
+      cust.style.display = '';
+      cust.focus();
+    } else {
+      sel.setAttribute('name', 'conteudo_unidade');
+      cust.removeAttribute('name');
+      cust.style.display = 'none';
+      cust.value = '';
+    }
+  }
+
+  atualizarConteudoPorCategoria();
+
+  /* ─── Preview de conversão caixa/fardo ─── */
+  const tipoConv   = document.getElementById('tipo_conversao');
+  const qtdCaixa   = document.getElementById('unidades_por_caixa');
+  const previewDiv = document.getElementById('preview_conversao');
+  const prevTipo   = document.getElementById('prev_tipo');
+  const prevTotal  = document.getElementById('prev_total');
+
+  function atualizarPreview() {
+    const tipo = tipoConv.value;
+    const qtd  = parseInt(qtdCaixa.value) || 0;
+    if (tipo && qtd > 0) {
+      previewDiv.style.display = 'block';
+      prevTipo.textContent  = tipo;
+      prevTotal.textContent = qtd;
+    } else {
+      previewDiv.style.display = 'none';
+    }
+  }
+
+  tipoConv.addEventListener('change', atualizarPreview);
+  qtdCaixa.addEventListener('input',  atualizarPreview);
+  atualizarPreview();
+</script>
+
+<script>
+  function toggleTp(e) {
+    e.stopPropagation();
+    document.getElementById('tp-dropdown').classList.toggle('aberto');
+  }
+  document.addEventListener('click', function() {
+    document.getElementById('tp-dropdown').classList.remove('aberto');
+  });
+</script>
 
 {% endblock %}

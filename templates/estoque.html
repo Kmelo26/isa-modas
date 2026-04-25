@@ -2,142 +2,591 @@
 {% block conteudo %}
 
 <style>
-.container { max-width:1200px; margin:20px auto; padding:20px }
-h2 { text-align:center; color:var(--accent); }
-.top-actions { display:flex; justify-content:space-between; gap:10px;
-  flex-wrap:wrap; align-items:center; margin-bottom:12px; }
-.busca-wrap { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-.busca-wrap input { padding:8px 10px; border-radius:8px; border:1px solid var(--border);
-  background:var(--input-bg); color:var(--text); min-width:260px; }
-table { width:100%; border-collapse:collapse; background:var(--card-bg);
-  border-radius:10px; overflow:hidden; box-shadow:var(--shadow); }
-th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
-th { background:#2a2a2a; color:var(--accent); }
-tr:nth-child(even) { background:var(--table-even); }
-.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
-  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
-.btn-acao { display:inline-block; padding:6px 10px; border-radius:8px; text-decoration:none;
-  font-weight:bold; border:1px solid var(--border); color:var(--accent); background:var(--card-bg); }
-.btn-acao:hover { background:var(--accent-dim); }
-.btn-principal { background:var(--btn-bg); color:var(--accent); border:1px solid var(--accent); }
-.btn-principal:hover { background:var(--accent-hover); }
-.btn-remover { color:#f87171; border-color:#7f1d1d; cursor:pointer; font-size:inherit; font-family:inherit; }
-.btn-remover:hover { background:#2a0f0f; }
+*{box-sizing:border-box}
+.est{max-width:1300px;margin:0 auto;padding:24px 20px}
+
+/* HEADER */
+.est-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.est-header h1{font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:2px;margin:0;display:flex;align-items:center;gap:10px}
+.est-header-btns{display:flex;gap:8px;flex-wrap:wrap}
+.est-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+  font-size:.85rem;font-weight:700;cursor:pointer;text-decoration:none;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);transition:.15s;white-space:nowrap}
+.est-btn:hover{border-color:var(--accent);color:var(--accent)}
+.est-btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.est-btn-primary:hover{opacity:.9;color:#000}
+
+/* FILTER BAR */
+.est-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.est-search-wrap{position:relative;flex:1}
+.est-search-wrap input{width:100%;padding:9px 36px 9px 12px;border-radius:8px;
+  border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:.88rem;outline:none}
+.est-search-wrap input:focus{border-color:var(--accent)}
+.est-search-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted,#888);pointer-events:none}
+.est-select{padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:.88rem;cursor:pointer;outline:none;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:32px}
+.est-select:focus{border-color:var(--accent)}
+.est-filter-row1{display:flex;gap:8px;align-items:center}
+.est-filter-row2{display:flex;gap:8px}
+.est-filter-row2 .est-select{flex:1}
+.est-filter-btns{display:flex;gap:8px}
+
+/* SUGESTÕES */
+#sugestoes{display:none;position:absolute;top:100%;left:0;right:0;z-index:999;
+  margin:2px 0 0;padding:0;list-style:none;
+  background:var(--card-bg);border:1px solid var(--accent);
+  border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  max-height:220px;overflow-y:auto}
+
+/* KPI CARDS */
+.est-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;margin-bottom:24px}
+@media(max-width:800px){.est-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.est-kpis{grid-template-columns:1fr}}
+.est-kpi{background:var(--card-bg);padding:20px 24px;position:relative}
+.est-kpi-label{font-size:.7rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.est-kpi-val{font-size:1.7rem;font-weight:800;color:var(--text);line-height:1;transition:filter .3s}
+.est-kpi-val.oculto{filter:blur(8px);user-select:none}
+.est-kpi-val.alerta{color:#f87171}
+.kpi-alerta{background:#2a0f0f !important}
+.kpi-alerta .est-kpi-label{color:rgba(248,113,113,.7)}
+.kpi-eye{position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;
+  color:var(--text-muted);padding:4px;border-radius:6px;display:flex;align-items:center;transition:color .15s}
+.kpi-eye:hover{color:var(--accent)}
+/* ocultar colunas financeiras da tabela */
+.val-oculto{filter:blur(7px);user-select:none;transition:filter .3s}
+.est-toggle-val{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+  border:1px solid var(--border);border-radius:20px;background:var(--card-bg);
+  color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.est-toggle-val:hover{border-color:var(--accent);color:var(--accent)}
+
+/* TABLE WRAP */
+.est-table-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.est-table-wrap{overflow-x:auto}
+.est-table{width:100%;border-collapse:collapse;min-width:900px}
+.est-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
+  letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);
+  background:var(--card-bg);white-space:nowrap}
+.est-table th:not(:first-child){text-align:right}
+.est-table th:nth-child(2),.est-table th:last-child{text-align:center}
+.est-table td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:.87rem;color:var(--text);text-align:right}
+.est-table td:first-child{text-align:left;font-weight:600}
+.est-table td:nth-child(2){text-align:center}
+.est-table td:last-child{text-align:center}
+.est-table tr:last-child td{border-bottom:none}
+.est-table tr:hover{background:rgba(255,255,255,.03)}
+.td-lucro{color:#4ade80;font-weight:700}
+.td-nome{font-weight:600;color:var(--text)}
+
+/* STATUS BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
+  font-size:.75rem;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.badge-ok{border:1px solid #4ade80;color:#4ade80;background:rgba(74,222,128,.08)}
+.badge-baixo{border:1px solid #f97316;color:#f97316;background:rgba(249,115,22,.08)}
+.badge-critico{border:1px solid #f87171;color:#f87171;background:rgba(248,113,113,.08)}
+
+/* AÇÕES BTN */
+.act-btn{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;cursor:pointer;color:var(--text-muted,#888);font-size:1rem;
+  transition:.15s;line-height:1}
+.act-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* DROPDOWN MENU */
+#acoes-dropdown{display:none;position:fixed;background:var(--card-bg);
+  border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.5);min-width:165px;z-index:9999;overflow:hidden}
+#acoes-dropdown.aberto{display:block}
+#acoes-dropdown a{display:flex;align-items:center;gap:8px;padding:10px 14px;
+  font-size:13px;text-decoration:none;color:var(--text);
+  transition:background .12s;border-bottom:1px solid var(--border);white-space:nowrap}
+#acoes-dropdown a:last-child{border-bottom:none}
+#acoes-dropdown a:hover{background:var(--accent-dim);color:var(--accent)}
+#acoes-dropdown a.remover{color:#f87171}
+#acoes-dropdown a.remover:hover{background:#2a0f0f}
+
+/* PAGINATION */
+.est-pag-bar{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.est-exibir{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--text-muted,#888)}
+.est-exibir select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:6px;font-size:.85rem;cursor:pointer}
+.est-pages{display:flex;gap:4px;align-items:center}
+.est-pages button{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600}
+.est-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+.est-pages button:hover:not(.ativo){border-color:var(--accent);color:var(--accent)}
+.est-pages .ellipsis{color:var(--text-muted,#888);padding:0 4px;line-height:34px}
+
+/* MODAL VISUALIZAR */
+.vis-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(4px);z-index:1000;align-items:flex-start;justify-content:center;
+  padding:30px 20px;overflow-y:auto}
+.vis-overlay.open{display:flex}
+.vis-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
+  width:100%;max-width:780px;box-shadow:0 24px 64px rgba(0,0,0,0.6);
+  animation:vis-in .25s cubic-bezier(0.22,1,0.36,1) both;margin:auto}
+@keyframes vis-in{from{opacity:0;transform:translateY(16px) scale(0.97)}to{opacity:1;transform:none}}
+.vis-header{display:flex;justify-content:space-between;align-items:center;
+  padding:18px 22px 14px;border-bottom:1px solid var(--border)}
+.vis-titulo{font-size:15px;font-weight:bold;color:var(--accent);letter-spacing:.5px}
+.vis-close{background:#2a2a2a;border:none;border-radius:8px;width:30px;height:30px;
+  cursor:pointer;color:var(--text-muted);font-size:15px;display:flex;
+  align-items:center;justify-content:center;transition:all .15s}
+.vis-close:hover{background:var(--accent-dim);color:var(--accent)}
+.vis-body{padding:20px 22px 24px}
+.vis-secao{margin-bottom:20px}
+.vis-secao-titulo{font-size:11px;font-weight:bold;color:var(--accent);text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.vis-grid{display:grid;gap:12px}
+.vis-grid-3{grid-template-columns:repeat(3,1fr)}
+.vis-grid-2{grid-template-columns:repeat(2,1fr)}
+.vis-field{display:flex;flex-direction:column;gap:4px}
+.vis-field label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.vis-field .vis-val{padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:13px;min-height:38px;display:flex;align-items:center}
+.vis-field .vis-val.destaque{color:var(--accent);font-weight:bold}
+.vis-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
+.vis-btn-fechar{background:var(--btn-bg);color:var(--accent);border:1px solid var(--accent);
+  border-radius:8px;padding:10px 24px;font-size:13px;font-weight:bold;cursor:pointer}
+.vis-btn-fechar:hover{background:var(--accent-hover)}
+@media(max-width:640px){.vis-grid-3,.vis-grid-2{grid-template-columns:1fr}}
+
+.alerta-box{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
+  color:#f87171;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px}
 </style>
 
-<div class="container">
-  <h2>ESTOQUE</h2>
-
-  {% if erro %}
-    <div class="alerta">{{ erro }}</div>
+<!-- Dropdown menu -->
+<div id="acoes-dropdown">
+  <a id="acao-visualizar" href="#" onclick="abrirVisualizar(event)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Visualizar
+  </a>
+  <a id="acao-editar" href="#">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Editar
+  </a>
+  {% if tipo == 'admin' %}
+  <a id="acao-remover" href="#" class="remover">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    Remover
+  </a>
   {% endif %}
+</div>
 
-  <div class="top-actions">
-    <div class="busca-wrap">
-      <input id="buscaProduto" type="text" placeholder="Digite para filtrar produtos..." autocomplete="off">
+<!-- Modal Visualizar -->
+<div class="vis-overlay" id="vis-overlay" onclick="if(event.target===this)fecharVisualizar()">
+  <div class="vis-modal">
+    <div class="vis-header">
+      <span class="vis-titulo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        VISUALIZAR PRODUTO
+      </span>
+      <button class="vis-close" onclick="fecharVisualizar()">✕</button>
     </div>
-
-    <a class="btn-acao btn-principal" href="{{ url_for('estoque_novo') }}">Cadastrar Produto</a>
-  </div>
-
-  <table id="tabelaEstoque">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Nome</th>
-        <th>Custo médio</th>
-        <th>Venda</th>
-        <th>Quantidade</th>
-        <th>Ações</th>
-      </tr>
-    </thead>
-    <tbody id="tbodyEstoque">
-      {% for p in estoque %}
-      <tr class="linha-produto" data-nome="{{ (p.nome or '')|lower }}">
-        <td>{{ p.data|br_date }}</td>
-        <td class="col-nome">{{ p.nome }}</td>
-        <td>R$ {{ "%.2f"|format(p.valor_investido) }}</td>
-        <td>R$ {{ "%.2f"|format(p.valor_venda) }}</td>
-        <td>{{ p.quantidade }}</td>
-        <td>
-          <a class="btn-acao" href="{{ url_for('estoque_produto', pid=p.pid) }}">Lotes</a>
-          <a class="btn-acao" href="{{ url_for('editar_produto', pid=p.pid) }}">Editar</a>
-          {% if tipo == 'admin' %}
-          <form method="POST" action="{{ url_for('remover_produto', pid=p.pid) }}"
-                style="display:inline;"
-                onsubmit="return confirm('Remover o produto \'{{ p.nome }}\' do estoque? Esta ação não pode ser desfeita.');">
-            <button type="submit" class="btn-acao btn-remover">Remover</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="6" style="padding:14px;">Nenhum produto no estoque.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if total_paginas and total_paginas > 1 %}
-    <div style="display:flex; justify-content:center; margin-top:16px;">
-      <div style="
-        background:white;
-        padding:8px 12px;
-        border-radius:12px;
-        box-shadow:0 3px 8px rgba(0,0,0,0.15);
-        display:flex;
-        gap:6px;
-        align-items:center;
-        flex-wrap:wrap;
-        justify-content:center;
-      ">
-
-        {% for p in range(1, total_paginas + 1) %}
-          {% if p == pagina %}
-            <span class="btn-acao" style="background:#ff69b4; color:white; border:1px solid #ff69b4;">{{ p }}</span>
-          {% else %}
-            <a class="btn-acao" href="{{ url_for('estoque', pagina=p) }}">{{ p }}</a>
-          {% endif %}
-        {% endfor %}
-
-        {% if pagina < total_paginas %}
-          <a class="btn-acao" href="{{ url_for('estoque', pagina=pagina+1) }}">Próximo</a>
-        {% endif %}
-
+    <div class="vis-body">
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">1. Informações Básicas</div>
+        <div class="vis-grid vis-grid-3">
+          <div class="vis-field"><label>Data</label><div class="vis-val" id="v-data">—</div></div>
+          <div class="vis-field"><label>Nome</label><div class="vis-val destaque" id="v-nome">—</div></div>
+          <div class="vis-field"><label>Categoria</label><div class="vis-val" id="v-categoria">—</div></div>
+        </div>
+        <div class="vis-grid vis-grid-3" style="margin-top:10px;">
+          <div class="vis-field"><label>Tipo de controle</label><div class="vis-val" id="v-tipo-controle">—</div></div>
+          <div class="vis-field"><label>Conteúdo por unidade</label><div class="vis-val" id="v-conteudo">—</div></div>
+          <div class="vis-field"><label>Unidade de venda</label><div class="vis-val" id="v-unidade-venda">—</div></div>
+        </div>
+      </div>
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">2. Estoque</div>
+        <div class="vis-grid vis-grid-2">
+          <div class="vis-field"><label>Quantidade atual</label><div class="vis-val destaque" id="v-quantidade">—</div></div>
+          <div class="vis-field"><label>Estoque mínimo</label><div class="vis-val" id="v-estoque-minimo">—</div></div>
+        </div>
+      </div>
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">3. Preços</div>
+        <div class="vis-grid vis-grid-3">
+          <div class="vis-field"><label>Custo médio</label><div class="vis-val" id="v-custo">—</div></div>
+          <div class="vis-field"><label>Preço de venda</label><div class="vis-val destaque" id="v-venda">—</div></div>
+          <div class="vis-field"><label>Margem de lucro</label><div class="vis-val" id="v-margem">—</div></div>
+        </div>
+      </div>
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">4. Informações Adicionais</div>
+        <div class="vis-grid vis-grid-2">
+          <div class="vis-field"><label>Validade</label><div class="vis-val" id="v-validade">—</div></div>
+          <div class="vis-field"><label>Fornecedor</label><div class="vis-val" id="v-fornecedor">—</div></div>
+        </div>
+      </div>
+      <div class="vis-secao" id="v-secao-conv" style="display:none">
+        <div class="vis-secao-titulo">5. Conversão (Caixa/Fardo)</div>
+        <div class="vis-grid vis-grid-2">
+          <div class="vis-field"><label>Tipo de conversão</label><div class="vis-val" id="v-tipo-conv">—</div></div>
+          <div class="vis-field"><label>Unidades por caixa/fardo</label><div class="vis-val" id="v-unid-caixa">—</div></div>
+        </div>
+      </div>
+      <div class="vis-secao" id="v-secao-obs" style="display:none">
+        <div class="vis-secao-titulo">6. Observações</div>
+        <div class="vis-field"><div class="vis-val" id="v-obs" style="white-space:pre-wrap;align-items:flex-start;min-height:60px;">—</div></div>
       </div>
     </div>
+    <div class="vis-footer">
+      <button class="vis-btn-fechar" onclick="fecharVisualizar()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="est">
+
+  {% if erro %}
+  <div class="alerta-box">{{ erro }}</div>
   {% endif %}
+
+  <!-- HEADER -->
+  <div class="est-header">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      ESTOQUE
+    </h1>
+    <div class="est-header-btns">
+      <a href="{{ url_for('bar_produtos') }}" class="est-btn">Pacotes</a>
+      <a href="{{ url_for('estoque_exportar') }}" class="est-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar
+      </a>
+      <a href="{{ url_for('estoque_novo') }}" class="est-btn est-btn-primary">+ Novo Produto</a>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <form id="formBusca" method="get" action="{{ url_for('estoque') }}">
+    <div class="est-filters">
+      <div class="est-filter-row1">
+        <div class="est-search-wrap">
+          <svg class="est-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="buscaProduto" type="text" name="q" value="{{ q or '' }}"
+                 placeholder="Buscar produto..." autocomplete="off">
+          <ul id="sugestoes"></ul>
+        </div>
+        <div class="est-filter-btns">
+          <button type="submit" class="est-btn est-btn-primary">Pesquisar</button>
+          <a href="{{ url_for('estoque') }}" class="est-btn">Limpar</a>
+        </div>
+      </div>
+
+      <div class="est-filter-row2">
+        <select name="categoria" class="est-select">
+          <option value="">Categoria</option>
+          {% for cat in categorias %}
+          <option value="{{ cat }}" {% if cat_filtro == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+
+        <select name="status" class="est-select">
+          <option value="">Todos os status</option>
+          <option value="OK"       {% if status_filtro == 'OK' %}selected{% endif %}>OK</option>
+          <option value="BAIXO"    {% if status_filtro == 'BAIXO' %}selected{% endif %}>Baixo</option>
+          <option value="CRÍTICO"  {% if status_filtro == 'CRÍTICO' %}selected{% endif %}>Crítico</option>
+        </select>
+      </div>
+    </div>
+  </form>
+
+  <!-- KPI CARDS -->
+  <div class="est-kpis">
+    <div class="est-kpi">
+      <div class="est-kpi-label">Produtos Cadastrados</div>
+      <div class="est-kpi-val oculto" id="kv-produtos">{{ total_produtos }}</div>
+      <button class="kpi-eye" onclick="toggleKpi('kv-produtos',this)" title="Mostrar/ocultar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+    <div class="est-kpi">
+      <div class="est-kpi-label">Estoque Total</div>
+      <div class="est-kpi-val oculto" id="kv-total-un">{{ "{:,}".format(total_estoque_un).replace(",", ".") }} un.</div>
+      <button class="kpi-eye" onclick="toggleKpi('kv-total-un',this)" title="Mostrar/ocultar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+    <div class="est-kpi {% if estoque_baixo_count > 0 %}kpi-alerta{% endif %}">
+      <div class="est-kpi-label">Estoque Baixo</div>
+      <div class="est-kpi-val oculto {% if estoque_baixo_count > 0 %}alerta{% endif %}" id="kv-baixo">{{ estoque_baixo_count }}</div>
+      <button class="kpi-eye" onclick="toggleKpi('kv-baixo',this)" title="Mostrar/ocultar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+    <div class="est-kpi">
+      <div class="est-kpi-label">Valor Total Estoque</div>
+      <div class="est-kpi-val oculto" id="kv-valor">R$ {{ "%.2f"|format(valor_total_estoque)|replace(".", ",") }}</div>
+      <button class="kpi-eye" onclick="toggleKpi('kv-valor',this)" title="Mostrar/ocultar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+    <button class="est-toggle-val" id="btnToggleTabela" onclick="toggleTabelaValores(this)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      <span id="lbl-toggle-tabela">Mostrar valores</span>
+    </button>
+  </div>
+  <div class="est-table-card">
+    <div class="est-table-wrap">
+      <table class="est-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Produto</th>
+            <th style="text-align:center">Categoria</th>
+            <th>Estoque</th>
+            <th>Est. mínimo</th>
+            <th>Custo médio</th>
+            <th>Venda</th>
+            <th>Lucro un.</th>
+            <th>Lucro total</th>
+            <th style="text-align:center">Status</th>
+            <th style="text-align:center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyEstoque">
+          {% for p in estoque %}
+          {% set lucro_un = p.valor_venda - p.valor_investido %}
+          {% set lucro_total = lucro_un * p.quantidade %}
+          {% set qty = p.quantidade | int %}
+          <tr class="est-row">
+            <td class="td-nome">{{ p.nome }}</td>
+            <td style="text-align:center">{{ p.categoria or '—' }}</td>
+            <td>{{ qty }} un.</td>
+            <td>{{ (p.estoque_minimo | int) if p.estoque_minimo else '—' }} {% if p.estoque_minimo %}un.{% endif %}</td>
+            <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_investido) }}</td>
+            <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_venda) }}</td>
+            <td class="td-lucro td-val val-oculto">R$ {{ "%.2f"|format(lucro_un) }}</td>
+            <td class="td-lucro td-val val-oculto">R$ {{ "%.2f"|format(lucro_total) }}</td>
+            <td style="text-align:center">
+              {% if p._status == 'CRÍTICO' %}
+              <span class="badge badge-critico">CRÍTICO</span>
+              {% elif p._status == 'BAIXO' %}
+              <span class="badge badge-baixo">▲ BAIXO</span>
+              {% else %}
+              <span class="badge badge-ok">OK</span>
+              {% endif %}
+            </td>
+            <td style="text-align:center">
+              <button class="act-btn"
+                data-pid="{{ p.pid }}"
+                data-editar="{{ url_for('editar_produto', pid=p.pid) }}"
+                data-remover="{{ url_for('remover_produto', pid=p.pid) }}"
+                data-lotes="{{ url_for('estoque_produto', pid=p.pid) }}"
+                data-nome="{{ p.nome }}"
+                onclick="abrirMenu(this)"
+                type="button">···</button>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" style="padding:24px;text-align:center;color:var(--text-muted,#888)">Nenhum produto encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="est-pag-bar">
+      <div class="est-exibir">
+        Exibir
+        <select id="selPorPag" onchange="renderPag()">
+          <option value="10">10</option>
+          <option value="15">15</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        registros
+      </div>
+      <div class="est-pages" id="paginacao"></div>
+    </div>
+  </div>
 
 </div>
 
+<script type="application/json" id="data-nomes-estoque">{{ nomes_sugestoes | tojson }}</script>
+<script type="application/json" id="data-estoque-full">{{ estoque | tojson }}</script>
 <script>
+/* ── TOGGLE KPI ── */
+const eyeAberto  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+const eyeFechado = `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+window.toggleKpi = function(id, btn) {
+  const el = document.getElementById(id);
+  const svg = btn.querySelector('svg');
+  const oculto = el.classList.toggle('oculto');
+  svg.innerHTML = oculto ? eyeFechado : eyeAberto;
+};
+
+/* ── TOGGLE TABELA ── */
+let tabelaOculta = true;
+window.toggleTabelaValores = function(btn) {
+  tabelaOculta = !tabelaOculta;
+  document.querySelectorAll('.td-val').forEach(el => el.classList.toggle('val-oculto', tabelaOculta));
+  btn.querySelector('svg').innerHTML = tabelaOculta ? eyeFechado : eyeAberto;
+  document.getElementById('lbl-toggle-tabela').textContent = tabelaOculta ? 'Mostrar valores' : 'Ocultar valores';
+};
+
+/* ── AUTOCOMPLETE ── */
 (function(){
   const input = document.getElementById("buscaProduto");
-  const linhas = Array.from(document.querySelectorAll("#tbodyEstoque .linha-produto"));
-
-  function normaliza(s){
-    return (s || "")
-      .toString()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-  }
-
-  function filtrar(){
+  const form  = document.getElementById("formBusca");
+  const lista = document.getElementById("sugestoes");
+  const nomes = JSON.parse(document.getElementById("data-nomes-estoque").textContent);
+  function normaliza(s){ return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
+  function mostrarSugestoes(){
     const termo = normaliza(input.value);
-    if(!termo){
-      linhas.forEach(tr => tr.style.display = "");
-      return;
-    }
-    linhas.forEach(tr => {
-      const nome = normaliza(tr.getAttribute("data-nome") || tr.querySelector(".col-nome")?.textContent);
-      tr.style.display = nome.includes(termo) ? "" : "none";
+    lista.innerHTML = "";
+    if(!termo){ lista.style.display="none"; return; }
+    const matches = nomes.filter(n => normaliza(n).includes(termo)).slice(0,8);
+    if(!matches.length){ lista.style.display="none"; return; }
+    matches.forEach(nome => {
+      const li = document.createElement("li");
+      li.textContent = nome;
+      li.style.cssText = "padding:8px 12px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);font-size:14px;";
+      li.addEventListener("mousedown", function(e){ e.preventDefault(); input.value=nome; lista.style.display="none"; form.submit(); });
+      li.addEventListener("mouseover", function(){ this.style.background="var(--accent-dim)"; this.style.color="var(--accent)"; });
+      li.addEventListener("mouseout",  function(){ this.style.background=""; this.style.color="var(--text)"; });
+      lista.appendChild(li);
     });
+    lista.style.display = "block";
   }
+  input.addEventListener("input", mostrarSugestoes);
+  input.addEventListener("blur",  ()=>setTimeout(()=>{ lista.style.display="none"; },150));
+  input.addEventListener("focus", mostrarSugestoes);
+})();
 
-  input.addEventListener("input", filtrar);
+/* ── PAGINAÇÃO ── */
+const todasLinhas = Array.from(document.querySelectorAll(".est-row"));
+let paginaAtual = 1;
+
+function renderPag(){
+  const porPag = parseInt(document.getElementById("selPorPag").value) || 10;
+  const total = todasLinhas.length;
+  const totalPags = Math.max(1, Math.ceil(total / porPag));
+  if(paginaAtual > totalPags) paginaAtual = totalPags;
+  const ini = (paginaAtual-1)*porPag;
+  const fim = ini + porPag;
+  todasLinhas.forEach((tr,i) => tr.style.display = (i>=ini && i<fim) ? "" : "none");
+
+  const cont = document.getElementById("paginacao");
+  cont.innerHTML = "";
+
+  function mkBtn(label, pg, ativo){
+    const b = document.createElement("button");
+    b.textContent = label;
+    if(ativo) b.classList.add("ativo");
+    b.onclick = () => { paginaAtual=pg; renderPag(); };
+    return b;
+  }
+  const prev = document.createElement("button");
+  prev.innerHTML = "&#8249;";
+  prev.disabled = paginaAtual===1;
+  prev.onclick = ()=>{ if(paginaAtual>1){paginaAtual--;renderPag();} };
+  cont.appendChild(prev);
+
+  const visible = new Set([1, totalPags]);
+  for(let i=Math.max(1,paginaAtual-1); i<=Math.min(totalPags,paginaAtual+1); i++) visible.add(i);
+  let prevP=0;
+  Array.from({length:totalPags},(_,i)=>i+1).forEach(p=>{
+    if(!visible.has(p)) return;
+    if(prevP && p-prevP>1){ const el=document.createElement("span"); el.textContent="..."; el.className="ellipsis"; cont.appendChild(el); }
+    cont.appendChild(mkBtn(p,p,p===paginaAtual));
+    prevP=p;
+  });
+
+  const next = document.createElement("button");
+  next.innerHTML = "&#8250;";
+  next.disabled = paginaAtual===totalPags;
+  next.onclick = ()=>{ if(paginaAtual<totalPags){paginaAtual++;renderPag();} };
+  cont.appendChild(next);
+}
+renderPag();
+
+/* ── DROPDOWN MENU ── */
+(function(){
+  const dropdown = document.getElementById("acoes-dropdown");
+  let btnAtivo = null;
+  let pidAtivo  = null;
+
+  window.abrirMenu = function(btn){
+    if(btnAtivo===btn && dropdown.classList.contains("aberto")){ fecharMenu(); return; }
+    pidAtivo = btn.dataset.pid;
+    document.getElementById("acao-editar").href = btn.dataset.editar;
+    const aRemover = document.getElementById("acao-remover");
+    if(aRemover){
+      aRemover.onclick = function(e){
+        e.preventDefault();
+        if(!confirm("Remover '"+btn.dataset.nome+"'?")) return;
+        const f=document.createElement("form"); f.method="POST"; f.action=btn.dataset.remover;
+        document.body.appendChild(f); f.submit();
+      };
+    }
+    const rect = btn.getBoundingClientRect();
+    const menuW = 165;
+    let left = rect.right - menuW;
+    if(left<8) left=8;
+    dropdown.style.top  = (rect.bottom + window.scrollY + 4)+"px";
+    dropdown.style.left = left+"px";
+    dropdown.classList.add("aberto");
+    btnAtivo = btn;
+  };
+
+  function fecharMenu(){ dropdown.classList.remove("aberto"); btnAtivo=null; }
+  document.addEventListener("click", e=>{ if(!e.target.closest(".act-btn") && !e.target.closest("#acoes-dropdown")) fecharMenu(); });
+  window.addEventListener("scroll", fecharMenu);
+  window.addEventListener("resize", fecharMenu);
+
+  /* ── VISUALIZAR ── */
+  const ESTOQUE = JSON.parse(document.getElementById("data-estoque-full").textContent);
+  function set(id, v, fmt){
+    const el=document.getElementById(id); if(!el) return;
+    const txt=(v===null||v===undefined||String(v).trim()===''||(v===0 && id!=="v-quantidade"&&id!=="v-estoque-minimo"&&id!=="v-custo"&&id!=="v-venda"))
+      ? '<span style="color:var(--text-muted);font-style:italic;">Não informado</span>'
+      : (fmt?fmt(v):String(v));
+    el.innerHTML=txt;
+  }
+  window.abrirVisualizar = function(e){
+    e.preventDefault(); fecharMenu();
+    const p=ESTOQUE.find(x=>x.pid===pidAtivo); if(!p) return;
+    const fmtR=v=>"R$ "+parseFloat(v||0).toFixed(2).replace(".",",");
+    const custo=parseFloat(p.valor_investido||0);
+    const venda=parseFloat(p.valor_venda||0);
+    const margem=(custo>0&&venda>0)?(((venda-custo)/custo)*100).toFixed(2)+"%":"—";
+    set("v-data",          p.data);
+    set("v-nome",          p.nome);
+    set("v-categoria",     p.categoria);
+    set("v-tipo-controle", p.tipo_controle);
+    set("v-unidade-venda", p.unidade_venda);
+    set("v-quantidade",    p.quantidade, v=>String(Math.floor(Number(v)))+" un.");
+    set("v-estoque-minimo",p.estoque_minimo, v=>String(v)+" un.");
+    set("v-custo",         custo, fmtR);
+    set("v-venda",         venda, fmtR);
+    document.getElementById("v-margem").textContent=margem;
+    if(p.conteudo_valor&&p.conteudo_unidade)
+      document.getElementById("v-conteudo").textContent=p.conteudo_valor+" "+p.conteudo_unidade;
+    else document.getElementById("v-conteudo").innerHTML='<span style="color:var(--text-muted);font-style:italic;">Não informado</span>';
+    set("v-validade",  p.validade);
+    set("v-fornecedor",p.fornecedor);
+    const secConv=document.getElementById("v-secao-conv");
+    if(p.tipo_conversao&&p.unidades_por_caixa){ secConv.style.display="block"; set("v-tipo-conv",p.tipo_conversao); set("v-unid-caixa",p.unidades_por_caixa,v=>v+" unidades"); }
+    else secConv.style.display="none";
+    const secObs=document.getElementById("v-secao-obs");
+    if(p.observacoes&&p.observacoes.trim()){ secObs.style.display="block"; document.getElementById("v-obs").textContent=p.observacoes; }
+    else secObs.style.display="none";
+    document.getElementById("vis-overlay").classList.add("open");
+    document.body.style.overflow="hidden";
+  };
+  window.fecharVisualizar=function(){ document.getElementById("vis-overlay").classList.remove("open"); document.body.style.overflow=""; };
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") fecharVisualizar(); });
 })();
 </script>
 

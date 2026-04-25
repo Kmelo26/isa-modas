@@ -2,39 +2,637 @@
 {% block conteudo %}
 
 <style>
-.container { max-width:700px; margin:20px auto; padding:20px }
-h2 { text-align:center; color:var(--accent); }
-form { background:var(--card-bg); padding:15px; border-radius:10px;
-  box-shadow:var(--shadow); border:1px solid var(--border);
-  margin-bottom:15px; display:flex; flex-direction:column; gap:10px; }
-form input, form button { padding:10px; border-radius:8px;
-  border:1px solid var(--border); width:100%; background:var(--input-bg); color:var(--text); }
-form button { background:var(--btn-bg); color:var(--accent); border:none; cursor:pointer; font-weight:bold; }
-form button:hover { background:var(--accent-hover); }
-.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
-  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
-.btn-voltar { display:inline-block; padding:8px 12px; border-radius:8px; text-decoration:none;
-  font-weight:bold; border:1px solid var(--border); color:var(--accent); background:var(--card-bg); }
-.btn-voltar:hover { background:var(--accent-dim); }
+  .cp-container {
+    max-width: 960px;
+    margin: 30px auto;
+    padding: 0 20px 40px;
+  }
+
+  .cp-header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .cp-header h2 {
+    color: var(--text);
+    font-size: 1.6rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 6px;
+  }
+
+  .cp-header p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .cp-secao {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .cp-secao-titulo {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cp-secao-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0 0 18px;
+  }
+
+  .cp-grid { display: grid; gap: 16px; }
+  .cp-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cp-grid-2 { grid-template-columns: 1fr 1fr; }
+
+  .cp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .cp-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .cp-field label .req { color: #f87171; }
+
+  .cp-field input,
+  .cp-field select,
+  .cp-field textarea {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+
+  .cp-field input:focus,
+  .cp-field select:focus,
+  .cp-field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .cp-field input[readonly] {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+    cursor: default;
+  }
+
+  .cp-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .cp-field textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  /* Inline: número + select de unidade */
+  .cp-inline {
+    display: flex;
+    gap: 8px;
+  }
+  .cp-inline input { flex: 1; }
+  .cp-inline select { width: 80px; flex-shrink: 0; }
+
+  /* Bloco condicional */
+  .cp-condicional { display: none; }
+  .cp-condicional.visivel { display: flex; flex-direction: column; gap: 5px; }
+
+  /* Infobox */
+  .cp-infobox {
+    background: var(--accent-dim);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .cp-infobox strong {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+
+  .cp-infobox ul {
+    margin: 0;
+    padding-left: 16px;
+    line-height: 1.9;
+  }
+
+  /* Conversão layout */
+  .cp-conv-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .cp-conv-campos { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Preview conversão */
+  .cp-preview {
+    display: none;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .cp-preview strong { color: var(--accent); }
+
+  /* Alerta */
+  .alerta {
+    color: #f87171;
+    font-weight: bold;
+    background: #2a0f0f;
+    border: 1px solid #5a1f1f;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+  }
+
+  /* Footer */
+  .cp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .btn-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--card-bg);
+    transition: background 0.2s;
+  }
+
+  .btn-voltar:hover { background: var(--accent-dim); }
+
+  .btn-cadastrar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 28px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    background: var(--btn-bg);
+    color: var(--accent);
+    transition: background 0.2s;
+  }
+
+  .btn-cadastrar:hover { background: var(--accent-hover); }
+
+  @media (max-width: 640px) {
+    .cp-grid-3, .cp-grid-2, .cp-conv-layout { grid-template-columns: 1fr; }
+    .cp-inline select { width: 100%; }
+    .cp-inline { flex-direction: column; }
+  }
 </style>
 
-<div class="container">
-  <h2>Cadastrar Produto no Estoque</h2>
+<div class="cp-container">
+
+  <div class="cp-header">
+    <h2>📦 Cadastrar Produto no Estoque</h2>
+    <p>Preencha as informações do produto que será adicionado ao estoque.</p>
+  </div>
 
   {% if erro %}
     <div class="alerta">{{ erro }}</div>
   {% endif %}
 
   <form method="POST">
-      <input type="date" name="data" required>
-      <input type="text" name="nome" placeholder="Nome do produto" required>
-      <input type="number" step="0.01" name="valor_investido" placeholder="Custo unitário (compra)" required>
-      <input type="number" step="0.01" name="valor_venda" placeholder="Valor de venda" required>
-      <input type="number" name="quantidade" placeholder="Quantidade" required>
-      <button type="submit">Cadastrar Produto</button>
-  </form>
 
-  <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
+    <!-- ══════════════════════════════════
+         1. INFORMAÇÕES BÁSICAS
+    ══════════════════════════════════ -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">1. Informações Básicas</div>
+
+      <div class="cp-grid cp-grid-3">
+        <div class="cp-field">
+          <label>Data de cadastro</label>
+          <input type="date" name="data" required>
+        </div>
+        <div class="cp-field">
+          <label>Nome do produto <span class="req">*</span></label>
+          <input type="text" name="nome" placeholder="Ex.: Skol Lata 269ml" required>
+        </div>
+        <div class="cp-field">
+          <label>Categoria <span class="req">*</span></label>
+          <select name="categoria" id="categoria" required onchange="atualizarConteudoPorCategoria()">
+            <option value="">Selecione</option>
+            <option value="bebida">Bebida</option>
+            <option value="comida">Comida</option>
+            <option value="insumo">Insumo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="cp-grid cp-grid-3" style="margin-top:16px;">
+        <div class="cp-field">
+          <label>Tipo de controle <span class="req">*</span></label>
+          <select name="tipo_controle" id="tipo_controle" required>
+            <option value="UN">Unidade (UN)</option>
+            <option value="KG">Peso (KG)</option>
+            <option value="ML">Volume (ML)</option>
+          </select>
+          <span class="cp-hint">Unidade (UN) • Peso (KG) • Volume (ML)</span>
+        </div>
+
+        <div class="cp-field" id="bloco_conteudo">
+          <label>Conteúdo por unidade <span style="font-weight:400;">(opcional)</span></label>
+          <div class="cp-inline">
+            <input type="number" step="0.001" name="conteudo_valor" id="conteudo_valor" placeholder="Ex.: 269" disabled>
+            <select name="conteudo_unidade" id="conteudo_unidade" disabled>
+              <option value="">—</option>
+            </select>
+          </div>
+          <span class="cp-hint" id="conteudo_hint">Selecione uma categoria primeiro</span>
+        </div>
+
+        <div class="cp-field">
+          <label>Unidade de venda</label>
+          <select name="unidade_venda">
+            <option value="UN">Unidade (UN)</option>
+            <option value="KG">Quilograma (KG)</option>
+            <option value="ML">Mililitro (ML)</option>
+          </select>
+          <span class="cp-hint">Como será vendido ao cliente</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         2. ENTRADA INICIAL NO ESTOQUE
+    ══════════════════════════════════ -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">2. Entrada Inicial no Estoque</div>
+
+      <!-- Forma + Quantidade -->
+      <div class="cp-grid cp-grid-2" style="margin-bottom:14px;">
+        <div class="cp-field">
+          <label>Forma de entrada</label>
+          <select name="forma_entrada" id="en-forma" onchange="atualizarFormaEntrada()">
+            <option value="unidade">Unidade</option>
+            <option value="caixa">Caixa</option>
+          </select>
+        </div>
+        <div class="cp-field" id="en-bloco-unid">
+          <label>Quantidade <span class="req">*</span></label>
+          <input type="number" name="quantidade" id="en-qtd-unid" placeholder="Ex.: 10" min="1">
+        </div>
+        <div class="cp-field" id="en-bloco-caixa" style="display:none;">
+          <label>Quantidade (caixas) <span class="req">*</span></label>
+          <input type="number" name="qtd_caixas" id="en-qtd-caixa" placeholder="Ex.: 5" min="1" oninput="calcEntrada()">
+        </div>
+      </div>
+
+      <!-- Unid/caixa (só caixa) -->
+      <div class="cp-grid cp-grid-2" id="en-bloco-upc" style="display:none;margin-bottom:14px;">
+        <div class="cp-field">
+          <label>Unidades por caixa <span class="req">*</span></label>
+          <input type="number" name="en_upc" id="en-upc" placeholder="Ex.: 12" min="1" oninput="calcEntrada()">
+        </div>
+      </div>
+
+      <!-- Preview fórmula -->
+      <div id="en-formula" style="font-size:0.85rem;color:#22c55e;font-weight:600;margin-bottom:12px;min-height:18px;"></div>
+
+      <!-- Tipo de custo -->
+      <div class="cp-grid cp-grid-2" style="align-items:start;margin-bottom:14px;">
+        <div class="cp-field">
+          <label>Tipo de custo</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.875rem;font-weight:400;color:var(--text);cursor:pointer;">
+              <input type="radio" name="tipo_custo" value="total" id="en-radio-total" onchange="atualizarTipoCusto()" checked style="accent-color:#22c55e;width:15px;height:15px;">
+              Custo total da compra
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:0.875rem;font-weight:400;color:var(--text);cursor:pointer;">
+              <input type="radio" name="tipo_custo" value="unitario" id="en-radio-unit" onchange="atualizarTipoCusto()" style="accent-color:#22c55e;width:15px;height:15px;">
+              Custo por unidade
+            </label>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="cp-field">
+            <label>Custo total da compra (R$)</label>
+            <input type="number" step="0.01" name="custo_total" id="en-custo-total" placeholder="0,00" min="0.01" oninput="calcEntrada();calcularMargem()">
+          </div>
+          <div class="cp-field">
+            <label>Custo unitário (R$)</label>
+            <input type="number" step="0.01" name="valor_investido" id="custo" placeholder="0,00" min="0.01" disabled oninput="calcEntrada();calcularMargem()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Data + Estoque mínimo -->
+      <div class="cp-grid cp-grid-2">
+        <div class="cp-field">
+          <label>Data da entrada</label>
+          <input type="date" name="data_entrada" id="en-data" value="{{ hoje }}">
+          <span class="cp-hint">Data do primeiro lote no estoque</span>
+        </div>
+        <div class="cp-field">
+          <label>Estoque mínimo</label>
+          <input type="number" name="estoque_minimo" placeholder="Ex.: 10" min="0">
+          <span class="cp-hint">Quantidade mínima para alerta</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         3. PREÇOS
+    ══════════════════════════════════ -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">3. Preços</div>
+
+      <div class="cp-grid cp-grid-3">
+        <div class="cp-field">
+          <label>Custo unitário (calculado)</label>
+          <input type="text" id="custo-preview" readonly placeholder="—">
+          <span class="cp-hint">Calculado a partir da entrada acima</span>
+        </div>
+        <div class="cp-field">
+          <label>Preço de venda (unitário) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="valor_venda" id="venda" placeholder="R$ 0,00" min="0.01" required oninput="calcularMargem()">
+          <span class="cp-hint">Valor cobrado por unidade ao cliente</span>
+        </div>
+        <div class="cp-field">
+          <label>Margem de lucro</label>
+          <input type="text" id="margem" readonly placeholder="0,00%">
+          <span class="cp-hint">Calculado automaticamente</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         4. INFORMAÇÕES ADICIONAIS
+    ══════════════════════════════════ -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">4. Informações Adicionais</div>
+
+      <div class="cp-grid cp-grid-2">
+        <div class="cp-field">
+          <label>Validade <span style="font-weight:400;">(opcional)</span></label>
+          <input type="date" name="validade">
+          <span class="cp-hint">Data de validade do produto</span>
+        </div>
+        <div class="cp-field">
+          <label>Fornecedor</label>
+          <select name="fornecedor">
+            <option value="">Selecione o fornecedor</option>
+            {% for f in fornecedores %}
+              <option value="{{ f.id }}">{{ f.nome }}</option>
+            {% else %}
+              {# Nenhum fornecedor cadastrado ainda #}
+            {% endfor %}
+          </select>
+          <span class="cp-hint">Fornecedor do produto</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         5. CONVERSÃO CAIXA / FARDO
+    ══════════════════════════════════ -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">5. Conversão (Caixa/Fardo) <span style="font-weight:400;color:var(--text-muted);font-size:0.85rem;">— Opcional</span></div>
+      <p class="cp-secao-desc">Defina a relação entre caixas/fardos e unidades (ex.: 1 caixa = 12 unidades)</p>
+
+      <div class="cp-conv-layout">
+        <div class="cp-conv-campos">
+          <div class="cp-grid cp-grid-2">
+            <div class="cp-field">
+              <label>Tipo de conversão</label>
+              <select name="tipo_conversao" id="tipo_conversao">
+                <option value="">Selecione</option>
+                <option value="caixa">Caixa</option>
+                <option value="fardo">Fardo</option>
+              </select>
+            </div>
+            <div class="cp-field">
+              <label>Unidades por caixa/fardo</label>
+              <input type="number" name="unidades_por_caixa" id="unidades_por_caixa" placeholder="Ex.: 12" min="1">
+              <span class="cp-hint">Quantidade de unidades por caixa/fardo</span>
+            </div>
+          </div>
+
+          <div class="cp-preview" id="preview_conversao">
+            📦 Ao dar entrada de <strong>1</strong> <strong id="prev_tipo">caixa</strong>,
+            o sistema registrará <strong id="prev_total">12</strong> unidades no estoque.
+          </div>
+        </div>
+
+        <div class="cp-infobox">
+          <strong>ℹ️ Como funciona:</strong>
+          <ul>
+            <li>Ao comprar por caixa/fardo, o estoque será convertido automaticamente em unidades</li>
+            <li>Você poderá vender por unidade ou por múltiplos equivalentes</li>
+            <li>O produto sempre representa a unidade base no sistema</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         6. OBSERVAÇÕES
+    ══════════════════════════════════ -->
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">6. Observações <span style="font-weight:400;color:var(--text-muted);font-size:0.85rem;">(opcional)</span></div>
+      <div class="cp-field">
+        <label>Observações</label>
+        <textarea name="observacoes" placeholder="Informações adicionais sobre o produto..."></textarea>
+      </div>
+    </div>
+
+    <div class="cp-footer">
+      <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
+      <button type="submit" class="btn-cadastrar">📋 Cadastrar Produto</button>
+    </div>
+
+  </form>
 </div>
+
+<script>
+  /* ─── Margem de lucro ─── */
+  const campoCusto  = document.getElementById('custo');
+  const campoVenda  = document.getElementById('venda');
+  const campoMargem = document.getElementById('margem');
+
+  function calcularMargem() {
+    const custo = parseFloat(campoCusto.value) || 0;
+    const venda = parseFloat(campoVenda.value) || 0;
+    if (custo > 0 && venda > 0) {
+      const m = ((venda - custo) / custo) * 100;
+      campoMargem.value = m.toFixed(2) + '%';
+      campoMargem.style.color = m >= 0 ? 'var(--accent)' : '#f87171';
+    } else {
+      campoMargem.value = '0,00%';
+      campoMargem.style.color = 'var(--accent)';
+    }
+  }
+
+  campoCusto.addEventListener('input', calcularMargem);
+  campoVenda.addEventListener('input', calcularMargem);
+
+  /* ─── Conteúdo por unidade por categoria ─── */
+  const UNIDADES_CAT = {
+    'bebida': { units: ['ml', 'L'],    hint: 'Volume por unidade (ex: 269 ml, 1 L)' },
+    'comida': { units: ['kg', 'UN'],   hint: 'Peso ou quantidade por porção (ex: 0.5 kg, 1 UN)' },
+    'insumo': { units: ['UN'],         hint: 'Quantidade por unidade (ex: 1 UN)' },
+  };
+
+  function atualizarConteudoPorCategoria() {
+    const cat  = document.getElementById('categoria').value;
+    const inp  = document.getElementById('conteudo_valor');
+    const sel  = document.getElementById('conteudo_unidade');
+    const hint = document.getElementById('conteudo_hint');
+    const cfg  = UNIDADES_CAT[cat];
+    if (!cfg) {
+      inp.disabled = true; sel.disabled = true;
+      sel.innerHTML = '<option value="">—</option>';
+      hint.textContent = 'Selecione uma categoria primeiro';
+      return;
+    }
+    inp.disabled = false; sel.disabled = false;
+    sel.innerHTML = cfg.units.map(u => `<option value="${u}">${u}</option>`).join('');
+    hint.textContent = cfg.hint;
+  }
+
+  atualizarConteudoPorCategoria();
+
+  /* ─── Preview de conversão caixa/fardo ─── */
+  const tipoConv   = document.getElementById('tipo_conversao');
+  const qtdCaixa   = document.getElementById('unidades_por_caixa');
+  const previewDiv = document.getElementById('preview_conversao');
+  const prevTipo   = document.getElementById('prev_tipo');
+  const prevTotal  = document.getElementById('prev_total');
+
+  function atualizarPreview() {
+    const tipo = tipoConv.value;
+    const qtd  = parseInt(qtdCaixa.value) || 0;
+    if (tipo && qtd > 0) {
+      previewDiv.style.display = 'block';
+      prevTipo.textContent  = tipo;
+      prevTotal.textContent = qtd;
+    } else {
+      previewDiv.style.display = 'none';
+    }
+  }
+
+  tipoConv.addEventListener('change', atualizarPreview);
+  qtdCaixa.addEventListener('input',  atualizarPreview);
+
+  /* ─── Forma de entrada ─── */
+  function atualizarFormaEntrada() {
+    const forma = document.getElementById('en-forma').value;
+    document.getElementById('en-bloco-unid').style.display = forma === 'caixa' ? 'none' : '';
+    document.getElementById('en-bloco-caixa').style.display = forma === 'caixa' ? '' : 'none';
+    document.getElementById('en-bloco-upc').style.display   = forma === 'caixa' ? '' : 'none';
+    calcEntrada();
+  }
+
+  /* ─── Tipo de custo ─── */
+  function atualizarTipoCusto() {
+    const tipo = (document.querySelector('input[name="tipo_custo"]:checked') || {}).value || 'total';
+    const custoTotalEl = document.getElementById('en-custo-total');
+    const custoUnitEl  = document.getElementById('custo');
+    if (tipo === 'total') {
+      custoTotalEl.disabled = false;
+      custoUnitEl.disabled  = true;
+      custoUnitEl.value = '';
+    } else {
+      custoTotalEl.disabled = true;
+      custoTotalEl.value = '';
+      custoUnitEl.disabled  = false;
+    }
+    calcEntrada();
+  }
+
+  /* ─── Cálculo da entrada (qtd + custo) ─── */
+  function calcEntrada() {
+    const forma = document.getElementById('en-forma').value;
+    const tipo  = (document.querySelector('input[name="tipo_custo"]:checked') || {}).value || 'total';
+    const formulaEl     = document.getElementById('en-formula');
+    const custoPreviewEl = document.getElementById('custo-preview');
+
+    let qtdTotal = 0;
+    if (forma === 'caixa') {
+      const qtdCaixas = parseInt(document.getElementById('en-qtd-caixa').value) || 0;
+      const upc       = parseInt(document.getElementById('en-upc').value) || 0;
+      qtdTotal = qtdCaixas * upc;
+      formulaEl.textContent = (qtdCaixas > 0 && upc > 0)
+        ? `${qtdCaixas} caixas × ${upc} unidades = ${qtdTotal} unidades`
+        : '';
+    } else {
+      qtdTotal = parseInt(document.getElementById('en-qtd-unid').value) || 0;
+      formulaEl.textContent = '';
+    }
+
+    let custoUnit = 0;
+    if (tipo === 'total') {
+      const custoTotal = parseFloat(document.getElementById('en-custo-total').value) || 0;
+      custoUnit = qtdTotal > 0 ? custoTotal / qtdTotal : 0;
+      document.getElementById('custo').value = custoUnit > 0 ? custoUnit.toFixed(2) : '';
+    } else {
+      custoUnit = parseFloat(document.getElementById('custo').value) || 0;
+    }
+
+    custoPreviewEl.value = custoUnit > 0 ? 'R$ ' + custoUnit.toFixed(2) : '';
+    calcularMargem();
+  }
+
+  /* Inicializar estado */
+  atualizarTipoCusto();
+</script>
 
 {% endblock %}

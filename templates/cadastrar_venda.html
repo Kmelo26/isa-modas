@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.container { max-width:700px; margin:20px auto; padding:20px }
+h2 { text-align:center; color:var(--accent); margin-bottom:15px }
+form { background:var(--card-bg); padding:18px; border-radius:10px;
+  box-shadow:var(--shadow); border:1px solid var(--border);
+  display:flex; flex-direction:column; gap:10px; }
+label { font-weight:bold; color:var(--accent); }
+input, select { padding:10px; border:1px solid var(--border); border-radius:8px;
+  background:var(--input-bg); color:var(--text); }
+input[readonly] { background:#242424; color:var(--text-muted); }
+.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:10px 14px;
+  border-radius:8px; cursor:pointer; font-weight:bold; }
+.btn:hover { background:var(--accent-hover); }
+.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+  text-decoration:none; display:inline-block; text-align:center;
+  padding:10px 14px; border-radius:8px; }
+.btn-sec:hover { background:var(--accent-dim); }
+.erro { background:#2a0f0f; border:1px solid #5a1f1f; padding:10px;
+  border-radius:8px; color:#f87171; margin-bottom:10px; }
+.linha-botoes { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+.obs { font-size:12px; color:#666; margin-top:-6px; }
+</style>
+
+<div class="container">
+  <h2>Cadastrar Venda</h2>
+
+  {% if erro %}
+    <div class="erro">{{ erro }}</div>
+  {% endif %}
+
+  <form method="post">
+    <label>Data</label>
+    <input type="date" name="data" value="{{ hoje }}" required>
+
+    <label>Produto</label>
+    <select id="produtoSelect" name="produto_pid" required>
+      <option value="">-- Selecione um produto --</option>
+      {% for p in estoque %}
+        <option
+          value="{{ p.pid }}"
+          data-preco="{{ p.valor_venda }}"
+          data-qtd="{{ p.quantidade }}"
+        >
+          {{ p.nome }}
+        </option>
+      {% endfor %}
+    </select>
+    <div class="obs">Selecione o produto cadastrado no estoque.</div>
+
+    <label>Preço de Venda</label>
+    <input id="precoVenda" type="text" readonly placeholder="—">
+
+    <label>Quantidade disponível</label>
+    <input id="qtdDisponivel" type="text" readonly placeholder="—">
+
+    <label>Quantidade</label>
+    <input type="number" name="quantidade" value="1" min="1" required>
+
+    <label>Forma de Pagamento</label>
+    <select name="forma_pagamento" required>
+      <option value="">-- Selecione --</option>
+      <option value="pix">Pix</option>
+      <option value="dinheiro">Dinheiro</option>
+      <option value="cartao">Cartão</option>
+    </select>
+
+    <div class="linha-botoes">
+      <button class="btn" type="submit">Registrar Venda</button>
+      <a class="btn-sec" href="/vendas">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  function formatBRL(n) {
+    const num = Number(n);
+    if (Number.isNaN(num)) return "";
+    return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function atualizarInfoProduto() {
+    const select = document.getElementById("produtoSelect");
+    const opt = select.options[select.selectedIndex];
+
+    const preco = opt?.dataset?.preco ?? "";
+    const qtd = opt?.dataset?.qtd ?? "";
+
+    document.getElementById("precoVenda").value = preco !== "" ? formatBRL(preco) : "";
+    document.getElementById("qtdDisponivel").value = qtd !== "" ? qtd : "";
+  }
+
+  document.getElementById("produtoSelect").addEventListener("change", atualizarInfoProduto);
+</script>
+
+{% endblock %}

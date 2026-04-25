@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.container { max-width:900px; margin:20px auto; padding:20px; }
+h2 { text-align:center; color:var(--accent); margin-bottom:4px; }
+.sub { text-align:center; color:var(--text-muted); font-size:13px; margin-bottom:24px; }
+.layout { display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
+.card { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  padding:20px; box-shadow:var(--shadow); margin-bottom:16px; }
+.card-title { font-size:11px; font-weight:bold; color:var(--accent); text-transform:uppercase;
+  letter-spacing:1.5px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.field { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+.field label { font-size:12px; font-weight:bold; color:var(--accent); }
+.field input { padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+  background:var(--input-bg); color:var(--text); font-size:14px; outline:none; }
+.field input:focus { border-color:var(--accent); }
+.alerta { background:#2a0f0f; border:1px solid #5a1f1f; color:#f87171;
+  padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold; font-size:13px; }
+.btn { background:var(--btn-bg); color:var(--accent); border:none; padding:10px 16px;
+  border-radius:8px; cursor:pointer; font-weight:bold; font-size:13px; width:100%; transition:background .15s; }
+.btn:hover { background:var(--accent-hover); }
+.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border);
+  text-decoration:none; display:inline-block; padding:8px 14px; border-radius:8px;
+  font-weight:bold; font-size:13px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { background:#2a2a2a; color:var(--accent); padding:8px 10px; text-align:center; }
+td { border:1px solid var(--border); padding:8px 10px; text-align:center; color:var(--text); }
+tr:nth-child(even) { background:var(--table-even); }
+.pct-bar { background:var(--border); border-radius:4px; height:6px; overflow:hidden; margin-top:4px; }
+.pct-fill { height:100%; border-radius:4px; background:var(--accent); transition:width .3s; }
+.res-row { display:flex; justify-content:space-between; padding:8px 0;
+  border-bottom:1px solid var(--border); font-size:13px; }
+.res-row:last-child { border-bottom:none; }
+.stock-disponivel { color:#4ade80; }
+.stock-zerado     { color:#f87171; }
+.preview-box { background:#1a2a1a; border:1px solid #2d4a2d; border-radius:8px;
+  padding:12px; margin-bottom:12px; font-size:13px; color:#4ade80; text-align:center; }
+.preview-box .formula { font-size:11px; color:var(--text-muted); margin-bottom:4px; }
+.preview-box .result  { font-size:18px; font-weight:bold; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+</style>
+
+<div class="container">
+  <h2>{{ produto.name }}</h2>
+  <div class="sub">
+    Unidade base: <strong>{{ produto.unit }}</strong>
+    {% if produto.get('unit_value') and produto.unit_value != 1 %}
+      &nbsp;·&nbsp; <strong>{{ "%.3f"|format(produto.unit_value) }} {{ produto.unit }}</strong> por unidade
+    {% endif %}
+    <a href="{{ url_for('bar_produtos') }}" style="color:var(--accent);">← Voltar aos Pacotes</a>
+  </div>
+
+  <div class="layout">
+    <div>
+      <!-- Histórico de lotes -->
+      <div class="card">
+        <div class="card-title">Lotes de compra</div>
+        {% if batches %}
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Qtd comprada</th>
+              <th>Total ({{ produto.unit }})</th>
+              <th>Restante ({{ produto.unit }})</th>
+              <th>Custo total</th>
+              <th>Custo/{{ produto.unit }}</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in batches %}
+            {% set pct = (b.quantity_remaining / b.quantity_total * 100) if b.quantity_total > 0 else 0 %}
+            {% set unit_cost = (b.total_cost / b.quantity_total) if b.quantity_total > 0 else 0 %}
+            {% set uv = b.unit_value if b.unit_value else 1 %}
+            {% set qty_fisica = (b.quantity_total / uv) if uv > 0 else b.quantity_total %}
+            <tr>
+              <td>{{ b.created_at[:10] }}</td>
+              <td>{{ "%.2f"|format(qty_fisica) }}
+                {% if uv != 1 %}
+                  <br><span style="font-size:11px; color:var(--text-muted);">× {{ "%.3f"|format(uv) }} {{ produto.unit }}</span>
+                {% endif %}
+              </td>
+              <td>{{ "%.3f"|format(b.quantity_total) }}</td>
+              <td>
+                {{ "%.3f"|format(b.quantity_remaining) }}
+                {% if b.quantity_remaining <= 0 %}
+                  <span style="color:#f87171; font-size:11px;">(vazio)</span>
+                {% endif %}
+              </td>
+              <td>R$ {{ "%.2f"|format(b.total_cost) }}</td>
+              <td>R$ {{ "%.5f"|format(unit_cost) }}</td>
+              <td style="min-width:70px;">
+                {{ "%.0f"|format(pct) }}%
+                <div class="pct-bar">
+                  <div class="pct-fill" data-pct="{{ pct }}"></div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center; color:var(--text-muted); padding:20px;">
+          Nenhum lote cadastrado ainda.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="position:sticky; top:20px;">
+      <!-- Resumo -->
+      <div class="card">
+        <div class="card-title">Resumo estoque</div>
+        {% set total_rem = batches | sum(attribute='quantity_remaining') %}
+        {% set total_lotes = batches | length %}
+        {% set lotes_ativos = batches | selectattr('quantity_remaining', 'gt', 0) | list | length %}
+        <div class="res-row">
+          <span style="color:var(--text-muted);">Total lotes</span>
+          <strong>{{ total_lotes }}</strong>
+        </div>
+        <div class="res-row">
+          <span style="color:var(--text-muted);">Lotes ativos</span>
+          <strong>{{ lotes_ativos }}</strong>
+        </div>
+        <div class="res-row">
+          <span style="color:var(--text-muted);">Disponível</span>
+          <strong class="{% if total_rem > 0 %}stock-disponivel{% else %}stock-zerado{% endif %}">
+            {{ "%.3f"|format(total_rem) }} {{ produto.unit }}
+          </strong>
+        </div>
+      </div>
+
+      <!-- Adicionar lote -->
+      <div class="card">
+        <div class="card-title">Entrada de estoque (compra)</div>
+        {% if erro %}<div class="alerta">{{ erro }}</div>{% endif %}
+
+        <div id="preview-box" class="preview-box" style="display:none;">
+          <div class="formula" id="preview-formula"></div>
+          <div class="result" id="preview-result"></div>
+        </div>
+
+        <form method="post" id="lote-form"
+              data-unit="{{ produto.unit }}"
+              data-uv="{{ produto.unit_value if produto.get('unit_value') else 1 }}">
+          <div class="row2">
+            <div class="field">
+              <label>Pacotes / caixas compradas</label>
+              <input type="number" id="inp-pkgs" name="quantity_packages" step="1" min="1"
+                     placeholder="Ex: 2" required>
+            </div>
+            <div class="field">
+              <label>Unidades por pacote</label>
+              <input type="number" id="inp-upp" name="units_per_package" step="1" min="1"
+                     placeholder="Ex: 12" required value="1">
+            </div>
+          </div>
+          <div class="field">
+            <label>Custo por pacote (R$)</label>
+            <input type="number" id="inp-cpp" name="cost_per_package" step="0.01" min="0"
+                   placeholder="Ex: 80.00" required>
+          </div>
+          <button type="submit" class="btn">Registrar entrada</button>
+        </form>
+
+        <div style="margin-top:10px; font-size:11px; color:var(--text-muted); line-height:1.8;">
+          {% set uv = produto.unit_value if produto.get('unit_value') else 1 %}
+          {% if uv != 1 %}
+          Fórmula: pacotes × unid/pacote × {{ "%.0f"|format(uv) }} {{ produto.unit }}/unid = total {{ produto.unit }}<br>
+          Ex: 2 × 12 × {{ "%.0f"|format(uv) }} = {{ (2 * 12 * uv)|round(0)|int }} {{ produto.unit }}
+          {% else %}
+          Fórmula: pacotes × unid/pacote = total {{ produto.unit }}<br>
+          Ex: 2 pacotes × 12 unidades = 24 {{ produto.unit }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll(".pct-fill[data-pct]").forEach(function(el){
+  el.style.width = parseFloat(el.dataset.pct) + "%";
+});
+
+var _form   = document.getElementById("lote-form");
+var unit    = _form.dataset.unit  || "un";
+var prodUV  = parseFloat(_form.dataset.uv) || 1;
+var iPkgs   = document.getElementById("inp-pkgs");
+var iUpp    = document.getElementById("inp-upp");
+var iCpp    = document.getElementById("inp-cpp");
+var box     = document.getElementById("preview-box");
+var fml     = document.getElementById("preview-formula");
+var res     = document.getElementById("preview-result");
+
+function updatePreview() {
+  var pkgs = parseFloat(iPkgs.value) || 0;
+  var upp  = parseFloat(iUpp.value)  || 0;
+  var cpp  = parseFloat(iCpp.value)  || 0;
+  if (pkgs > 0 && upp > 0) {
+    var totalUnits = pkgs * upp;
+    var totalBase  = totalUnits * prodUV;
+    var totalCost  = pkgs * cpp;
+    if (prodUV !== 1) {
+      fml.textContent = pkgs + " × " + upp + " × " + prodUV.toFixed(2) + " " + unit + "/un";
+    } else {
+      fml.textContent = pkgs + " pacote(s) × " + upp + " unidades";
+    }
+    res.textContent = totalBase.toFixed(2) + " " + unit + " no estoque"
+      + (cpp > 0 ? "  ·  R$ " + totalCost.toFixed(2) : "");
+    box.style.display = "block";
+  } else {
+    box.style.display = "none";
+  }
+}
+
+iPkgs.addEventListener("input", updatePreview);
+iUpp.addEventListener("input",  updatePreview);
+iCpp.addEventListener("input",  updatePreview);
+</script>
+{% endblock %}

@@ -1,103 +1,824 @@
 {% extends "base.html" %}
 {% block conteudo %}
 
+{% set qtd_total    = produto.quantidade | float %}
+{% set custo_medio  = produto.valor_investido | float %}
+{% set preco_venda  = produto.valor_venda | float %}
+{% set valor_total  = qtd_total * custo_medio %}
+{% set estoque_min  = produto.get('estoque_minimo', 0) | int %}
+{% set prod_cont_val  = produto.get('conteudo_valor') %}
+{% set prod_cont_unit = produto.get('conteudo_unidade') or 'ml' %}
+
 <style>
-.container { max-width:1000px; margin:20px auto; padding:20px }
-.box { background:var(--card-bg); padding:15px; border-radius:10px;
-  box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:15px; color:var(--text); }
-h2 { color:var(--accent); margin:0 0 10px; text-align:center }
-small { color:var(--text-muted) }
-table { width:100%; border-collapse:collapse; margin-top:10px; background:var(--card-bg);
-  border-radius:10px; overflow:hidden; box-shadow:var(--shadow); }
-th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
-th { background:#2a2a2a; color:var(--accent); }
-tr:nth-child(even){ background:var(--table-even); }
-form { background:var(--card-bg); padding:15px; border-radius:10px; box-shadow:var(--shadow);
-  border:1px solid var(--border); margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
-label { font-weight:bold; color:var(--accent); display:block; margin-bottom:4px; }
-input { padding:10px; border:1px solid var(--border); border-radius:8px;
-  min-width:180px; background:var(--input-bg); color:var(--text); }
-button { background:var(--btn-bg); color:var(--accent); border:none; padding:10px 14px;
-  border-radius:8px; cursor:pointer; font-weight:bold; }
-button:hover { background:var(--accent-hover); }
-.alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
-  border:1px solid #5a1f1f; padding:10px; border-radius:8px; margin-bottom:10px; }
-.acoes { display:flex; gap:10px; justify-content:center; margin-bottom:10px; flex-wrap:wrap; }
-.btn { display:inline-block; padding:8px 12px; border-radius:8px; text-decoration:none;
-  font-weight:bold; border:1px solid var(--border); color:var(--accent); background:var(--card-bg); }
-.btn:hover { background:var(--accent-dim); }
+  .lp { max-width:1200px; margin:0 auto; padding:20px 20px 48px; }
+
+  .lp-back { display:inline-flex; align-items:center; gap:8px; color:var(--text);
+    text-decoration:none; font-size:0.9rem; margin-bottom:18px; }
+  .lp-back:hover { color:var(--accent); }
+
+  /* top card */
+  .lp-top { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+    padding:18px 22px; margin-bottom:20px; display:flex; align-items:center; gap:20px; }
+  .lp-top-img { width:90px; height:70px; border-radius:8px; border:1px solid var(--border);
+    background:var(--input-bg); display:flex; align-items:center; justify-content:center;
+    font-size:2rem; flex-shrink:0; }
+  .lp-top-info { flex:1; min-width:0; }
+  .lp-top-nome { font-size:1.1rem; font-weight:700; color:var(--text); margin:0 0 3px; }
+  .lp-top-sub  { font-size:0.75rem; color:var(--text-muted); margin:1px 0; word-break:break-all; }
+  .lp-top-stats { display:flex; gap:0; margin-left:auto; flex-shrink:0; }
+  .lp-top-stat { padding:8px 24px; border-left:1px solid var(--border); text-align:left; }
+  .lp-top-stat:first-child { border-left:none; }
+  .lp-top-stat label { font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px; }
+  .lp-top-stat .sv  { font-size:1.25rem; font-weight:700; color:var(--text); }
+  .lp-top-stat .sv.verde { color:#22c55e; }
+  .lp-top-stat .sv2 { font-size:0.75rem; color:var(--text-muted); margin-top:1px; }
+
+  /* tabs */
+  .lp-tabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:24px; }
+  .lp-tab  { padding:10px 20px; font-size:0.875rem; cursor:pointer; color:var(--text-muted);
+    border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+  .lp-tab:hover { color:var(--text); }
+  .lp-tab.ativo { color:#22c55e; border-bottom-color:#22c55e; font-weight:600; }
+  .lp-panel { display:none; }
+  .lp-panel.ativo { display:block; }
+
+  /* layout */
+  .lp-cols { display:grid; grid-template-columns:1fr 320px; gap:18px; align-items:start; }
+  .lp-card { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+    padding:20px 22px; margin-bottom:18px; }
+  .lp-card-titulo { font-size:0.95rem; font-weight:700; color:#22c55e; margin:0 0 18px; }
+  .lp-card-titulo-neutral { font-size:0.95rem; font-weight:700; color:var(--text); margin:0 0 16px; }
+
+  /* fields */
+  .lp-fg { display:flex; flex-direction:column; gap:5px; }
+  .lp-fg label { font-size:0.78rem; color:var(--text-muted); font-weight:500; }
+  .lp-fg input, .lp-fg select {
+    padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+    background:var(--input-bg); color:var(--text); font-size:0.88rem;
+    width:100%; box-sizing:border-box; }
+  .lp-fg input:focus, .lp-fg select:focus { outline:none; border-color:#22c55e; }
+  .lp-fg input:disabled { opacity:0.35; cursor:not-allowed; }
+  .lp-fg .inp-unit { display:flex; gap:0; }
+  .lp-fg .inp-unit input { border-radius:8px 0 0 8px; flex:1; }
+  .lp-fg .inp-unit select { border-radius:0 8px 8px 0; border-left:none; width:64px; flex-shrink:0; }
+
+  .lp-r2 { display:grid; grid-template-columns:1fr 1fr; gap:13px; margin-bottom:13px; }
+  .lp-r3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:13px; margin-bottom:13px; }
+
+  /* preview conversão */
+  .lp-preview-box { border:1px solid #22c55e44; border-radius:8px; padding:14px 16px;
+    margin-bottom:14px; background:#0a1f12; display:none; }
+  .lp-preview-box.vis { display:block; }
+  .lp-preview-title { font-size:0.8rem; font-weight:600; color:#22c55e;
+    display:flex; align-items:center; gap:6px; margin-bottom:12px; }
+  .lp-preview-flow  { display:flex; align-items:flex-start; gap:12px; }
+  .lp-preview-item  { text-align:center; }
+  .lp-preview-item .pv { font-size:1.05rem; font-weight:700; color:#22c55e; }
+  .lp-preview-item .pl { font-size:0.72rem; color:var(--text-muted); margin-top:3px; }
+  .lp-preview-arrow { color:#22c55e; font-size:1.1rem; margin-top:4px; }
+
+  /* radio custo */
+  .lp-radio-group { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .lp-radio { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.875rem; color:var(--text); }
+  .lp-radio input[type=radio] { accent-color:#22c55e; width:15px; height:15px; }
+  .lp-custo-inputs { display:flex; flex-direction:column; gap:10px; }
+
+  .btn-registrar { width:100%; padding:12px; background:#22c55e; color:#fff; font-weight:700;
+    font-size:0.92rem; border:none; border-radius:8px; cursor:pointer; margin-top:4px; }
+  .btn-registrar:hover { background:#16a34a; }
+
+  .alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
+    border:1px solid #5a1f1f; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:0.875rem; }
+
+  /* resumo */
+  .lp-res-row { display:flex; justify-content:space-between; padding:7px 0;
+    border-bottom:1px solid var(--border); font-size:0.85rem; }
+  .lp-res-row:last-of-type { border-bottom:none; }
+  .lp-res-label { color:var(--text-muted); }
+  .lp-res-val   { font-weight:600; color:var(--text); text-align:right; }
+  .lp-res-val.verde { color:#22c55e; }
+  .lp-res-sep   { border:none; border-top:1px solid var(--border); margin:4px 0; }
+  .lp-novo-box  { background:#0a1f12; border:1px solid #22c55e44; border-radius:8px;
+    padding:13px 15px; margin-top:13px; }
+  .lp-novo-box label { font-size:0.78rem; color:#22c55e; display:block; margin-bottom:5px; font-weight:600; }
+  .lp-novo-box .big  { font-size:1.5rem; font-weight:700; color:#22c55e; }
+
+  /* hist table */
+  .lp-hist-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .lp-hist-table th { font-size:0.73rem; font-weight:600; color:var(--text-muted);
+    padding:9px 10px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .lp-hist-table td { padding:10px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
+  .lp-hist-table tr:last-child td { border-bottom:none; }
+  .lp-hist-table tr:hover td { background:var(--accent-dim); }
+  .tipo-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:700; }
+  .tipo-caixa   { background:#1e3a2f; color:#22c55e; }
+  .tipo-unidade { background:#1a2a3a; color:#60a5fa; }
+
+  .btn-icon { width:29px; height:29px; border-radius:5px; border:1px solid var(--border);
+    background:transparent; color:var(--text-muted); cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; }
+  .btn-icon:hover     { background:var(--accent-dim); color:var(--accent); }
+  .btn-icon.del:hover { background:#2a0f0f; color:#f87171; border-color:#5a1f1f; }
+  .btr { display:flex; gap:5px; }
+
+  /* edit inline */
+  .edit-hl td { background:var(--accent-dim) !important; }
+  .edit-inp { padding:5px 8px; border:1px solid var(--accent); border-radius:5px;
+    background:var(--input-bg); color:var(--text); font-size:0.82rem; width:100%; box-sizing:border-box; }
+  .btn-sv { padding:5px 12px; border-radius:5px; border:none; background:#22c55e;
+    color:#fff; font-weight:600; font-size:0.78rem; cursor:pointer; }
+  .btn-cx { padding:5px 10px; border-radius:5px; border:1px solid var(--border);
+    background:var(--card-bg); color:var(--text); font-size:0.78rem; cursor:pointer; }
+
+  /* dados tab */
+  .lp-dados-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .lp-dado { background:var(--input-bg); border:1px solid var(--border); border-radius:8px; padding:11px 14px; }
+  .lp-dado label { font-size:0.73rem; color:var(--text-muted); display:block; margin-bottom:3px; }
+  .lp-dado .val  { font-size:0.875rem; font-weight:600; color:var(--text); }
+
+  /* consumo em pacotes */
+  .lp-vol-box { display:flex; align-items:center; gap:16px; background:var(--input-bg);
+    border:1px solid #22c55e44; border-radius:10px; padding:14px 18px; margin-bottom:16px; flex-wrap:wrap; }
+  .lp-vol-item { display:flex; flex-direction:column; gap:2px; }
+  .lp-vol-lbl  { font-size:0.72rem; color:var(--text-muted); }
+  .lp-vol-val  { font-size:1.05rem; font-weight:700; color:#22c55e; }
+  .lp-vol-sep  { font-size:1.3rem; color:var(--border); margin:0 4px; align-self:center; }
+  .lp-pack-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .lp-pack-table th { font-size:0.72rem; font-weight:600; color:var(--text-muted);
+    padding:8px 10px; text-align:left; border-bottom:1px solid var(--border); }
+  .lp-pack-table td { padding:10px 10px; border-bottom:1px solid var(--border); color:var(--text); }
+  .lp-pack-table tr:last-child td { border-bottom:none; }
+  .lp-pack-table tr:hover td { background:var(--accent-dim); }
+  .lp-vol-chip { display:inline-flex; align-items:center; gap:4px; font-weight:600; color:#22c55e;
+    background:#0a1f12; border:1px solid #22c55e44; border-radius:6px; padding:3px 9px; font-size:0.82rem; }
+  .lp-unit-chip { color:#60a5fa; background:#0d1a2a; border-color:#60a5fa44; }
+  .lp-restante  { font-size:0.78rem; color:var(--text-muted); }
+
+  @media(max-width:860px) {
+    .lp-cols { grid-template-columns:1fr; }
+    .lp-top  { flex-wrap:wrap; }
+    .lp-top-stats { margin-left:0; flex-wrap:wrap; }
+    .lp-top-stat  { border-left:none; border-top:1px solid var(--border); }
+    .lp-r3 { grid-template-columns:1fr 1fr; }
+  }
 </style>
 
-<div class="container">
-  <h2>Lotes do Produto</h2>
+<div class="lp">
 
-  <div class="acoes">
-    <a class="btn" href="{{ url_for('estoque') }}">Voltar</a>
-    <a class="btn" href="{{ url_for('editar_produto', pid=produto.pid) }}">Editar Produto</a>
+  <a class="lp-back" href="{{ url_for('estoque') }}">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Voltar
+  </a>
+
+  <!-- Produto card -->
+  <div class="lp-top">
+    <div class="lp-top-img">📦</div>
+    <div class="lp-top-info">
+      <div class="lp-top-nome">{{ produto.nome }}</div>
+      <div class="lp-top-sub">Código: {{ produto.pid }}</div>
+      {% if produto.get('categoria') %}
+        <div class="lp-top-sub">Categoria: {{ produto.categoria | capitalize }}</div>
+      {% endif %}
+      {% if produto.get('conteudo_valor') %}
+        <div class="lp-top-sub">Conteúdo: {{ produto.conteudo_valor }} {{ produto.get('conteudo_unidade','') }} por unidade</div>
+      {% endif %}
+    </div>
+    <div class="lp-top-stats">
+      <div class="lp-top-stat">
+        <label>Estoque atual</label>
+        <div class="sv verde">{{ qtd_total|int }} un.</div>
+        {% if prod_cont_val %}
+        <div class="sv2">{{ "%.1f"|format(qtd_total * prod_cont_val|float) }} {{ prod_cont_unit }}</div>
+        {% else %}
+        <div class="sv2">R$ {{ "%.2f"|format(valor_total) }}</div>
+        {% endif %}
+      </div>
+      <div class="lp-top-stat">
+        <label>Custo médio</label>
+        <div class="sv">R$ {{ "%.2f"|format(custo_medio) }}</div>
+        <div class="sv2">por unidade</div>
+      </div>
+      <div class="lp-top-stat">
+        <label>Valor total em estoque</label>
+        <div class="sv verde">R$ {{ "%.2f"|format(valor_total) }}</div>
+      </div>
+    </div>
   </div>
 
-  <div class="box">
-    <p><strong>Produto:</strong> {{ produto.nome }}</p>
-    <p><strong>Preço de venda:</strong> R$ {{ "%.2f"|format(produto.valor_venda) }}</p>
-    <p><strong>Estoque total:</strong> {{ produto.quantidade }}</p>
-    <p><strong>Custo médio atual:</strong> R$ {{ "%.2f"|format(produto.valor_investido) }}</p>
-    <small>O lucro real das vendas vem do FIFO (consumo dos lotes).</small>
+  <!-- Tabs -->
+  <div class="lp-tabs">
+    <div class="lp-tab" onclick="trocarTab('dados')">Dados do produto</div>
+    <div class="lp-tab ativo" onclick="trocarTab('lotes')">Lotes / Entradas de Estoque</div>
+    <div class="lp-tab" onclick="trocarTab('saidas')">Histórico de Saídas</div>
+    <div class="lp-tab" onclick="trocarTab('movimentos')">Movimentações</div>
   </div>
 
-  <div class="box">
-    <h2>Adicionar entrada</h2>
+  <!-- TAB: Dados do produto -->
+  <div class="lp-panel" id="tab-dados">
+    <div class="lp-card">
+      <div class="lp-card-titulo">Informações do produto</div>
+      <div class="lp-dados-grid">
+        <div class="lp-dado"><label>Nome</label><div class="val">{{ produto.nome }}</div></div>
+        <div class="lp-dado"><label>Categoria</label><div class="val">{{ produto.get('categoria') or '—' }}</div></div>
+        <div class="lp-dado"><label>Preço de venda</label><div class="val">R$ {{ "%.2f"|format(preco_venda) }}</div></div>
+        <div class="lp-dado"><label>Custo médio</label><div class="val">R$ {{ "%.2f"|format(custo_medio) }}</div></div>
+        <div class="lp-dado"><label>Tipo de controle</label><div class="val">{{ produto.get('tipo_controle') or 'UN' }}</div></div>
+        <div class="lp-dado"><label>Unidade de venda</label><div class="val">{{ produto.get('unidade_venda') or 'UN' }}</div></div>
+        <div class="lp-dado"><label>Estoque mínimo</label><div class="val">{{ estoque_min }}</div></div>
+        <div class="lp-dado"><label>Fornecedor</label><div class="val">{{ produto.get('fornecedor') or '—' }}</div></div>
+        <div class="lp-dado"><label>Validade</label><div class="val">{{ produto.get('validade')|br_date if produto.get('validade') else '—' }}</div></div>
+        <div class="lp-dado"><label>Observações</label><div class="val">{{ produto.get('observacoes') or '—' }}</div></div>
+      </div>
+      <div style="margin-top:14px;">
+        <a href="{{ url_for('editar_produto', pid=produto.pid) }}"
+           style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:0.875rem;text-decoration:none;">
+          Editar produto
+        </a>
+      </div>
+    </div>
+  </div>
 
-    {% if erro %}
-      <div class="alerta">{{ erro }}</div>
+  <!-- TAB: Lotes -->
+  <div class="lp-panel ativo" id="tab-lotes">
+
+    {% if erro %}<div class="alerta">{{ erro }}</div>{% endif %}
+
+    <div class="lp-cols">
+
+      <!-- ── FORMULÁRIO ── -->
+      <div class="lp-card">
+        <div class="lp-card-titulo">Nova Entrada de Estoque (Lote)</div>
+        <form method="POST" id="form-lote">
+
+          <!-- Forma + Quantidade principal -->
+          <div class="lp-r2" style="margin-bottom:13px;">
+            <div class="lp-fg">
+              <label>Forma de entrada</label>
+              <select name="forma_entrada" id="forma_entrada" onchange="atualizarForma()">
+                <option value="unidade">Unidade</option>
+                <option value="caixa">Caixa</option>
+              </select>
+            </div>
+            <div class="lp-fg" id="bloco-qtd-unid">
+              <label>Quantidade</label>
+              <input type="number" name="quantidade" id="inp-qtd-unid" min="1" placeholder="Ex: 10" oninput="calc()">
+            </div>
+            <div class="lp-fg" id="bloco-qtd-caixa" style="display:none;">
+              <label>Quantidade (caixas)</label>
+              <input type="number" name="qtd_caixas" id="inp-qtd-caixa" min="1" placeholder="Ex: 5" oninput="calc()">
+            </div>
+          </div>
+
+          <!-- Unid/caixa (só no modo caixa) + Conteúdo por unidade (sempre) -->
+          <div style="display:flex;gap:13px;margin-bottom:13px;">
+            <div class="lp-fg" id="bloco-upc" style="display:none;flex:1;">
+              <label>Unidades por caixa</label>
+              <input type="number" name="unidades_por_caixa" id="inp-upc" min="1" placeholder="Ex: 12" oninput="calc()">
+            </div>
+            <div class="lp-fg" style="flex:1;">
+              <label>Conteúdo por unidade</label>
+              <div class="inp-unit">
+                <input type="number" step="0.001" name="conteudo_valor" id="inp-cont-val"
+                  placeholder="Ex: 269" value="{{ prod_cont_val or '' }}" oninput="calc()">
+                <select id="inp-cont-unit" onchange="onContUnitChange(); calc()">
+                </select>
+                <input type="text" name="conteudo_unidade" id="inp-cont-unit-custom"
+                  placeholder="Ex: cigarro" value=""
+                  style="display:none; width:90px;"
+                  oninput="calc()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview da conversão -->
+          <div class="lp-preview-box" id="preview-box">
+            <div class="lp-preview-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Preview da conversão
+            </div>
+            <div class="lp-preview-flow">
+              <div class="lp-preview-item"><div class="pv" id="pv-caixas">—</div><div class="pl">Quantidade informada</div></div>
+              <div class="lp-preview-arrow">→</div>
+              <div class="lp-preview-item"><div class="pv" id="pv-unidades">—</div><div class="pl">Total de unidades</div></div>
+              <div class="lp-preview-arrow" id="pv-arrow2" style="display:none;">→</div>
+              <div class="lp-preview-item" id="pv-vol-item" style="display:none;"><div class="pv" id="pv-volume">—</div><div class="pl">Volume total</div></div>
+            </div>
+          </div>
+
+          <!-- Tipo de custo + valores -->
+          <div class="lp-r2" style="align-items:start;margin-bottom:13px;">
+            <div class="lp-fg">
+              <label>Tipo de custo</label>
+              <div class="lp-radio-group">
+                <label class="lp-radio">
+                  <input type="radio" name="tipo_custo" value="total" id="radio-total" onchange="atualizarCusto()" checked>
+                  Custo total da compra
+                </label>
+                <label class="lp-radio">
+                  <input type="radio" name="tipo_custo" value="unitario" id="radio-unit" onchange="atualizarCusto()">
+                  Custo por unidade
+                </label>
+              </div>
+            </div>
+            <div class="lp-custo-inputs">
+              <div class="lp-fg">
+                <label>Custo total da compra (R$)</label>
+                <input type="number" step="0.01" name="custo_total" id="inp-custo-total" placeholder="0,00" min="0.01" oninput="calc()">
+              </div>
+              <div class="lp-fg">
+                <label>Custo unitário (R$)</label>
+                <input type="number" step="0.01" name="custo_unit" id="inp-custo-unit" placeholder="0,00" min="0.01" disabled oninput="calc()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Data + Validade + Fornecedor -->
+          <div class="lp-r3">
+            <div class="lp-fg">
+              <label>Data da entrada</label>
+              <input type="date" name="data" value="{{ hoje }}">
+            </div>
+            <div class="lp-fg">
+              <label>Validade (opcional)</label>
+              <input type="date" name="validade">
+            </div>
+            <div class="lp-fg">
+              <label>Fornecedor (opcional)</label>
+              <input type="text" name="fornecedor" placeholder="Ex: Nestlé">
+            </div>
+          </div>
+
+          <button type="submit" class="btn-registrar">Registrar Entrada</button>
+        </form>
+      </div>
+
+      <!-- ── RESUMO ── -->
+      <div class="lp-card">
+        <div class="lp-card-titulo">Resumo da Entrada</div>
+
+        <div class="lp-res-row">
+          <span class="lp-res-label">Tipo de entrada</span>
+          <span class="lp-res-val" id="r-tipo">Unidade</span>
+        </div>
+        <div class="lp-res-row">
+          <span class="lp-res-label">Quantidade informada</span>
+          <span class="lp-res-val" id="r-qtd-info">—</span>
+        </div>
+        <div class="lp-res-row" id="r-row-upc" style="display:none;">
+          <span class="lp-res-label">Unidades por caixa</span>
+          <span class="lp-res-val" id="r-upc">—</span>
+        </div>
+        <div class="lp-res-row" id="r-row-cont" style="display:none;">
+          <span class="lp-res-label">Conteúdo por unidade</span>
+          <span class="lp-res-val" id="r-cont">—</span>
+        </div>
+
+        <hr class="lp-res-sep">
+        <div class="lp-res-row">
+          <span class="lp-res-label">Total de unidades</span>
+          <span class="lp-res-val" id="r-total-unid">—</span>
+        </div>
+        <div class="lp-res-row" id="r-row-vol" style="display:none;">
+          <span class="lp-res-label">Volume total</span>
+          <span class="lp-res-val" id="r-vol">—</span>
+        </div>
+
+        <hr class="lp-res-sep">
+        <div class="lp-res-row">
+          <span class="lp-res-label">Custo unitário</span>
+          <span class="lp-res-val" id="r-custo-unit">—</span>
+        </div>
+        <div class="lp-res-row">
+          <span class="lp-res-label">Custo total</span>
+          <span class="lp-res-val" id="r-custo-total">—</span>
+        </div>
+
+        <hr class="lp-res-sep">
+        <div class="lp-res-row">
+          <span class="lp-res-label">Estoque atual</span>
+          <span class="lp-res-val">{{ qtd_total }} unidades</span>
+        </div>
+        <div class="lp-res-row">
+          <span class="lp-res-label">Entrada (novo lote)</span>
+          <span class="lp-res-val verde" id="r-entrada">—</span>
+        </div>
+
+        <div class="lp-novo-box">
+          <label>Novo estoque após entrada</label>
+          <div class="big" id="r-novo">{{ qtd_total }} unidades</div>
+        </div>
+      </div>
+
+    </div><!-- /cols -->
+
+    <!-- Histórico de lotes -->
+    <div class="lp-card">
+      <div class="lp-card-titulo-neutral">Histórico de Lotes</div>
+
+      {% if not lotes %}
+        <p style="color:var(--text-muted);font-size:0.875rem;">Nenhum lote cadastrado.</p>
+      {% else %}
+      <table class="lp-hist-table">
+        <thead>
+          <tr>
+            <th>Data</th><th>Tipo entrada</th><th>Qtd. informada</th>
+            <th>Unid. por caixa</th><th>Total unidades</th>
+            <th>Custo unitário</th><th>Custo total</th>
+            <th>Fornecedor</th><th>Validade</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lotes %}
+          {% set forma = l.get('forma_entrada', 'unidade') %}
+          {% set qtd_inf = l.get('qtd_informada', l.qtd) %}
+          <tr id="hr-{{ loop.index0 }}">
+            <td>{{ l.data|br_date }}</td>
+            <td><span class="tipo-badge tipo-{{ forma }}">{{ 'Caixa' if forma=='caixa' else 'Unidade' }}</span></td>
+            <td>{{ qtd_inf }} {{ 'caixas' if forma=='caixa' else 'unidades' }}</td>
+            <td>{{ l.get('unidades_por_caixa') or '—' }}</td>
+            <td>{{ l.qtd }}</td>
+            <td>R$ {{ "%.2f"|format(l.custo_unit) }}</td>
+            <td>R$ {{ "%.2f"|format(l.qtd * l.custo_unit) }}</td>
+            <td>{{ l.get('fornecedor') or '—' }}</td>
+            <td>{{ l.get('validade')|br_date if l.get('validade') else '—' }}</td>
+            <td>
+              <div class="btr">
+                <button class="btn-icon" title="Editar"
+                  data-idx="{{ loop.index0 }}"
+                  data-data="{{ l.data }}"
+                  data-qtd="{{ l.qtd }}"
+                  data-custo="{{ l.custo_unit }}"
+                  onclick="abrirEdit(this.dataset.idx,this.dataset.data,this.dataset.qtd,this.dataset.custo)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <form method="POST" action="{{ url_for('remover_lote', pid=produto.pid, idx=loop.index0) }}"
+                      onsubmit="return confirm('Remover este lote?')" style="display:inline;">
+                  <button type="submit" class="btn-icon del" title="Remover">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <tr id="he-{{ loop.index0 }}" style="display:none;">
+            <td colspan="10">
+              <form method="POST" action="{{ url_for('editar_lote', pid=produto.pid, idx=loop.index0) }}"
+                    style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:4px 0;">
+                <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Data</label>
+                  <input class="edit-inp" type="date" name="data" id="e-d-{{ loop.index0 }}" style="width:130px;"></div>
+                <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Quantidade</label>
+                  <input class="edit-inp" type="number" name="quantidade" id="e-q-{{ loop.index0 }}" style="width:85px;" min="1"></div>
+                <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Custo unit.</label>
+                  <input class="edit-inp" type="number" step="0.01" name="custo_unit" id="e-c-{{ loop.index0 }}" style="width:100px;" min="0.01"></div>
+                <div style="display:flex;gap:6px;">
+                  <button type="submit" class="btn-sv">Salvar</button>
+                  <button type="button" class="btn-cx" data-idx="{{ loop.index0 }}" onclick="fecharEdit(this.dataset.idx)">Cancelar</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    {% if prod_cont_val or pacotes_usando %}
+    <div class="lp-card">
+      <div class="lp-card-titulo">Uso em Pacotes</div>
+
+      {% if prod_cont_val %}
+      {% set total_vol = qtd_total * (prod_cont_val | float) %}
+      <div class="lp-vol-box">
+        <div class="lp-vol-item">
+          <span class="lp-vol-lbl">Estoque atual</span>
+          <span class="lp-vol-val">{{ qtd_total }} unid.</span>
+        </div>
+        <span class="lp-vol-sep">×</span>
+        <div class="lp-vol-item">
+          <span class="lp-vol-lbl">Conteúdo por unidade</span>
+          <span class="lp-vol-val">{{ prod_cont_val }} {{ prod_cont_unit }}</span>
+        </div>
+        <span class="lp-vol-sep">=</span>
+        <div class="lp-vol-item">
+          <span class="lp-vol-lbl">Volume total disponível</span>
+          <span class="lp-vol-val">{{ "%.1f"|format(total_vol) }} {{ prod_cont_unit }}</span>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if pacotes_usando %}
+      <table class="lp-pack-table">
+        <thead>
+          <tr>
+            <th>Pacote</th>
+            <th>Usa por venda</th>
+            <th>Desconta do estoque</th>
+            {% if prod_cont_val %}<th>Restará após 1 venda</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pacotes_usando %}
+          {% set uso      = p.quantity | float %}
+          {% set unid_uso = p.get('unidade_uso') or 'UN' %}
+          {% set cv       = prod_cont_val | float if prod_cont_val else 0 %}
+          {% if unid_uso in ('ml', 'L', 'kg') and cv > 0 %}
+            {% set desc_unid  = uso / cv %}
+            {% set vol_restante = (qtd_total * cv) - uso %}
+            {% set unid_restante = qtd_total - desc_unid %}
+          {% else %}
+            {% set desc_unid    = uso %}
+            {% set vol_restante = (qtd_total - uso) * cv if cv > 0 else 0 %}
+            {% set unid_restante = qtd_total - uso %}
+          {% endif %}
+          <tr>
+            <td><strong>{{ p.pacote_nome }}</strong></td>
+            <td><span class="lp-vol-chip">{{ uso | int if uso == uso | int else "%.3f"|format(uso) }} {{ unid_uso }}</span></td>
+            <td>
+              {% if unid_uso in ('ml', 'L', 'kg') and cv > 0 %}
+                <span class="lp-vol-chip lp-unit-chip">{{ "%.4f"|format(desc_unid) }} unid.</span>
+              {% else %}
+                <span class="lp-vol-chip lp-unit-chip">{{ uso | int }} unid.</span>
+              {% endif %}
+            </td>
+            {% if prod_cont_val %}
+            <td>
+              <span class="lp-vol-chip">{{ "%.1f"|format(vol_restante) }} {{ prod_cont_unit }}</span>
+              <span class="lp-restante"> ({{ "%.3f"|format(unid_restante) }} unid.)</span>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">
+        Nenhum pacote utiliza este produto ainda.
+        <a href="{{ url_for('bar_produtos') }}" style="color:#22c55e;text-decoration:none;">→ Criar pacote</a>
+      </p>
+      {% endif %}
+    </div>
     {% endif %}
 
-    <form method="post">
-      <div>
-        <label>Data</label>
-        <input type="date" name="data" required>
-      </div>
-      <div>
-        <label>Quantidade</label>
-        <input type="number" name="quantidade" min="1" required>
-      </div>
-      <div>
-        <label>Custo unitário</label>
-        <input type="number" step="0.01" name="custo_unit" min="0.01" required>
-      </div>
-      <div>
-        <button type="submit">Adicionar Lote</button>
-      </div>
-    </form>
+  </div><!-- /tab-lotes -->
+
+  <!-- TAB: Saídas -->
+  <div class="lp-panel" id="tab-saidas">
+    <div class="lp-card">
+      <div class="lp-card-titulo-neutral">Histórico de Saídas</div>
+      {% if not saidas %}
+        <p style="color:var(--text-muted);font-size:.875rem;">Nenhuma saída registrada para este produto.</p>
+      {% else %}
+      <table class="lp-hist-table">
+        <thead>
+          <tr>
+            <th>Data</th><th>Qtd</th><th>Preço venda</th><th>Forma Pgto</th><th>Total recebido</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(total_qtd=0, total_val=0) %}
+          {% for s in saidas %}
+          {% set ns.total_qtd = ns.total_qtd + (s.quantidade|float) %}
+          {% set ns.total_val = ns.total_val + (s.quantidade|float * s.valor_venda|float) %}
+          <tr>
+            <td>{{ s.data|br_date if s.data else '—' }}</td>
+            <td>
+              {% if prod_cont_val %}{{ "%.3f"|format(s.quantidade|float) }}{% else %}{{ s.quantidade|int }}{% endif %} un.
+              {% if prod_cont_val %}<br><span style="font-size:.75rem;color:var(--text-muted);">{{ "%.1f"|format(s.quantidade|float * prod_cont_val|float) }} {{ prod_cont_unit }}</span>{% endif %}
+            </td>
+            <td>R$ {{ "%.2f"|format(s.valor_venda|float) }}</td>
+            <td>{{ s.get('forma_pagamento') or '—' }}</td>
+            <td>R$ {{ "%.2f"|format(s.quantidade|float * s.valor_venda|float) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;border-top:2px solid var(--border);">
+            <td>Total</td>
+            <td>{% if prod_cont_val %}{{ "%.3f"|format(ns.total_qtd) }}{% else %}{{ ns.total_qtd|int }}{% endif %} un.</td>
+            <td>—</td><td>—</td>
+            <td>R$ {{ "%.2f"|format(ns.total_val) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+      {% endif %}
+    </div>
   </div>
 
-  <div class="box">
-    <h2>Lista de lotes</h2>
-
-    {% if not lotes %}
-      <p>Nenhum lote cadastrado.</p>
-    {% else %}
-    <table>
-      <thead>
-        <tr>
-          <th>Data do lote</th>
-          <th>Quantidade</th>
-          <th>Custo unitário</th>
-          <th>Total do lote</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for l in lotes %}
-        <tr>
-          <td>{{ l.data|br_date }}</td>
-          <td>{{ l.qtd }}</td>
-          <td>R$ {{ "%.2f"|format(l.custo_unit) }}</td>
-          <td>R$ {{ "%.2f"|format(l.qtd * l.custo_unit) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% endif %}
+  <!-- TAB: Movimentações -->
+  <div class="lp-panel" id="tab-movimentos">
+    <div class="lp-card">
+      <div class="lp-card-titulo-neutral">Movimentações</div>
+      {% set mov_list = [] %}
+      {% for l in lotes %}
+        {% set _ = mov_list.append({'tipo': 'entrada', 'data': l.data, 'qtd': l.get('qtd_informada', l.qtd)|float, 'restante': l.qtd|float, 'custo_unit': l.custo_unit|float, 'info': ('Caixa ×' ~ l.get('unidades_por_caixa','')) if l.get('forma_entrada')=='caixa' else 'Unidade'}) %}
+      {% endfor %}
+      {% for s in saidas %}
+        {% set _ = mov_list.append({'tipo': 'saida', 'data': s.data, 'qtd': s.quantidade|float, 'custo_unit': s.valor_venda|float, 'info': s.get('forma_pagamento') or ''}) %}
+      {% endfor %}
+      {% set mov_sorted = mov_list|sort(attribute='data', reverse=True) %}
+      {% if not mov_sorted %}
+        <p style="color:var(--text-muted);font-size:.875rem;">Nenhuma movimentação registrada.</p>
+      {% else %}
+      <table class="lp-hist-table">
+        <thead>
+          <tr><th>Data</th><th>Tipo</th><th>Quantidade</th><th>Valor unit.</th><th>Info</th></tr>
+        </thead>
+        <tbody>
+          {% for m in mov_sorted %}
+          <tr>
+            <td>{{ m.data|br_date if m.data else '—' }}</td>
+            <td>
+              {% if m.tipo == 'entrada' %}
+                <span class="tipo-badge" style="background:#0a1f12;color:#22c55e;border:1px solid #22c55e44;">▲ Entrada</span>
+              {% else %}
+                <span class="tipo-badge" style="background:#2a0f0f;color:#f87171;border:1px solid #7f1d1d44;">▼ Saída</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if prod_cont_val %}{{ "%.3f"|format(m.qtd) }}{% else %}{{ m.qtd|int }}{% endif %} un.
+              {% if prod_cont_val %}<br><span style="font-size:.75rem;color:var(--text-muted);">{{ "%.1f"|format(m.qtd * prod_cont_val|float) }} {{ prod_cont_unit }}</span>{% endif %}
+            </td>
+            <td>R$ {{ "%.2f"|format(m.custo_unit) }}</td>
+            <td style="color:var(--text-muted);font-size:.8rem;">{{ m.info }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
   </div>
+
 </div>
+
+<script type="application/json" id="json-qtd-atual">{{ qtd_total }}</script>
+
+<script>
+const QTD_ATUAL = JSON.parse(document.getElementById('json-qtd-atual').textContent);
+
+/* ── Conteúdo por unidade — unidades baseadas na categoria do produto ── */
+const UNIDADES_CAT = {
+  'bebida': ['ml', 'L'],
+  'comida': ['kg', 'g', 'UN'],
+  'insumo': ['UN'],
+};
+(function iniciarConteudoUnidade() {
+  const cat      = "{{ produto.get('categoria') or '' }}";
+  const valAtual = "{{ produto.get('conteudo_unidade') or '' }}";
+  const sel    = document.getElementById('inp-cont-unit');
+  const inp    = document.getElementById('inp-cont-val');
+  const custom = document.getElementById('inp-cont-unit-custom');
+  if (!sel) return;
+  const baseUnits = UNIDADES_CAT[cat];
+  if (!baseUnits) {
+    inp.disabled = true; sel.disabled = true;
+    sel.innerHTML = '<option value="">—</option>';
+    return;
+  }
+  inp.disabled = false; sel.disabled = false;
+  const allUnits = [...baseUnits, '__outro__'];
+  const isKnown = baseUnits.includes(valAtual) || !valAtual;
+  sel.innerHTML = allUnits.map(u => {
+    if (u === '__outro__') return `<option value="__outro__" ${!isKnown && valAtual ? 'selected' : ''}>Outro...</option>`;
+    return `<option value="${u}" ${u === valAtual ? 'selected' : ''}>${u}</option>`;
+  }).join('');
+  if (!isKnown && valAtual) {
+    sel.value = '__outro__';
+    custom.style.display = '';
+    custom.value = valAtual;
+    custom.name = 'conteudo_unidade';
+    sel.removeAttribute('name');
+  } else {
+    sel.setAttribute('name', 'conteudo_unidade');
+    custom.style.display = 'none';
+    custom.removeAttribute('name');
+  }
+})();
+
+function onContUnitChange() {
+  const sel    = document.getElementById('inp-cont-unit');
+  const custom = document.getElementById('inp-cont-unit-custom');
+  if (sel.value === '__outro__') {
+    sel.removeAttribute('name');
+    custom.setAttribute('name', 'conteudo_unidade');
+    custom.style.display = '';
+    custom.focus();
+  } else {
+    sel.setAttribute('name', 'conteudo_unidade');
+    custom.removeAttribute('name');
+    custom.style.display = 'none';
+    custom.value = '';
+  }
+}
+
+function trocarTab(id) {
+  ['dados','lotes','saidas','movimentos'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('ativo', t===id);
+  });
+  document.querySelectorAll('.lp-tab').forEach((el,i) => {
+    el.classList.toggle('ativo', ['dados','lotes','saidas','movimentos'][i]===id);
+  });
+}
+
+function atualizarForma() {
+  const isCaixa = document.getElementById('forma_entrada').value === 'caixa';
+  document.getElementById('bloco-qtd-unid').style.display  = isCaixa ? 'none' : '';
+  document.getElementById('bloco-qtd-caixa').style.display = isCaixa ? '' : 'none';
+  document.getElementById('bloco-upc').style.display       = isCaixa ? 'flex' : 'none';
+  if (!isCaixa) { document.getElementById('inp-qtd-caixa').value=''; document.getElementById('inp-upc').value=''; }
+  else          { document.getElementById('inp-qtd-unid').value=''; }
+  calc();
+}
+
+function atualizarCusto() {
+  const isTotal = document.getElementById('radio-total').checked;
+  document.getElementById('inp-custo-total').disabled = !isTotal;
+  document.getElementById('inp-custo-unit').disabled  =  isTotal;
+  if (isTotal) document.getElementById('inp-custo-unit').value='';
+  else         document.getElementById('inp-custo-total').value='';
+  calc();
+}
+
+function fmtBR(n) { return 'R$ ' + n.toFixed(2).replace('.',','); }
+function numFmt(n, unit) {
+  const s = Number.isInteger(n) ? String(n) : n.toFixed(3).replace(/\.?0+$/,'');
+  return s + ' ' + unit;
+}
+
+function calc() {
+  const isCaixa = document.getElementById('forma_entrada').value === 'caixa';
+  let qtdTotal=0, qtdInfo=0;
+
+  const contVal  = parseFloat(document.getElementById('inp-cont-val').value)||0;
+  const _selUnit = document.getElementById('inp-cont-unit').value;
+  const contUnit = _selUnit === '__outro__'
+    ? (document.getElementById('inp-cont-unit-custom').value.trim() || '?')
+    : _selUnit;
+  const hasVol   = contVal > 0;
+
+  if (isCaixa) {
+    const c = parseInt(document.getElementById('inp-qtd-caixa').value)||0;
+    const u = parseInt(document.getElementById('inp-upc').value)||0;
+    qtdTotal = c*u; qtdInfo = c;
+    const pb = document.getElementById('preview-box');
+    if (c||u) {
+      pb.classList.add('vis');
+      document.getElementById('pv-caixas').textContent   = c ? c+' '+(c===1?'caixa':'caixas') : '—';
+      document.getElementById('pv-unidades').textContent = qtdTotal ? qtdTotal+' unidades' : '—';
+      document.getElementById('pv-arrow2').style.display   = hasVol ? '' : 'none';
+      document.getElementById('pv-vol-item').style.display = hasVol ? '' : 'none';
+      if (hasVol) document.getElementById('pv-volume').textContent = numFmt(qtdTotal*contVal, contUnit);
+    } else { pb.classList.remove('vis'); }
+    document.getElementById('r-tipo').textContent = 'Caixa';
+    document.getElementById('r-qtd-info').textContent = c ? c+' '+(c===1?'caixa':'caixas') : '—';
+    document.getElementById('r-row-upc').style.display = '';
+    document.getElementById('r-upc').textContent = u ? u+' unidades' : '—';
+  } else {
+    qtdTotal = parseInt(document.getElementById('inp-qtd-unid').value)||0;
+    qtdInfo  = qtdTotal;
+    document.getElementById('preview-box').classList.remove('vis');
+    document.getElementById('r-tipo').textContent = 'Unidade';
+    document.getElementById('r-qtd-info').textContent = qtdTotal ? qtdTotal+' unidades' : '—';
+    document.getElementById('r-row-upc').style.display = 'none';
+  }
+
+  // conteúdo e volume — aparece em ambos os modos
+  document.getElementById('r-row-cont').style.display = hasVol ? '' : 'none';
+  document.getElementById('r-cont').textContent = hasVol ? numFmt(contVal, contUnit) : '—';
+  document.getElementById('r-row-vol').style.display  = (hasVol && qtdTotal) ? '' : 'none';
+  document.getElementById('r-vol').textContent = (hasVol && qtdTotal) ? numFmt(qtdTotal*contVal, contUnit) : '—';
+
+  const isTotal = document.getElementById('radio-total').checked;
+  let custoUnit=0, custoTot=0;
+  if (isTotal) {
+    custoTot  = parseFloat(document.getElementById('inp-custo-total').value)||0;
+    custoUnit = qtdTotal>0 ? custoTot/qtdTotal : 0;
+    if (custoUnit>0) document.getElementById('inp-custo-unit').placeholder = custoUnit.toFixed(2);
+  } else {
+    custoUnit = parseFloat(document.getElementById('inp-custo-unit').value)||0;
+    custoTot  = custoUnit*qtdTotal;
+  }
+
+  document.getElementById('r-total-unid').textContent = qtdTotal ? qtdTotal+' unidades' : '—';
+  document.getElementById('r-custo-unit').textContent  = custoUnit>0 ? fmtBR(custoUnit) : '—';
+  document.getElementById('r-custo-total').textContent = custoTot>0  ? fmtBR(custoTot)  : '—';
+  document.getElementById('r-entrada').textContent = qtdTotal ? '+'+qtdTotal+' unidades' : '—';
+  document.getElementById('r-novo').textContent = (QTD_ATUAL+qtdTotal)+' unidades';
+}
+
+function abrirEdit(idx,data,qtd,custo) {
+  document.querySelectorAll('[id^="hr-"]').forEach(r=>r.classList.remove('edit-hl'));
+  document.querySelectorAll('[id^="he-"]').forEach(r=>r.style.display='none');
+  document.getElementById('hr-'+idx).classList.add('edit-hl');
+  document.getElementById('he-'+idx).style.display='';
+  document.getElementById('e-d-'+idx).value=data;
+  document.getElementById('e-q-'+idx).value=qtd;
+  document.getElementById('e-c-'+idx).value=custo;
+}
+function fecharEdit(idx) {
+  document.getElementById('hr-'+idx).classList.remove('edit-hl');
+  document.getElementById('he-'+idx).style.display='none';
+}
+</script>
 
 {% endblock %}

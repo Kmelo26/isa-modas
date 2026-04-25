@@ -2,61 +2,122 @@
 {% block conteudo %}
 
 <style>
-.container { max-width:1200px; margin:20px auto; padding:20px }
-h2 { text-align:center; color:var(--accent); margin-bottom:15px }
+/* ── BASE ── */
+.v-wrap { max-width:1300px; margin:0 auto; padding:20px 20px 40px; }
 
-.filtros{
-  display:flex; gap:10px; flex-wrap:wrap; align-items:end;
-  justify-content:center; margin-bottom:15px;
-  background:var(--card-bg); padding:12px; border-radius:10px;
-  box-shadow:var(--shadow); border:1px solid var(--border);
-}
-.filtros label { font-weight:bold; color:var(--accent); }
-.filtros input { padding:8px; border:1px solid var(--border); border-radius:8px;
-  background:var(--input-bg); color:var(--text); }
+/* ── HEADER ── */
+.v-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
+.v-header h2 { margin:0; font-size:22px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+.v-header-period { font-size:12px; color:var(--text-muted); margin-top:3px; }
+.btn-export { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; background:var(--card-bg);
+  border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:13px; font-weight:600;
+  text-decoration:none; cursor:pointer; transition:all 0.15s; }
+.btn-export:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
 
-.btn { background:var(--btn-bg); color:var(--accent); border:none;
-  padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:bold; }
-.btn:hover { background:var(--accent-hover); }
-.btn-sec { background:var(--card-bg); color:var(--accent); border:1px solid var(--border); }
-.btn-mini { padding:4px 8px; font-size:12px; border-radius:6px; }
+/* ── STAT CARDS ── */
+.v-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:20px; }
+.v-card { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:16px 18px;
+  box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; }
+.v-card-label { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; }
+.v-card-val { font-size:24px; font-weight:800; color:var(--text); transition:filter 0.3s; }
+.v-card-val.oculto { filter:blur(8px); user-select:none; }
+.v-card-sub { font-size:11px; color:var(--text-muted); }
+.v-card-eye { position:absolute; top:12px; right:12px; background:none; border:none; cursor:pointer;
+  color:var(--text-muted); padding:4px; border-radius:6px; display:flex; align-items:center; transition:color 0.15s; }
+.v-card-eye:hover { color:var(--accent); }
+/* card pagamento */
+.pgto-breakdown { display:flex; flex-direction:column; gap:5px; margin-top:4px; }
+.pgto-row { display:flex; align-items:center; gap:8px; font-size:12px; }
+.pgto-row .pgto-label { width:58px; color:var(--text-muted); font-weight:600; }
+.pgto-bar-wrap { flex:1; background:var(--border); border-radius:4px; height:6px; overflow:hidden; }
+.pgto-bar-fill { height:100%; border-radius:4px; transition:width 0.4s; }
+.pgto-pix-fill    { background:#22c55e; }
+.pgto-cartao-fill { background:#818cf8; }
+.pgto-dinheiro-fill { background:#f59e0b; }
+.pgto-pct { font-size:11px; color:var(--text-muted); width:32px; text-align:right; }
 
-table { width:100%; border-collapse:collapse; background:var(--card-bg);
-  border-radius:10px; overflow:visible; box-shadow:var(--shadow); }
-th, td { border:1px solid var(--border); padding:8px; text-align:center; color:var(--text); }
-th { background:#2a2a2a; color:var(--accent); }
-tr:nth-child(even){ background:var(--table-even) }
+/* ── FILTROS ── */
+.v-filtros { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); padding:14px 16px; margin-bottom:12px; }
+.v-filtros-row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+.v-filtros-row label { font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase;
+  letter-spacing:0.5px; display:block; margin-bottom:4px; }
+.v-filtros-row input, .v-filtros-row select {
+  padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+  background:var(--input-bg); color:var(--text); font-size:13px; }
+.v-filtros-row input:focus, .v-filtros-row select:focus { outline:none; border-color:var(--accent); }
+.v-input-produto { position:relative; }
+.v-input-produto input { width:200px; }
+.v-sugestoes { display:none; position:absolute; top:100%; left:0; right:0; z-index:999;
+  margin:2px 0 0; padding:0; list-style:none;
+  background:var(--card-bg); border:1px solid var(--accent); border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.4); max-height:200px; overflow-y:auto; }
+.v-sugestoes li { padding:8px 12px; cursor:pointer; color:var(--text); border-bottom:1px solid var(--border); font-size:13px; }
+.v-sugestoes li:last-child { border-bottom:none; }
+.v-sugestoes li:hover { background:var(--accent-dim); color:var(--accent); }
+.btn-filt { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700; }
+.btn-filt-pri { background:var(--btn-bg); color:var(--accent); }
+.btn-filt-pri:hover { background:var(--accent-hover); }
+.btn-filt-sec { background:var(--card-bg); color:var(--text-muted); border:1px solid var(--border); text-decoration:none; display:inline-flex; align-items:center; }
+.btn-filt-sec:hover { border-color:var(--accent); color:var(--accent); }
+.v-margem-input { width:70px; }
 
-.vazio { text-align:center; padding:18px; background:var(--card-bg);
-  border-radius:10px; box-shadow:var(--shadow); color:var(--text-muted); }
+/* ── QUICK BAR ── */
+.v-quick-bar { display:flex; justify-content:space-between; align-items:center;
+  gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.v-quick-btns { display:flex; gap:6px; flex-wrap:wrap; }
+.qbtn { padding:6px 14px; border:1px solid var(--border); border-radius:20px;
+  font-size:12px; font-weight:600; color:var(--text-muted); text-decoration:none;
+  background:var(--card-bg); cursor:pointer; transition:all 0.15s; }
+.qbtn:hover, .qbtn.active { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
+.v-sort-wrap { display:flex; align-items:center; gap:8px; }
+.v-sort-wrap label { font-size:12px; color:var(--text-muted); font-weight:600; }
+.v-sort-wrap select { padding:6px 10px; border:1px solid var(--border); border-radius:8px;
+  background:var(--input-bg); color:var(--text); font-size:12px; cursor:pointer; }
 
-/* ── CARDS DE TOTAL ── */
-.totais { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-bottom:15px; }
-.total-card { background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
-  box-shadow:var(--shadow); padding:14px 20px; display:flex; align-items:center;
-  gap:14px; min-width:200px; flex:1; }
-.total-card-info { display:flex; flex-direction:column; gap:3px; flex:1; }
-.total-card-label { font-size:11px; font-weight:bold; color:var(--accent);
-  text-transform:uppercase; letter-spacing:1px; }
-.total-card-valor { font-size:22px; font-weight:bold; color:var(--text); transition:filter 0.3s; }
-.total-card-valor.oculto { filter:blur(8px); user-select:none; }
-.eye-btn { background:none; border:none; cursor:pointer; padding:5px; border-radius:6px;
-  color:var(--text-muted); transition:color 0.15s; display:flex; align-items:center; }
-.eye-btn:hover { color:var(--accent); }
+/* ── TABELA ── */
+.v-table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); overflow:hidden; }
+.v-table { width:100%; border-collapse:collapse; }
+.v-table th { background:#1e1e1e; color:var(--accent); font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.8px; padding:10px 12px; text-align:left;
+  border-bottom:1px solid var(--border); white-space:nowrap; }
+.v-table td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text); font-size:13px; vertical-align:middle; }
+.v-table tr:last-child td { border-bottom:none; }
+.v-table tr:hover td { background:rgba(255,255,255,0.02); }
 
-/* ── MARGEM ── */
-.margem-badge { display:inline-block; padding:3px 8px; border-radius:20px; font-size:12px; font-weight:bold; }
-.margem-alta  { background:#0d2e1a; color:#4ade80; }
-.margem-media { background:#2a2000; color:#facc15; }
-.margem-baixa { background:var(--accent-dim); color:var(--accent); }
-.margem-neg   { background:#2a0f0f; color:#f87171; }
+/* produto cell */
+.prod-cell { display:flex; align-items:center; gap:8px; }
+.prod-icon { font-size:16px; flex-shrink:0; }
+.prod-nome { font-weight:600; color:var(--text); line-height:1.3; }
+.prod-tipo-badge { display:inline-block; font-size:10px; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:4px; }
+.prod-estoque-b { background:#1a1a2e; color:#818cf8; border:1px solid #312e81; }
+.prod-bar-b     { background:#1a2e1a; color:#4ade80; border:1px solid #14532d; }
 
-/* ── MENU ENGRENAGEM ── */
+/* pagamento icons */
+.pgto-cell { display:flex; align-items:center; gap:5px; font-size:12px; white-space:nowrap; }
+.pgto-icon { font-size:14px; }
+
+/* margem badge */
+.margem-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+.mb-alta    { background:#0d2e1a; color:#4ade80; }
+.mb-media   { background:#2a2000; color:#facc15; }
+.mb-baixa   { background:var(--accent-dim); color:var(--accent); }
+.mb-neg     { background:#2a0f0f; color:#f87171; }
+
+/* data/hora */
+.date-cell { display:flex; flex-direction:column; gap:1px; }
+.date-main { font-weight:600; font-size:13px; }
+.date-hora { font-size:11px; color:var(--text-muted); }
+
+/* total */
+.total-cell { font-weight:700; color:var(--text); }
+
+/* ── GEAR MENU ── */
 .gear-btn { background:var(--card-bg); border:1px solid var(--border); border-radius:7px;
   padding:5px 9px; cursor:pointer; color:var(--text-muted); display:inline-flex;
   align-items:center; gap:4px; font-size:13px; transition:background 0.15s, color 0.15s; }
 .gear-btn:hover { background:var(--accent-dim); color:var(--accent); }
-
 #acoes-dropdown { display:none; position:fixed; background:var(--card-bg);
   border:1px solid var(--border); border-radius:10px;
   box-shadow:0 6px 24px rgba(0,0,0,0.5); min-width:165px; z-index:9999; overflow:hidden; }
@@ -68,9 +129,72 @@ tr:nth-child(even){ background:var(--table-even) }
 #acoes-dropdown a:hover { background:var(--accent-dim); color:var(--accent); }
 #acoes-dropdown a.excluir { color:#f87171; }
 #acoes-dropdown a.excluir:hover { background:#2a0f0f; }
+
+/* ── FOOTER PAGINAÇÃO ── */
+.v-footer { display:flex; justify-content:space-between; align-items:center;
+  padding:14px 16px; border-top:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+.v-footer-info { font-size:12px; color:var(--text-muted); }
+.v-pag-btns { display:flex; gap:4px; align-items:center; }
+.pag-btn { display:inline-flex; align-items:center; justify-content:center;
+  min-width:32px; height:32px; padding:0 8px; border:1px solid var(--border); border-radius:8px;
+  font-size:13px; font-weight:600; color:var(--text-muted); text-decoration:none;
+  background:var(--card-bg); cursor:pointer; transition:all 0.15s; }
+.pag-btn:hover { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
+.pag-btn.current { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); cursor:default; }
+.pag-btn.disabled { opacity:0.35; pointer-events:none; }
+
+/* ── VAZIO ── */
+.v-vazio { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:14px; }
+
+/* ── MODAL VISUALIZAR (unchanged) ── */
+.vis-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(4px); z-index:1000; align-items:flex-start; justify-content:center;
+  padding:30px 20px; overflow-y:auto; }
+.vis-overlay.open { display:flex; }
+.vis-modal { background:var(--card-bg); border:1px solid var(--border); border-radius:14px;
+  width:100%; max-width:780px; box-shadow:0 24px 64px rgba(0,0,0,0.6);
+  animation:vis-in 0.25s cubic-bezier(0.22,1,0.36,1) both; margin:auto; }
+@keyframes vis-in { from{opacity:0;transform:translateY(16px) scale(0.97);}to{opacity:1;transform:none;} }
+.vis-header { display:flex; justify-content:space-between; align-items:center;
+  padding:18px 22px 14px; border-bottom:1px solid var(--border); }
+.vis-titulo { font-size:15px; font-weight:bold; color:var(--accent); letter-spacing:0.5px; }
+.vis-close { background:#2a2a2a; border:none; border-radius:8px; width:30px; height:30px;
+  cursor:pointer; color:var(--text-muted); font-size:15px; display:flex;
+  align-items:center; justify-content:center; transition:all 0.15s; }
+.vis-close:hover { background:var(--accent-dim); color:var(--accent); }
+.vis-body { padding:20px 22px 24px; }
+.vis-secao { margin-bottom:20px; }
+.vis-secao-titulo { font-size:11px; font-weight:bold; color:var(--accent); text-transform:uppercase;
+  letter-spacing:1.5px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.vis-grid { display:grid; gap:12px; }
+.vis-grid-3 { grid-template-columns:repeat(3,1fr); }
+.vis-grid-2 { grid-template-columns:repeat(2,1fr); }
+.vis-field { display:flex; flex-direction:column; gap:4px; }
+.vis-field label { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+.vis-field .vis-val { padding:9px 12px; border-radius:8px; border:1px solid var(--border);
+  background:var(--input-bg); color:var(--text); font-size:13px; min-height:38px; display:flex; align-items:center; }
+.vis-field .vis-val.destaque { color:var(--accent); font-weight:bold; }
+.vis-footer { padding:14px 22px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.vis-btn-fechar { background:var(--btn-bg); color:var(--accent); border:1px solid var(--accent);
+  border-radius:8px; padding:10px 24px; font-size:13px; font-weight:bold; cursor:pointer; transition:background 0.15s; }
+.vis-btn-fechar:hover { background:var(--accent-hover); }
+.vis-btn-editar { background:none; border:1px solid var(--border); color:var(--text-muted);
+  border-radius:8px; padding:10px 18px; font-size:13px; cursor:pointer;
+  text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s; }
+.vis-btn-editar:hover { border-color:var(--accent); color:var(--accent); }
+.vis-lote-table { width:100%; border-collapse:collapse; font-size:.83rem; }
+.vis-lote-table th { text-align:left; padding:7px 10px; color:var(--text-muted);
+  font-size:.7rem; text-transform:uppercase; letter-spacing:.5px;
+  border-bottom:1px solid var(--border); font-weight:600; }
+.vis-lote-table td { padding:8px 10px; border-bottom:1px solid var(--border); color:var(--text); }
+.vis-lote-table tr:last-child td { border-bottom:none; }
+.tipo-badge-v { display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:4px; font-weight:700; }
+.tipo-estoque-v { background:#1a1a2e; color:#818cf8; border:1px solid #312e81; }
+.tipo-bar-v     { background:#1a2e1a; color:#4ade80; border:1px solid #14532d; }
+@media(max-width:640px){ .vis-grid-3,.vis-grid-2{ grid-template-columns:1fr; } }
 </style>
 
-<!-- Menu dropdown ÚNICO flutuante, fora da tabela -->
+<!-- Dropdown único fora da tabela -->
 <div id="acoes-dropdown">
   <a id="acao-ver" href="#">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -80,136 +204,269 @@ tr:nth-child(even){ background:var(--table-even) }
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     Editar
   </a>
-  <a id="acao-excluir" href="#" class="excluir"
-     onclick="return confirm('Tem certeza que deseja excluir esta venda? O estoque será reposto.')">
+  <a id="acao-excluir" href="#" class="excluir">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
     Excluir
   </a>
 </div>
 
-<div class="container">
-  <h2>VENDAS</h2>
-
-  {% if vendas and vendas|length > 0 %}
-  <div class="totais">
-
-    <div class="total-card">
-      <div class="total-card-info">
-        <span class="total-card-label">Total de vendas</span>
-        <span class="total-card-valor oculto" id="val-total">
-          R$ {{ "%.2f"|format(vendas | sum(attribute='valor_venda')) }}
-        </span>
+<!-- Modal Visualizar Venda -->
+<div class="vis-overlay" id="vis-overlay" onclick="if(event.target===this)fecharVisualizar()">
+  <div class="vis-modal">
+    <div class="vis-header">
+      <span class="vis-titulo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:6px;vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        VISUALIZAR VENDA
+      </span>
+      <button class="vis-close" onclick="fecharVisualizar()">✕</button>
+    </div>
+    <div class="vis-body">
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">1. Produto</div>
+        <div class="vis-grid vis-grid-2">
+          <div class="vis-field"><label>Nome</label><div class="vis-val destaque" id="vv-nome">—</div></div>
+          <div class="vis-field"><label>Tipo</label><div class="vis-val" id="vv-tipo">—</div></div>
+        </div>
       </div>
-      <button class="eye-btn" onclick="toggleCard('val-total', this)" title="Mostrar/ocultar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
-        </svg>
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">2. Dados da Venda</div>
+        <div class="vis-grid vis-grid-3">
+          <div class="vis-field"><label>Data</label><div class="vis-val" id="vv-data">—</div></div>
+          <div class="vis-field"><label>Quantidade</label><div class="vis-val" id="vv-qtd">—</div></div>
+          <div class="vis-field"><label>Forma de Pagamento</label><div class="vis-val" id="vv-pgto">—</div></div>
+        </div>
+        <div class="vis-grid vis-grid-3" style="margin-top:12px;">
+          <div class="vis-field"><label>Preço unit.</label><div class="vis-val" id="vv-preco">—</div></div>
+          <div class="vis-field"><label>Custo unit.</label><div class="vis-val" id="vv-custo">—</div></div>
+          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vv-total">—</div></div>
+        </div>
+        <div class="vis-grid vis-grid-2" style="margin-top:12px;">
+          <div class="vis-field"><label>Lucro</label><div class="vis-val" id="vv-lucro">—</div></div>
+          <div class="vis-field"><label>Margem</label><div class="vis-val" id="vv-margem">—</div></div>
+        </div>
+      </div>
+      <div class="vis-secao" id="vv-secao-lotes" style="display:none;">
+        <div class="vis-secao-titulo">3. Rastreio de Estoque Consumido</div>
+        <table class="vis-lote-table">
+          <thead><tr><th>Lote / Ref.</th><th>Qtd consumida</th><th>Custo unit.</th><th>Custo total</th></tr></thead>
+          <tbody id="vv-lotes-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="vis-footer">
+      <a class="vis-btn-editar" id="vv-btn-editar" href="#">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </a>
+      <button class="vis-btn-fechar" onclick="fecharVisualizar()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="v-wrap">
+
+  <!-- HEADER -->
+  <div class="v-header">
+    <div>
+      <h2>VENDAS</h2>
+      <div class="v-header-period">
+        {% if data_ini_raw and data_fim_raw %}
+          {{ data_ini_raw|br_date }}{% if data_ini_raw != data_fim_raw %} – {{ data_fim_raw|br_date }}{% endif %}
+        {% endif %}
+      </div>
+    </div>
+    <a class="btn-export" href="/vendas/exportar?busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </a>
+  </div>
+
+  <!-- STATS CARDS -->
+  <div class="v-cards">
+
+    <div class="v-card">
+      <span class="v-card-label">Total Vendido</span>
+      <span class="v-card-val oculto" id="val-total">R$ {{ "%.2f"|format(total_vendido) }}</span>
+      <button class="v-card-eye" onclick="toggleCard('val-total',this)" title="Mostrar/ocultar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
 
-    <div class="total-card">
-      <div class="total-card-info">
-        <span class="total-card-label">Quantidade de Produtos</span>
-        <span class="total-card-valor oculto" id="val-qtd">
-          {{ vendas | sum(attribute='quantidade') }} itens
-        </span>
-      </div>
-      <button class="eye-btn" onclick="toggleCard('val-qtd', this)" title="Mostrar/ocultar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
-        </svg>
+    <div class="v-card">
+      <span class="v-card-label">Nº de Vendas</span>
+      <span class="v-card-val oculto" id="val-num">{{ num_vendas }}</span>
+      <button class="v-card-eye" onclick="toggleCard('val-num',this)" title="Mostrar/ocultar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
 
-    <div class="total-card">
-      <div class="total-card-info">
-        <span class="total-card-label">Número de vendas</span>
-        <span class="total-card-valor oculto" id="val-num">
-          {{ vendas|length }} vendas
-        </span>
-      </div>
-      <button class="eye-btn" onclick="toggleCard('val-num', this)" title="Mostrar/ocultar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-          <line x1="1" y1="1" x2="23" y2="23"/>
-        </svg>
+    <div class="v-card">
+      <span class="v-card-label">Itens Vendidos</span>
+      <span class="v-card-val oculto" id="val-itens">{{ itens_vendidos }}</span>
+      <button class="v-card-eye" onclick="toggleCard('val-itens',this)" title="Mostrar/ocultar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
+    </div>
+
+    <div class="v-card">
+      <span class="v-card-label">Ticket Médio</span>
+      <span class="v-card-val oculto" id="val-ticket">R$ {{ "%.2f"|format(ticket_medio) }}</span>
+      <button class="v-card-eye" onclick="toggleCard('val-ticket',this)" title="Mostrar/ocultar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+
+    <div class="v-card">
+      <span class="v-card-label">Pagamentos</span>
+      <div class="pgto-breakdown">
+        <div class="pgto-row">
+          <span class="pgto-label">⚡ Pix</span>
+          <div class="pgto-bar-wrap"><div class="pgto-bar-fill pgto-pix-fill" data-w="{{ pgto_pct.pix }}"></div></div>
+          <span class="pgto-pct">{{ pgto_pct.pix }}%</span>
+        </div>
+        <div class="pgto-row">
+          <span class="pgto-label">💳 Cartão</span>
+          <div class="pgto-bar-wrap"><div class="pgto-bar-fill pgto-cartao-fill" data-w="{{ pgto_pct.cartao }}"></div></div>
+          <span class="pgto-pct">{{ pgto_pct.cartao }}%</span>
+        </div>
+        <div class="pgto-row">
+          <span class="pgto-label">💵 Dinheiro</span>
+          <div class="pgto-bar-wrap"><div class="pgto-bar-fill pgto-dinheiro-fill" data-w="{{ pgto_pct.dinheiro }}"></div></div>
+          <span class="pgto-pct">{{ pgto_pct.dinheiro }}%</span>
+        </div>
+      </div>
     </div>
 
   </div>
-  {% endif %}
 
-  <form class="filtros" method="get" action="/vendas">
-    <div>
-      <label>Produto</label><br>
-      <input
-        id="buscaProduto"
-        type="text"
-        name="busca_produto"
-        placeholder="Pesquisar produto..."
-        value="{{ busca_produto or '' }}"
-        autocomplete="off"
-      >
+  <!-- FILTROS -->
+  <form class="v-filtros" method="get" action="/vendas" id="filtros-form">
+    <div class="v-filtros-row">
+      <div>
+        <label>Produto</label>
+        <div class="v-input-produto">
+          <input id="buscaProduto" type="text" name="busca_produto"
+            placeholder="Pesquisar produto..."
+            value="{{ busca_produto or '' }}" autocomplete="off">
+          <ul id="sugestoes" class="v-sugestoes"></ul>
+        </div>
+      </div>
+      <div>
+        <label>Data inicial</label>
+        <input type="date" name="data_ini" value="{{ data_ini_raw or '' }}">
+      </div>
+      <div>
+        <label>Data final</label>
+        <input type="date" name="data_fim" value="{{ data_fim_raw or '' }}">
+      </div>
+      <div>
+        <label>Pagamento</label>
+        <select name="forma_pagamento">
+          <option value="">Todos</option>
+          <option value="pix" {% if forma_pagamento_raw == 'pix' %}selected{% endif %}>⚡ Pix</option>
+          <option value="cartao" {% if forma_pagamento_raw == 'cartao' %}selected{% endif %}>💳 Cartão</option>
+          <option value="dinheiro" {% if forma_pagamento_raw == 'dinheiro' %}selected{% endif %}>💵 Dinheiro</option>
+        </select>
+      </div>
+      <div>
+        <label>Margem Mín. %</label>
+        <input class="v-margem-input" type="number" name="margem_min" placeholder="ex: 30"
+          value="{{ margem_min_raw or '' }}" min="0" max="100" step="1">
+      </div>
+      <input type="hidden" name="ordenar" id="hidden-ordenar" value="{{ ordenar_raw or 'data_desc' }}">
+      <button class="btn-filt btn-filt-pri" type="submit">Pesquisar</button>
+      <a class="btn-filt btn-filt-sec" href="/vendas">Limpar</a>
     </div>
-    <div>
-      <label>Data inicial</label><br>
-      <input type="date" name="data_ini" value="{{ data_ini_raw or '' }}">
-    </div>
-    <div>
-      <label>Data final</label><br>
-      <input type="date" name="data_fim" value="{{ data_fim_raw or '' }}">
-    </div>
-    <button class="btn" type="submit">Filtrar</button>
-    <a class="btn btn-sec" href="/vendas" style="text-decoration:none;">Limpar</a>
   </form>
 
+  <!-- QUICK FILTERS + SORT -->
+  <div class="v-quick-bar">
+    <div class="v-quick-btns">
+      {% set q_ini = data_ini_raw or '' %}
+      {% set q_fim = data_fim_raw or '' %}
+      {% set hoje_str = '' %}
+      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
+      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
+      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
+    </div>
+    <div class="v-sort-wrap">
+      <label>Ordenar:</label>
+      <select id="sort-select" onchange="aplicarSort(this.value)">
+        <option value="data_desc" {% if ordenar_raw == 'data_desc' %}selected{% endif %}>Mais recente</option>
+        <option value="valor_desc" {% if ordenar_raw == 'valor_desc' %}selected{% endif %}>Maior valor</option>
+        <option value="margem_desc" {% if ordenar_raw == 'margem_desc' %}selected{% endif %}>Maior margem</option>
+        <option value="margem_asc" {% if ordenar_raw == 'margem_asc' %}selected{% endif %}>Menor margem</option>
+        <option value="nome_asc" {% if ordenar_raw == 'nome_asc' %}selected{% endif %}>Nome A–Z</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- TABELA -->
   {% if vendas and vendas|length > 0 %}
-    <table>
+  <div class="v-table-wrap">
+    <table class="v-table">
       <thead>
         <tr>
-          <th>Data</th>
           <th>Produto</th>
-          <th>Preço Venda</th>
-          <th>Quantidade</th>
+          <th>Data / Hora</th>
           <th>Pagamento</th>
-          <th>Total</th>
-          <th>Margem</th>
-          <th>Ações</th>
+          <th style="text-align:right;">Qtd</th>
+          <th style="text-align:right;">Preço Unit.</th>
+          <th style="text-align:right;">Total</th>
+          <th style="text-align:center;">Margem</th>
+          <th style="text-align:center;">Ações</th>
         </tr>
       </thead>
-      <tbody id="tbodyVendas">
+      <tbody>
         {% for v in vendas %}
           {% set custo  = v.valor_investido if v.valor_investido else 0 %}
-          {% set margem = ((v.valor_venda - custo) / v.valor_venda * 100) if v.valor_venda > 0 else 0 %}
-          <tr class="linha-venda" data-nome="{{ (v.nome or '')|lower }}">
-            <td>{{ v.data|br_date }}</td>
-            <td class="col-nome">{{ v.nome }}</td>
-            <td>R$ {{ "%.2f"|format(v.valor_venda) }}</td>
-            <td>{{ v.quantidade }}</td>
-            <td>{{ v.forma_pagamento }}</td>
-            <td>R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
+          {% set margem = ((v.valor_venda - custo) / v.valor_venda * 100) if v.valor_venda and v.valor_venda > 0 else 0 %}
+          {% set is_bar = v.produto_tipo == 'bar' %}
+          {% set pgto   = (v.forma_pagamento or '')|lower %}
+          <tr>
             <td>
-              {% if margem >= 40 %}
-                <span class="margem-badge margem-alta">{{ "%.0f"|format(margem) }}%</span>
-              {% elif margem >= 20 %}
-                <span class="margem-badge margem-media">{{ "%.0f"|format(margem) }}%</span>
-              {% elif margem >= 0 %}
-                <span class="margem-badge margem-baixa">{{ "%.0f"|format(margem) }}%</span>
-              {% else %}
-                <span class="margem-badge margem-neg">{{ "%.0f"|format(margem) }}%</span>
-              {% endif %}
+              <div class="prod-cell">
+                <span class="prod-icon">{% if is_bar %}🍹{% else %}🛒{% endif %}</span>
+                <span class="prod-nome">{{ v.nome }}</span>
+              </div>
             </td>
             <td>
-              <button
-                class="gear-btn"
-                onclick="abrirMenu(this, '/vendas/ver/{{ v.uid }}', '/vendas/editar/{{ v.uid }}', '/vendas/excluir/{{ v.uid }}')"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <div class="date-cell">
+                <span class="date-main">{{ v.data|br_date }}</span>
+                {% if v.hora %}<span class="date-hora">{{ v.hora }}</span>{% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="pgto-cell">
+                {% if 'pix' in pgto %}
+                  <span class="pgto-icon">⚡</span> Pix
+                {% elif 'cart' in pgto %}
+                  <span class="pgto-icon">💳</span> Cartão
+                {% elif 'dinheiro' in pgto %}
+                  <span class="pgto-icon">💵</span> Dinheiro
+                {% else %}
+                  {{ v.forma_pagamento or '—' }}
+                {% endif %}
+              </div>
+            </td>
+            <td style="text-align:right;">{{ v.quantidade }}</td>
+            <td style="text-align:right;">R$ {{ "%.2f"|format(v.valor_venda) }}</td>
+            <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
+            <td style="text-align:center;">
+              {% if margem >= 40 %}
+                <span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
+              {% elif margem >= 20 %}
+                <span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
+              {% elif margem >= 0 %}
+                <span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
+              {% else %}
+                <span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>
+              {% endif %}
+            </td>
+            <td style="text-align:center;">
+              <button class="gear-btn"
+                onclick="abrirMenu(this,'{{ v.uid }}','/vendas/editar/{{ v.uid }}','/vendas/excluir/{{ v.uid }}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="3"/>
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
@@ -221,114 +478,180 @@ tr:nth-child(even){ background:var(--table-even) }
       </tbody>
     </table>
 
-    {% if total_paginas and total_paginas > 1 %}
-      <div style="display:flex; justify-content:center; margin-top:16px;">
-        <div style="background:white; padding:8px 12px; border-radius:12px; box-shadow:0 3px 8px rgba(0,0,0,0.15); display:flex; gap:6px; align-items:center;">
-          {% for p in range(1, total_paginas + 1) %}
-            {% if p == pagina %}
-              <span class="btn btn-mini" style="opacity:0.8; cursor:default;">{{ p }}</span>
-            {% else %}
-              <a class="btn btn-sec btn-mini" style="text-decoration:none;"
-                 href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}">
-                {{ p }}
-              </a>
-            {% endif %}
-          {% endfor %}
-          {% if pagina < total_paginas %}
-            <a class="btn btn-sec btn-mini" style="text-decoration:none;"
-               href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}">
-              Próximo
-            </a>
+    <!-- FOOTER PAGINAÇÃO -->
+    <div class="v-footer">
+      <span class="v-footer-info">
+        Mostrando {{ inicio_reg }} a {{ fim_reg }} de {{ total_registros }} venda{{ 's' if total_registros != 1 else '' }}
+      </span>
+      {% if total_paginas and total_paginas > 1 %}
+      <div class="v-pag-btns">
+        {% if pagina > 1 %}
+          <a class="pag-btn" href="/vendas?pagina={{ pagina-1 }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">←</a>
+        {% else %}
+          <span class="pag-btn disabled">←</span>
+        {% endif %}
+
+        {% for p in range([pagina-2,1]|max, [pagina+3,total_paginas+1]|min) %}
+          {% if p == pagina %}
+            <span class="pag-btn current">{{ p }}</span>
+          {% else %}
+            <a class="pag-btn" href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">{{ p }}</a>
           {% endif %}
-        </div>
+        {% endfor %}
+
+        {% if pagina < total_paginas %}
+          <a class="pag-btn" href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">→</a>
+        {% else %}
+          <span class="pag-btn disabled">→</span>
+        {% endif %}
       </div>
-    {% endif %}
+      {% endif %}
+    </div>
+  </div>
 
   {% else %}
-    <div class="vazio">Nenhuma venda cadastrada ainda.</div>
+    <div class="v-vazio">Nenhuma venda encontrada para os filtros selecionados.</div>
   {% endif %}
+
 </div>
 
-<div style="position:absolute; top:20px; right:20px;">
-  <a href="/fechar_caixa" style="text-decoration:none;">
-    <button class="btn">Fechar Caixa</button>
-  </a>
-</div>
-
+<script type="application/json" id="data-nomes-vendas">{{ nomes_sugestoes | tojson }}</script>
+<script type="application/json" id="data-vendas-map">{{ vendas | tojson }}</script>
 <script>
+const VENDAS_MAP = {};
+JSON.parse(document.getElementById('data-vendas-map').textContent).forEach(v => { VENDAS_MAP[v.uid] = v; });
+
+function fmtR(n){ return 'R$ ' + (+(Math.round(n+'e2')+'e-2')).toFixed(2); }
+function fmtData(s){ if(!s) return '—'; const p=s.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:s; }
+
+// ── Sort ──
+function aplicarSort(val) {
+  const f = document.getElementById('filtros-form');
+  document.getElementById('hidden-ordenar').value = val;
+  f.submit();
+}
+
+// ── Toggle olhinho ──
+const eyeAberto  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+const eyeFechado = `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+window.toggleCard = function(id, btn) {
+  const el = document.getElementById(id);
+  const svg = btn.querySelector('svg');
+  const oculto = el.classList.toggle('oculto');
+  svg.innerHTML = oculto ? eyeFechado : eyeAberto;
+};
+
+// ── Visualizar ──
+window.abrirVisualizar = function(uid) {
+  const v = VENDAS_MAP[uid];
+  if (!v) return;
+  const qtd   = parseFloat(v.quantidade) || 0;
+  const preco = parseFloat(v.valor_venda) || 0;
+  const custo = parseFloat(v.valor_investido) || 0;
+  const total = preco * qtd;
+  const lucro = (preco - custo) * qtd;
+  const margem = preco > 0 ? ((preco - custo) / preco * 100) : 0;
+  const tipo  = v.produto_tipo === 'bar' ? 'bar' : 'estoque';
+
+  document.getElementById('vv-nome').textContent  = v.nome || '—';
+  document.getElementById('vv-tipo').innerHTML    = `<span class="tipo-badge-v tipo-${tipo}-v">${tipo==='bar'?'Drink / Pacote':'Produto'}</span>`;
+  document.getElementById('vv-data').textContent  = fmtData(v.data);
+  document.getElementById('vv-qtd').textContent   = Math.floor(qtd) + ' un.';
+  document.getElementById('vv-pgto').textContent  = v.forma_pagamento || '—';
+  document.getElementById('vv-preco').textContent = fmtR(preco);
+  document.getElementById('vv-custo').textContent = fmtR(custo);
+  document.getElementById('vv-total').textContent = fmtR(total);
+  document.getElementById('vv-lucro').textContent = fmtR(lucro);
+  document.getElementById('vv-margem').textContent = margem.toFixed(1) + '%';
+  document.getElementById('vv-btn-editar').href   = '/vendas/editar/' + uid;
+
+  const lotes = v.consumo_lotes || [];
+  const secao = document.getElementById('vv-secao-lotes');
+  const tbody = document.getElementById('vv-lotes-body');
+  if (lotes.length) {
+    tbody.innerHTML = lotes.map(cl => {
+      const ref = cl.data_lote ? 'Lote ' + fmtData(cl.data_lote) : (cl.batch_id ? 'Batch #' + String(cl.batch_id).slice(0,8) : '—');
+      const qty = parseFloat(cl.qty || cl.qtd || 0);
+      const uc  = parseFloat(cl.unit_cost || cl.custo_unit || 0);
+      return `<tr><td>${ref}</td><td>${qty.toFixed(4)}</td><td>${fmtR(uc)}</td><td>${fmtR(qty*uc)}</td></tr>`;
+    }).join('');
+    secao.style.display = '';
+  } else {
+    secao.style.display = 'none';
+  }
+  document.getElementById('vis-overlay').classList.add('open');
+};
+window.fecharVisualizar = function() {
+  document.getElementById('vis-overlay').classList.remove('open');
+};
+
+// ── Gear dropdown ──
 (function(){
   const dropdown = document.getElementById('acoes-dropdown');
   let btnAtivo = null;
 
-  // Abre o menu usando getBoundingClientRect para posicionar com fixed
-  window.abrirMenu = function(btn, urlVer, urlEditar, urlExcluir) {
-    if (btnAtivo === btn && dropdown.classList.contains('aberto')) {
-      fecharMenu();
-      return;
-    }
-
-    document.getElementById('acao-ver').href    = urlVer;
+  window.abrirMenu = function(btn, uid, urlEditar, urlExcluir) {
+    if (btnAtivo === btn && dropdown.classList.contains('aberto')) { fecharMenu(); return; }
+    document.getElementById('acao-ver').onclick = function(e) { e.preventDefault(); fecharMenu(); abrirVisualizar(uid); };
     document.getElementById('acao-editar').href = urlEditar;
     document.getElementById('acao-excluir').href = urlExcluir;
     document.getElementById('acao-excluir').onclick = function() {
       return confirm('Tem certeza que deseja excluir esta venda? O estoque será reposto.');
     };
-
     const rect = btn.getBoundingClientRect();
     const menuW = 165;
-
     let left = rect.right - menuW;
     if (left < 8) left = 8;
-
     dropdown.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
     dropdown.style.left = left + 'px';
     dropdown.classList.add('aberto');
     btnAtivo = btn;
   };
-
-  function fecharMenu() {
-    dropdown.classList.remove('aberto');
-    btnAtivo = null;
-  }
-
+  function fecharMenu() { dropdown.classList.remove('aberto'); btnAtivo = null; }
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.gear-btn') && !e.target.closest('#acoes-dropdown')) {
-      fecharMenu();
-    }
+    if (!e.target.closest('.gear-btn') && !e.target.closest('#acoes-dropdown')) fecharMenu();
   });
-
   window.addEventListener('scroll', fecharMenu);
   window.addEventListener('resize', fecharMenu);
+})();
 
-  // ── Cards olhinho ──
-  const eyeAberto  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
-  const eyeFechado = `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+// ── Payment bar widths ──
+document.querySelectorAll('.pgto-bar-fill[data-w]').forEach(el => {
+  el.style.width = (parseFloat(el.dataset.w) || 0) + '%';
+});
 
-  window.toggleCard = function(id, btn) {
-    const el  = document.getElementById(id);
-    const svg = btn.querySelector('svg');
-    const oculto = el.classList.toggle('oculto');
-    svg.innerHTML = oculto ? eyeFechado : eyeAberto;
-  };
+// ── Autocomplete produto ──
+(function(){
+  const input = document.getElementById('buscaProduto');
+  const lista = document.getElementById('sugestoes');
+  if (!input) return;
+  const nomes = JSON.parse(document.getElementById('data-nomes-vendas').textContent);
 
-  // ── Busca inline ──
-  const input  = document.getElementById('buscaProduto');
-  const linhas = Array.from(document.querySelectorAll('#tbodyVendas .linha-venda'));
+  function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
 
-  function normaliza(s){
-    return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-  }
-
-  function filtrar(){
+  function mostrarSugestoes() {
     const termo = normaliza(input.value);
-    if(!termo){ linhas.forEach(tr => tr.style.display = ''); return; }
-    linhas.forEach(tr => {
-      const nome = normaliza(tr.getAttribute('data-nome') || tr.querySelector('.col-nome')?.textContent);
-      tr.style.display = nome.includes(termo) ? '' : 'none';
+    lista.innerHTML = '';
+    if (!termo) { lista.style.display='none'; return; }
+    const matches = nomes.filter(n => normaliza(n).includes(termo)).slice(0,8);
+    if (!matches.length) { lista.style.display='none'; return; }
+    matches.forEach(nome => {
+      const li = document.createElement('li');
+      li.textContent = nome;
+      li.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        input.value = nome;
+        lista.style.display = 'none';
+        input.closest('form').submit();
+      });
+      lista.appendChild(li);
     });
+    lista.style.display = 'block';
   }
 
-  if(input) input.addEventListener('input', filtrar);
+  input.addEventListener('input', mostrarSugestoes);
+  input.addEventListener('focus', mostrarSugestoes);
+  input.addEventListener('blur', function(){ setTimeout(()=>{ lista.style.display='none'; }, 150); });
 })();
 </script>
 
