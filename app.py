@@ -3,7 +3,11 @@ import os
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
+
+BRT = timezone(timedelta(hours=-3))
+def now_brt():  return datetime.now(BRT)
+def today_brt(): return datetime.now(BRT).date()
 from io import BytesIO
 
 from dotenv import load_dotenv
@@ -89,7 +93,7 @@ def parse_date_yyyy_mm_dd(s):
 def normalizar_data_str(s):
     s = (s or "").strip()
     if not s:
-        return datetime.now().strftime("%Y-%m-%d")
+        return now_brt().strftime("%Y-%m-%d")
     if "/" in s and len(s) >= 10:
         try:
             return datetime.strptime(s[:10], "%Y/%m/%d").strftime("%Y-%m-%d")
@@ -100,7 +104,7 @@ def normalizar_data_str(s):
             return datetime.strptime(s[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
         except Exception:
             pass
-    return datetime.now().strftime("%Y-%m-%d")
+    return now_brt().strftime("%Y-%m-%d")
 
 
 def normalizar_pagamento(forma):
@@ -421,7 +425,7 @@ def vendas():
     ordenar_raw = request.args.get("ordenar", "data_desc").strip()
 
     # quick date shortcuts
-    hoje_date = date.today()
+    hoje_date = today_brt()
     from datetime import timedelta
     if data_ini_raw == "hoje":
         data_ini_raw = hoje_date.strftime("%Y-%m-%d")
@@ -586,7 +590,7 @@ def vendas_exportar():
     margem_min_raw = request.args.get("margem_min", "").strip()
     ordenar_raw = request.args.get("ordenar", "data_desc").strip()
 
-    hoje_date = date.today()
+    hoje_date = today_brt()
     if data_ini_raw == "hoje":
         data_ini_raw = hoje_date.strftime("%Y-%m-%d")
         data_fim_raw = data_ini_raw
@@ -954,7 +958,7 @@ def estoque_novo():
         valor_venda   = to_float(request.form.get("valor_venda", "0"))
         forma_entrada = request.form.get("forma_entrada", "unidade")
         tipo_custo    = request.form.get("tipo_custo", "total")
-        data_entrada  = request.form.get("data_entrada") or data or date.today().isoformat()
+        data_entrada  = request.form.get("data_entrada") or data or today_brt().isoformat()
 
         if forma_entrada == "caixa":
             qtd_caixas = to_int(request.form.get("qtd_caixas"), 0)
@@ -1027,7 +1031,7 @@ def estoque_novo():
     return render_template(
         "estoque_novo.html",
         erro=erro,
-        hoje=date.today().isoformat(),
+        hoje=today_brt().isoformat(),
         fornecedores=[],
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
@@ -1197,7 +1201,7 @@ def estoque_produto(pid):
         lotes=lotes,
         saidas=saidas,
         erro=erro,
-        hoje=date.today().isoformat(),
+        hoje=today_brt().isoformat(),
         pacotes_usando=pacotes_usando,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
@@ -1259,7 +1263,7 @@ def cadastrar_venda():
     erro = ""
 
     if request.method == "GET":
-        hoje = datetime.now().strftime("%Y-%m-%d")
+        hoje = now_brt().strftime("%Y-%m-%d")
         return render_template(
             "cadastrar_venda.html",
             estoque=estoque,
@@ -1335,7 +1339,7 @@ def cadastrar_venda():
                     db.update_product(produto)
                 return redirect(url_for("cadastrar_venda_lote") + "?sucesso=1")
 
-    hoje = datetime.now().strftime("%Y-%m-%d")
+    hoje = now_brt().strftime("%Y-%m-%d")
     drinks = []
     for d in db.bar_get_all_products():
         if d["type"] != "composite":
@@ -1476,7 +1480,7 @@ def cadastrar_venda_lote():
                     db.update_product(produto)
                 return redirect(url_for("cadastrar_venda_lote") + "?sucesso=1")
 
-    hoje = datetime.now().strftime("%Y-%m-%d")
+    hoje = now_brt().strftime("%Y-%m-%d")
     return render_template(
         "cadastrar_venda_lote.html",
         estoque=estoque,
@@ -1497,7 +1501,7 @@ def comandas():
     if session.get("tipo") != "admin" and not tem_permissao("vendas"):
         return redirect(url_for("vendas"))
 
-    hoje = datetime.now().strftime("%Y-%m-%d")
+    hoje = now_brt().strftime("%Y-%m-%d")
     todas = db.get_all_commands()
 
     comandas_exibir = [c for c in todas if isinstance(c, dict)]
@@ -1556,8 +1560,8 @@ def comanda_nova():
     nova = {
         "cid": uuid.uuid4().hex,
         "nome": nome,
-        "data_abertura": datetime.now().strftime("%Y-%m-%d"),
-        "hora_abertura": datetime.now().strftime("%H:%M"),
+        "data_abertura": now_brt().strftime("%Y-%m-%d"),
+        "hora_abertura": now_brt().strftime("%H:%M"),
         "status": "aberta",
         "itens": []
     }
@@ -1655,7 +1659,7 @@ def comanda_adicionar(cid):
                     "valor_investido": custo_unit,
                     "consumo_lotes": all_logs,
                     "bar_consumo_components": components_consumo,
-                    "hora": datetime.now().strftime("%H:%M")
+                    "hora": now_brt().strftime("%H:%M")
                 })
                 db.update_command(comanda)
             except ValueError as e:
@@ -1690,7 +1694,7 @@ def comanda_adicionar(cid):
                     "valor_venda": round(preco_unit, 4),
                     "valor_investido": round(custo_unit_medio, 4),
                     "consumo_lotes": consumo,
-                    "hora": datetime.now().strftime("%H:%M")
+                    "hora": now_brt().strftime("%H:%M")
                 })
 
                 db.update_command(comanda)
@@ -1814,7 +1818,7 @@ def comanda_fechar(cid):
 
     forma_pagamento = (request.form.get("forma_pagamento") or "cartao").strip()
 
-    hoje = datetime.now().strftime("%Y-%m-%d")
+    hoje = now_brt().strftime("%Y-%m-%d")
     id_venda = f"V{int(time.time())}"
 
     for item in comanda["itens"]:
@@ -1836,7 +1840,7 @@ def comanda_fechar(cid):
 
     comanda["status"] = "fechada"
     comanda["data_fechamento"] = hoje
-    comanda["hora_fechamento"] = datetime.now().strftime("%H:%M")
+    comanda["hora_fechamento"] = now_brt().strftime("%H:%M")
     comanda["forma_pagamento"] = forma_pagamento
 
     db.update_command(comanda)
@@ -1853,12 +1857,12 @@ def fechar_caixa():
         return redirect(url_for("vendas"))
 
     if request.method == "GET":
-        hoje = datetime.now().strftime("%Y-%m-%d")
+        hoje = now_brt().strftime("%Y-%m-%d")
         return render_template("fechar_caixa.html", hoje=hoje, erro="")
 
     dia_raw = (request.form.get("dia") or "").strip()
     if not dia_raw:
-        hoje = datetime.now().strftime("%Y-%m-%d")
+        hoje = now_brt().strftime("%Y-%m-%d")
         return render_template("fechar_caixa.html", hoje=hoje, erro="Selecione uma data.")
 
     dia = normalizar_data_str(dia_raw)
@@ -1867,7 +1871,7 @@ def fechar_caixa():
     pix = dinheiro = cartao = total = 0.0
     qtd_vendas = 0
     uids_fechados = []
-    fechado_em = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    fechado_em = now_brt().strftime("%Y-%m-%d %H:%M:%S")
 
     for v in abertas_do_dia:
         qtd = to_int(v.get("quantidade", 0), 0)
@@ -1896,7 +1900,7 @@ def fechar_caixa():
     registro = {
         "id": uuid.uuid4().hex,
         "dia": dia,
-        "data_fechamento": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "data_fechamento": now_brt().strftime("%Y-%m-%d %H:%M"),
         "pix": round(pix, 2),
         "dinheiro": round(dinheiro, 2),
         "cartao": round(cartao, 2),
@@ -1921,7 +1925,7 @@ def fechar_caixa_previa():
 
     dia_raw = (request.form.get("dia") or "").strip()
     if not dia_raw:
-        hoje = datetime.now().strftime("%Y-%m-%d")
+        hoje = now_brt().strftime("%Y-%m-%d")
         return render_template("fechar_caixa.html", hoje=hoje, erro="Selecione uma data.")
 
     dia = normalizar_data_str(dia_raw)
@@ -2059,7 +2063,7 @@ def financeiro():
     data_fim_raw = (request.args.get("data_fim") or "").strip()
 
     if not request.args:
-        hoje = date.today().strftime("%Y-%m-%d")
+        hoje = today_brt().strftime("%Y-%m-%d")
         data_ini_raw = hoje
         data_fim_raw = hoje
 
