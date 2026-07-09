@@ -621,13 +621,13 @@ function updateDonut(margem) {
 
 function validarForm() {
   const rows = document.querySelectorAll('#items-body tr[id^="row-"]');
-  if (rows.length === 0) { alert('Adicione ao menos um item ao pacote.'); return false; }
+  if (rows.length === 0) { showNotif('Pacote vazio', 'Adicione ao menos um item ao pacote.'); return false; }
   let ok = true;
   rows.forEach(row => {
     const qty = parseFloat(row.querySelector('input[name="component_qty[]"]')?.value || 0);
     if (qty <= 0) ok = false;
   });
-  if (!ok) { alert('Preencha a quantidade de todos os itens.'); return false; }
+  if (!ok) { showNotif('Quantidade inválida', 'Preencha a quantidade de todos os itens do pacote.'); return false; }
   return true;
 }
 

@@ -271,6 +271,9 @@
     {% if erro %}
     <div class="alerta">{{ erro }}</div>
     {% endif %}
+    {% if sessao_encerrada %}
+    <div class="alerta">Sua sessão foi encerrada por um administrador.</div>
+    {% endif %}
 
     <div class="field">
       <label for="usuario">Usuário</label>

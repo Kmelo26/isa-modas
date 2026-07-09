@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.cx-page{max-width:760px;margin:24px auto;padding:16px;}
+.cx-title{font-size:20px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
+.cx-sub{font-size:12px;color:var(--text-muted);margin-bottom:24px;}
+.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.cx-card-title{font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.cx-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;align-items:center;}
+.cx-row:last-child{border-bottom:none;}
+.cx-label{color:var(--text-muted);}
+.cx-val{font-weight:600;color:var(--text);}
+.cx-val.green{color:#4ade80;}
+.cx-val.amber{color:#fbbf24;}
+.cx-val.red{color:#f87171;}
+.cx-total-row{display:flex;justify-content:space-between;padding:10px 0 0;margin-top:8px;font-size:15px;font-weight:bold;color:var(--accent);}
+.cx-input{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg,#1a1a1a);color:var(--text);font-size:13px;width:140px;text-align:right;}
+.cx-input:focus{outline:none;border-color:var(--accent);}
+.cx-section-title{font-size:13px;font-weight:bold;color:var(--accent);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.cx-esperado-box{background:#052e16;border:1px solid #16a34a;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;font-size:15px;margin-bottom:16px;}
+.cx-btn-confirm{width:100%;padding:14px;border-radius:10px;border:none;background:#7c2d12;color:#fed7aa;font-size:16px;font-weight:bold;cursor:pointer;margin-top:8px;}
+.cx-btn-confirm:hover{background:#9a3412;}
+.cx-btn-back{padding:10px 20px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;cursor:pointer;text-decoration:none;}
+</style>
+
+<div class="cx-page">
+  <div class="cx-title">🔒 Fechar Caixa</div>
+  <div class="cx-sub">Aberto em {{ caixa.data_abertura | br_date }} às {{ caixa.hora_abertura }} por {{ caixa.operador_abertura }}</div>
+
+  <!-- Resumo de vendas -->
+  <div class="cx-card">
+    <div class="cx-card-title">Resumo de Vendas ({{ totais.qtd }} vendas)</div>
+    <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
+    <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
+    <div class="cx-row"><span class="cx-label">💳 Cartão Débito/Crédito</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
+    <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
+    <div class="cx-total-row"><span>Total</span><span>R$ {{ "%.2f"|format(totais.total) }}</span></div>
+  </div>
+
+  <!-- Movimentações -->
+  {% if total_sangrias or total_suprimentos or total_despesas %}
+  <div class="cx-card">
+    <div class="cx-card-title">Movimentações</div>
+    {% if total_suprimentos %}<div class="cx-row"><span class="cx-label">Suprimentos</span><span class="cx-val green">+ R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>{% endif %}
+    {% if total_sangrias %}<div class="cx-row"><span class="cx-label">Sangrias</span><span class="cx-val red">- R$ {{ "%.2f"|format(total_sangrias) }}</span></div>{% endif %}
+    {% if total_despesas %}<div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val amber">- R$ {{ "%.2f"|format(total_despesas) }}</span></div>{% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Dinheiro esperado -->
+  <div class="cx-esperado-box">
+    <span style="color:#86efac;">💵 Dinheiro esperado no caixa</span>
+    <span style="font-weight:bold;font-size:18px;color:#4ade80;">R$ {{ "%.2f"|format(dinheiro_esperado) }}</span>
+  </div>
+
+  <!-- Formulário de conferência -->
+  <form method="post" action="{{ url_for('caixa_fechar') }}">
+    <div class="cx-card">
+      <div class="cx-card-title">Conferência — Valores contados</div>
+      <div class="cx-row">
+        <span class="cx-label">💵 Dinheiro (contado)</span>
+        <input type="number" name="conf_dinheiro" class="cx-input"
+          placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(dinheiro_esperado) }}">
+      </div>
+      <div class="cx-row">
+        <span class="cx-label">PIX (extrato)</span>
+        <input type="number" name="conf_pix" class="cx-input"
+          placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(totais.pix) }}">
+      </div>
+      <div class="cx-row">
+        <span class="cx-label">💳 Cartão Débito/Crédito</span>
+        <input type="number" name="conf_cartao" class="cx-input"
+          placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(totais.credito + totais.debito) }}">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="{{ url_for('caixa_turno') }}" class="cx-btn-back">← Voltar</a>
+      <button type="button" class="cx-btn-confirm"
+        onclick="showConfirm('Fechar caixa','Confirmar o fechamento do caixa? Esta ação não pode ser desfeita.',()=>this.closest('form').submit(),'warn')">
+        ✅ Confirmar Fechamento
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

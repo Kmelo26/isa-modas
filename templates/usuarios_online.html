@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.uo-wrap { max-width:1100px; margin:0 auto; padding:20px 20px 40px; }
+.uo-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
+.uo-header h2 { margin:0; font-size:22px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+.uo-sub { font-size:12px; color:var(--text-muted); margin-top:3px; }
+
+.uo-table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); overflow:hidden; }
+.uo-table { width:100%; border-collapse:collapse; }
+.uo-table th { background:#1e1e1e; color:var(--accent); font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.8px; padding:10px 12px; text-align:left;
+  border-bottom:1px solid var(--border); white-space:nowrap; }
+.uo-table td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text); font-size:13px; vertical-align:middle; }
+.uo-table tr:last-child td { border-bottom:none; }
+.uo-table tr:hover td { background:rgba(255,255,255,0.02); }
+
+.uo-status { display:flex; align-items:center; gap:6px; font-weight:600; }
+.uo-dot { font-size:10px; }
+.uo-dot.on { color:#4ade80; }
+.uo-dot.off { color:#555; }
+
+.uo-empty { padding:60px 20px; text-align:center; color:var(--text-muted); font-size:13px; }
+
+.btn-encerrar { padding:6px 12px; border-radius:6px; border:1px solid #5a1f1f; background:transparent;
+  color:#f87171; font-size:12px; font-weight:600; cursor:pointer; transition:opacity .15s; }
+.btn-encerrar:hover { opacity:.8; }
+</style>
+
+<div class="uo-wrap">
+  <div class="uo-header">
+    <div>
+      <h2>Usuários Online</h2>
+      <div class="uo-sub">Sessões ativas no sistema — considerado online quem teve atividade nos últimos 5 minutos.</div>
+    </div>
+  </div>
+
+  <div class="uo-table-wrap">
+    {% if linhas %}
+    <table class="uo-table">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Usuário</th>
+          <th>Nome</th>
+          <th>Cargo</th>
+          <th>Login em</th>
+          <th>Última atividade</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in linhas %}
+        <tr>
+          <td>
+            <span class="uo-status">
+              <span class="uo-dot {{ 'on' if l.online else 'off' }}">●</span>
+              {{ 'Online' if l.online else 'Offline' }}
+            </span>
+          </td>
+          <td>{{ l.username }}</td>
+          <td>{{ l.nome }}</td>
+          <td>{{ l.cargo|title }}</td>
+          <td>{{ l.criado_em }}</td>
+          <td>{{ l.ultima_atividade }}</td>
+          <td>
+            <form method="post" action="{{ url_for('usuarios_online_encerrar', token=l.token) }}"
+                  onsubmit="return confirm('Encerrar a sessão de {{ l.username }}? O usuário será desconectado imediatamente.');">
+              <button type="submit" class="btn-encerrar">Encerrar Sessão</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="uo-empty">Nenhuma sessão ativa no momento.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

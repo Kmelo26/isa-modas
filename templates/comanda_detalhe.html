@@ -131,7 +131,7 @@ input[name="produto_pid"] { display: none; }
 }
 .cd-prod-nome { font-size: 13px; font-weight: 600; color: var(--text); }
 
-.cd-hora-cell { font-size: 13px; color: var(--text-muted); }
+.cd-hora-cell { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .cd-num-cell  { font-size: 13px; color: var(--text); text-align: center; }
 .cd-price-cell { font-size: 13px; color: var(--text-muted); text-align: right; }
 .cd-sub-cell  { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
@@ -330,10 +330,9 @@ input[name="produto_pid"] { display: none; }
       <!-- Adicionar item -->
       <div class="cd-card">
         <div class="cd-card-title">Adicionar item</div>
-        <form method="post" action="/comandas/{{ comanda.cid }}/adicionar" id="form-add">
+        <form method="post" action="/comandas/{{ comanda.cid }}/adicionar" id="form-add" onsubmit="return cdValidarAdicionar()">
           <input type="hidden" name="produto_pid" id="pid-hidden">
           <input type="hidden" name="produto_tipo" id="tipo-hidden" value="estoque">
-          <input type="hidden" name="vender_por_conteudo" id="vpc-hidden" value="0">
           <div class="cd-add-grid">
             <div class="cd-field">
               <label>Produto ou Pacote</label>
@@ -343,6 +342,7 @@ input[name="produto_pid"] { display: none; }
                 <span class="cd-search-arrow">▾</span>
                 <ul id="cd-search-list" class="cd-search-list"></ul>
               </div>
+              <div id="cd-estoque-disp" style="display:none;margin-top:5px;font-size:12px;color:var(--text-muted);"></div>
             </div>
             <div class="cd-field">
               <label>Quantidade</label>
@@ -359,14 +359,6 @@ input[name="produto_pid"] { display: none; }
               </button>
             </div>
           </div>
-          <!-- Toggle vender por unidade de conteúdo -->
-          <div id="vpc-row" style="display:none;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:rgba(255,200,50,0.07);border:1px solid rgba(255,200,50,0.25);border-radius:8px;">
-            <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text);user-select:none;">
-              <input type="checkbox" id="vpc-check" onchange="toggleVpc(this)" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;">
-              Vender por unidade solta
-            </label>
-            <span id="vpc-hint" style="font-size:11px;color:var(--text-muted);"></span>
-          </div>
         </form>
       </div>
       {% endif %}
@@ -378,7 +370,7 @@ input[name="produto_pid"] { display: none; }
         <table class="cd-table">
           <thead>
             <tr>
-              <th>Hora</th>
+              <th>Data/Hora</th>
               <th>Produto</th>
               <th style="text-align:center">Qtd</th>
               <th style="text-align:right">Preço unit.</th>
@@ -389,7 +381,7 @@ input[name="produto_pid"] { display: none; }
           <tbody>
             {% for item in comanda.itens %}
             <tr>
-              <td class="cd-hora-cell">{{ item.hora }}</td>
+              <td class="cd-hora-cell">{{ (item.data or comanda.data_abertura)|br_date }} {{ item.hora }}</td>
               <td>
                 <div class="cd-prod-cell">
                   <div class="cd-prod-icon">{% if item.produto_tipo == 'bar' %}🍹{% else %}🛒{% endif %}</div>
@@ -409,8 +401,9 @@ input[name="produto_pid"] { display: none; }
               {% if comanda.status == "aberta" %}
               <td>
                 <form method="post" action="/comandas/{{ comanda.cid }}/remover/{{ item.item_id }}"
-                      onsubmit="return confirm('Remover {{ item.nome }} da comanda? O estoque será reposto.')">
-                  <button type="submit" class="cd-btn-rm" title="Remover">🗑</button>
+                      class="cd-rm-form">
+                  <button type="button" class="cd-btn-rm" title="Remover"
+                    onclick="var f=this.closest('form');showConfirm('Remover item','Remover {{ item.nome }} da comanda? O estoque será reposto.',function(){f.submit()})">🗑</button>
                 </form>
               </td>
               {% endif %}
@@ -464,13 +457,13 @@ input[name="produto_pid"] { display: none; }
                   onclick="cancelarComanda()">
             × Cancelar comanda
           </button>
-        {% elif comanda.status == "fechada" %}
+        {% elif comanda.status == "quitada" %}
           <div style="margin-top:16px;text-align:center;color:#4ade80;font-weight:700;font-size:13px;">
-            ✓ Comanda fechada em {{ comanda.data_fechamento|br_date }}
+            ✅ Comanda quitada
           </div>
-        {% elif comanda.status == "cancelada" %}
-          <div style="margin-top:16px;text-align:center;color:#f87171;font-weight:700;font-size:13px;">
-            ✕ Comanda cancelada
+        {% elif comanda.status in ("aguardando_pagamento","pagamento_parcial","agendado") %}
+          <div style="margin-top:8px;text-align:center;font-size:13px;color:var(--text-muted);">
+            Acesse a lista de comandas para registrar pagamentos.
           </div>
         {% endif %}
       </div>
@@ -547,22 +540,15 @@ if (searchInp) {
         pidHidden.value  = p.pid;
         tipoHidden.value = p.tipo;
         searchList.style.display = 'none';
-        // toggle vender por conteúdo
-        const vpcRow   = document.getElementById('vpc-row');
-        const vpcCheck = document.getElementById('vpc-check');
-        const vpcHint  = document.getElementById('vpc-hint');
-        const vpcHidden = document.getElementById('vpc-hidden');
-        if (p.tipo === 'estoque' && p.cv > 1) {
-          vpcRow.style.display = 'flex';
-          vpcHint.textContent = `1 unidade = ${p.cv} ${p.cu}`;
-          vpcCheck.checked = false;
-          vpcHidden.value = '0';
-          const qtpInp = document.getElementById('inp-qtd');
-          qtpInp.step = '1'; qtpInp.min = '1'; qtpInp.value = '1';
+        // disponibilidade em estoque
+        const dispEl = document.getElementById('cd-estoque-disp');
+        if (p.tipo === 'estoque') {
+          const qtdDisp = parseInt(p.qtd) || 0;
+          const cor = qtdDisp <= 0 ? '#f87171' : qtdDisp <= 5 ? '#fbbf24' : '#4ade80';
+          dispEl.innerHTML = `Disponível: <strong style="color:${cor}">${qtdDisp} un.</strong>`;
+          dispEl.style.display = 'block';
         } else {
-          vpcRow.style.display = 'none';
-          vpcCheck.checked = false;
-          vpcHidden.value = '0';
+          dispEl.style.display = 'none';
         }
       });
       searchList.appendChild(li);
@@ -571,9 +557,26 @@ if (searchInp) {
   }
 }
 
-/* ── Toggle vender por conteúdo ── */
-function toggleVpc(chk) {
-  document.getElementById('vpc-hidden').value = chk.checked ? '1' : '0';
+/* ── Validação ao adicionar ── */
+function cdValidarAdicionar() {
+  const pid  = pidHidden.value;
+  const tipo = tipoHidden.value;
+
+  if (!pid) {
+    showNotif('Produto não selecionado', 'Selecione um produto ou pacote na lista antes de adicionar.');
+    searchInp.focus();
+    return false;
+  }
+
+  if (tipo === 'estoque') {
+    const prod = ESTOQUE.find(p => p.pid === pid);
+    if (prod && (parseInt(prod.qtd) || 0) <= 0) {
+      showNotif('Sem estoque disponível', `"${prod.nome}" está com 0 unidades em estoque e não pode ser adicionado à comanda.`);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /* ── Stepper ── */
@@ -603,12 +606,13 @@ document.getElementById('cd-modal').addEventListener('click', function(e){
 
 /* ── Cancelar comanda ── */
 function cancelarComanda() {
-  if (!confirm('Cancelar a comanda "{{ comanda.nome }}"? Os produtos voltarão ao estoque.')) return;
-  const f = document.createElement('form');
-  f.method = 'post';
-  f.action = '/comandas/{{ comanda.cid }}/remover';
-  document.body.appendChild(f);
-  f.submit();
+  showConfirm('Cancelar comanda', 'Cancelar "{{ comanda.nome }}"? Os produtos voltarão ao estoque.', function(){
+    const f = document.createElement('form');
+    f.method = 'post';
+    f.action = '/comandas/{{ comanda.cid }}/remover';
+    document.body.appendChild(f);
+    f.submit();
+  });
 }
 </script>
 

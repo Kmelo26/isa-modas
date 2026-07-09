@@ -90,6 +90,7 @@
 .prod-cell { display:flex; align-items:center; gap:8px; }
 .prod-icon { font-size:16px; flex-shrink:0; }
 .prod-nome { font-weight:600; color:var(--text); line-height:1.3; }
+.prod-origem { font-size:11px; color:var(--text-muted); margin-top:1px; }
 .prod-tipo-badge { display:inline-block; font-size:10px; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:4px; }
 .prod-estoque-b { background:#1a1a2e; color:#818cf8; border:1px solid #312e81; }
 .prod-bar-b     { background:#1a2e1a; color:#4ade80; border:1px solid #14532d; }
@@ -196,19 +197,28 @@
 
 <!-- Dropdown único fora da tabela -->
 <div id="acoes-dropdown">
+  {% if tipo == "admin" or "visualizar_venda" in permissoes %}
   <a id="acao-ver" href="#">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
     Visualizar
   </a>
+  {% endif %}
+  {% if tipo == "admin" or "editar_vendas" in permissoes %}
   <a id="acao-editar" href="#">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     Editar
   </a>
+  {% endif %}
   <a id="acao-excluir" href="#" class="excluir">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-    Excluir
+    Cancelar venda
   </a>
 </div>
+
+<form id="form-excluir-venda" method="post" style="display:none;">
+  <input type="hidden" name="autorizador_usuario" id="excluir-autorizador-usuario">
+  <input type="hidden" name="autorizador_pin" id="excluir-autorizador-pin">
+</form>
 
 <!-- Modal Visualizar Venda -->
 <div class="vis-overlay" id="vis-overlay" onclick="if(event.target===this)fecharVisualizar()">
@@ -223,9 +233,13 @@
     <div class="vis-body">
       <div class="vis-secao">
         <div class="vis-secao-titulo">1. Produto</div>
-        <div class="vis-grid vis-grid-2">
+        <div class="vis-grid vis-grid-3">
           <div class="vis-field"><label>Nome</label><div class="vis-val destaque" id="vv-nome">—</div></div>
           <div class="vis-field"><label>Tipo</label><div class="vis-val" id="vv-tipo">—</div></div>
+          <div class="vis-field"><label>Código da Venda</label><div class="vis-val" id="vv-codigo">—</div></div>
+        </div>
+        <div class="vis-grid vis-grid-3" style="margin-top:12px;">
+          <div class="vis-field"><label>Código do Produto</label><div class="vis-val" id="vv-codigo-produto">—</div></div>
         </div>
       </div>
       <div class="vis-secao">
@@ -236,6 +250,13 @@
           <div class="vis-field"><label>Forma de Pagamento</label><div class="vis-val" id="vv-pgto">—</div></div>
         </div>
         <div class="vis-grid vis-grid-3" style="margin-top:12px;">
+          <div class="vis-field"><label>Hora</label><div class="vis-val" id="vv-hora">—</div></div>
+          <div class="vis-field"><label>Operador</label><div class="vis-val" id="vv-usuario">—</div></div>
+          <div class="vis-field"><label>Status</label><div class="vis-val" id="vv-status">—</div></div>
+        </div>
+        <div class="vis-field" style="margin-top:12px;"><label>Origem</label><div class="vis-val" id="vv-origem">—</div></div>
+        {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}
+        <div class="vis-grid vis-grid-3" style="margin-top:12px;">
           <div class="vis-field"><label>Preço unit.</label><div class="vis-val" id="vv-preco">—</div></div>
           <div class="vis-field"><label>Custo unit.</label><div class="vis-val" id="vv-custo">—</div></div>
           <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vv-total">—</div></div>
@@ -244,6 +265,12 @@
           <div class="vis-field"><label>Lucro</label><div class="vis-val" id="vv-lucro">—</div></div>
           <div class="vis-field"><label>Margem</label><div class="vis-val" id="vv-margem">—</div></div>
         </div>
+        {% else %}
+        <div class="vis-grid vis-grid-2" style="margin-top:12px;">
+          <div class="vis-field"><label>Preço unit.</label><div class="vis-val" id="vv-preco">—</div></div>
+          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vv-total">—</div></div>
+        </div>
+        {% endif %}
       </div>
       <div class="vis-secao" id="vv-secao-lotes" style="display:none;">
         <div class="vis-secao-titulo">3. Rastreio de Estoque Consumido</div>
@@ -275,15 +302,26 @@
         {% endif %}
       </div>
     </div>
-    <a class="btn-export" href="/vendas/exportar?busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Exportar CSV
-    </a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {% if tipo == "admin" or "ver_vendas_canceladas" in permissoes %}
+      <a class="btn-export" href="/vendas/canceladas">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Vendas Canceladas
+      </a>
+      {% endif %}
+      {% if tipo == "admin" or "exportar_financeiro" in permissoes %}
+      <a class="btn-export" href="/vendas/exportar?busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar CSV
+      </a>
+      {% endif %}
+    </div>
   </div>
 
   <!-- STATS CARDS -->
   <div class="v-cards">
 
+    {% if tipo == "admin" or "ver_faturamento_diario" in permissoes %}
     <div class="v-card">
       <span class="v-card-label">Total Vendido</span>
       <span class="v-card-val oculto" id="val-total">R$ {{ "%.2f"|format(total_vendido) }}</span>
@@ -291,7 +329,9 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
+    {% endif %}
 
+    {% if tipo == "admin" or "ver_qtd_vendas" in permissoes %}
     <div class="v-card">
       <span class="v-card-label">Nº de Vendas</span>
       <span class="v-card-val oculto" id="val-num">{{ num_vendas }}</span>
@@ -299,6 +339,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
+    {% endif %}
 
     <div class="v-card">
       <span class="v-card-label">Itens Vendidos</span>
@@ -308,6 +349,7 @@
       </button>
     </div>
 
+    {% if tipo == "admin" or "ver_ticket_medio" in permissoes %}
     <div class="v-card">
       <span class="v-card-label">Ticket Médio</span>
       <span class="v-card-val oculto" id="val-ticket">R$ {{ "%.2f"|format(ticket_medio) }}</span>
@@ -315,6 +357,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
+    {% endif %}
 
     <div class="v-card">
       <span class="v-card-label">Pagamentos</span>
@@ -352,6 +395,12 @@
         </div>
       </div>
       <div>
+        <label>Código</label>
+        <input type="text" name="codigo" placeholder="Ex: V-A4K9P"
+          value="{{ busca_codigo or '' }}" autocomplete="off" maxlength="7"
+          style="width:140px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;">
+      </div>
+      <div>
         <label>Data inicial</label>
         <input type="date" name="data_ini" value="{{ data_ini_raw or '' }}">
       </div>
@@ -368,11 +417,18 @@
           <option value="dinheiro" {% if forma_pagamento_raw == 'dinheiro' %}selected{% endif %}>💵 Dinheiro</option>
         </select>
       </div>
+      {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
       <div>
         <label>Margem Mín. %</label>
         <input class="v-margem-input" type="number" name="margem_min" placeholder="ex: 30"
           value="{{ margem_min_raw or '' }}" min="0" max="100" step="1">
       </div>
+      <div>
+        <label>Margem Máx. %</label>
+        <input class="v-margem-input" type="number" name="margem_max" placeholder="ex: 80"
+          value="{{ margem_max_raw or '' }}" min="0" max="100" step="1">
+      </div>
+      {% endif %}
       <input type="hidden" name="ordenar" id="hidden-ordenar" value="{{ ordenar_raw or 'data_desc' }}">
       <button class="btn-filt btn-filt-pri" type="submit">Pesquisar</button>
       <a class="btn-filt btn-filt-sec" href="/vendas">Limpar</a>
@@ -385,17 +441,19 @@
       {% set q_ini = data_ini_raw or '' %}
       {% set q_fim = data_fim_raw or '' %}
       {% set hoje_str = '' %}
-      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
-      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
-      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
+      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
+      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
+      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
     </div>
     <div class="v-sort-wrap">
       <label>Ordenar:</label>
       <select id="sort-select" onchange="aplicarSort(this.value)">
         <option value="data_desc" {% if ordenar_raw == 'data_desc' %}selected{% endif %}>Mais recente</option>
         <option value="valor_desc" {% if ordenar_raw == 'valor_desc' %}selected{% endif %}>Maior valor</option>
+        {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
         <option value="margem_desc" {% if ordenar_raw == 'margem_desc' %}selected{% endif %}>Maior margem</option>
         <option value="margem_asc" {% if ordenar_raw == 'margem_asc' %}selected{% endif %}>Menor margem</option>
+        {% endif %}
         <option value="nome_asc" {% if ordenar_raw == 'nome_asc' %}selected{% endif %}>Nome A–Z</option>
       </select>
     </div>
@@ -407,13 +465,15 @@
     <table class="v-table">
       <thead>
         <tr>
+          <th>Código</th>
+          <th>Cód. Produto</th>
           <th>Produto</th>
           <th>Data / Hora</th>
           <th>Pagamento</th>
           <th style="text-align:right;">Qtd</th>
           <th style="text-align:right;">Preço Unit.</th>
           <th style="text-align:right;">Total</th>
-          <th style="text-align:center;">Margem</th>
+          {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}<th style="text-align:center;">Margem</th>{% endif %}
           <th style="text-align:center;">Ações</th>
         </tr>
       </thead>
@@ -424,10 +484,15 @@
           {% set is_bar = v.produto_tipo == 'bar' %}
           {% set pgto   = (v.forma_pagamento or '')|lower %}
           <tr>
+            <td style="font-family:monospace;font-weight:700;color:var(--accent);letter-spacing:1px;">{{ v.codigo or '—' }}</td>
+            <td style="font-family:monospace;color:var(--text-muted);letter-spacing:1px;">{{ v.codigo_produto or '—' }}</td>
             <td>
               <div class="prod-cell">
                 <span class="prod-icon">{% if is_bar %}🍹{% else %}🛒{% endif %}</span>
-                <span class="prod-nome">{{ v.nome }}</span>
+                <div>
+                  <div class="prod-nome">{{ v.nome }}</div>
+                  {% if v.comanda_id %}<div class="prod-origem">📋 {{ v.comanda_nome or 'Comanda' }}</div>{% endif %}
+                </div>
               </div>
             </td>
             <td>
@@ -452,6 +517,7 @@
             <td style="text-align:right;">{{ v.quantidade }}</td>
             <td style="text-align:right;">R$ {{ "%.2f"|format(v.valor_venda) }}</td>
             <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
+            {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
             <td style="text-align:center;">
               {% if margem >= 40 %}
                 <span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
@@ -463,6 +529,7 @@
                 <span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>
               {% endif %}
             </td>
+            {% endif %}
             <td style="text-align:center;">
               <button class="gear-btn"
                 onclick="abrirMenu(this,'{{ v.uid }}','/vendas/editar/{{ v.uid }}','/vendas/excluir/{{ v.uid }}')">
@@ -486,7 +553,7 @@
       {% if total_paginas and total_paginas > 1 %}
       <div class="v-pag-btns">
         {% if pagina > 1 %}
-          <a class="pag-btn" href="/vendas?pagina={{ pagina-1 }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">←</a>
+          <a class="pag-btn" href="/vendas?pagina={{ pagina-1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">←</a>
         {% else %}
           <span class="pag-btn disabled">←</span>
         {% endif %}
@@ -495,12 +562,12 @@
           {% if p == pagina %}
             <span class="pag-btn current">{{ p }}</span>
           {% else %}
-            <a class="pag-btn" href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">{{ p }}</a>
+            <a class="pag-btn" href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">{{ p }}</a>
           {% endif %}
         {% endfor %}
 
         {% if pagina < total_paginas %}
-          <a class="pag-btn" href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">→</a>
+          <a class="pag-btn" href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">→</a>
         {% else %}
           <span class="pag-btn disabled">→</span>
         {% endif %}
@@ -518,6 +585,7 @@
 <script type="application/json" id="data-nomes-vendas">{{ nomes_sugestoes | tojson }}</script>
 <script type="application/json" id="data-vendas-map">{{ vendas | tojson }}</script>
 <script>
+const TEM_PERM_CANCELAR = {{ 'true' if tipo == "admin" or "cancelar_vendas" in permissoes else 'false' }};
 const VENDAS_MAP = {};
 JSON.parse(document.getElementById('data-vendas-map').textContent).forEach(v => { VENDAS_MAP[v.uid] = v; });
 
@@ -542,8 +610,7 @@ window.toggleCard = function(id, btn) {
 };
 
 // ── Visualizar ──
-window.abrirVisualizar = function(uid) {
-  const v = VENDAS_MAP[uid];
+function preencherVisualizar(v) {
   if (!v) return;
   const qtd   = parseFloat(v.quantidade) || 0;
   const preco = parseFloat(v.valor_venda) || 0;
@@ -555,15 +622,29 @@ window.abrirVisualizar = function(uid) {
 
   document.getElementById('vv-nome').textContent  = v.nome || '—';
   document.getElementById('vv-tipo').innerHTML    = `<span class="tipo-badge-v tipo-${tipo}-v">${tipo==='bar'?'Drink / Pacote':'Produto'}</span>`;
+  document.getElementById('vv-codigo').textContent = v.codigo || '—';
+  document.getElementById('vv-codigo-produto').textContent = v.codigo_produto || '—';
   document.getElementById('vv-data').textContent  = fmtData(v.data);
   document.getElementById('vv-qtd').textContent   = Math.floor(qtd) + ' un.';
   document.getElementById('vv-pgto').textContent  = v.forma_pagamento || '—';
+  document.getElementById('vv-hora').textContent  = v.hora || '—';
+  document.getElementById('vv-usuario').textContent = v.usuario || '—';
+  document.getElementById('vv-status').innerHTML  = v.excluida
+    ? '<span class="tipo-badge-v" style="background:rgba(248,113,113,.15);color:#f87171;">CANCELADA</span>'
+    : '<span class="tipo-badge-v" style="background:rgba(74,222,128,.15);color:#4ade80;">ATIVA</span>';
+  document.getElementById('vv-origem').textContent = v.comanda_id
+    ? '📋 Comanda: ' + (v.comanda_nome || 'Comanda')
+    : '🛒 Venda direta (balcão)';
   document.getElementById('vv-preco').textContent = fmtR(preco);
-  document.getElementById('vv-custo').textContent = fmtR(custo);
+  const elCusto = document.getElementById('vv-custo');
+  if (elCusto) elCusto.textContent = fmtR(custo);
   document.getElementById('vv-total').textContent = fmtR(total);
-  document.getElementById('vv-lucro').textContent = fmtR(lucro);
-  document.getElementById('vv-margem').textContent = margem.toFixed(1) + '%';
-  document.getElementById('vv-btn-editar').href   = '/vendas/editar/' + uid;
+  const elLucro = document.getElementById('vv-lucro');
+  if (elLucro) elLucro.textContent = fmtR(lucro);
+  const elMargem = document.getElementById('vv-margem');
+  if (elMargem) elMargem.textContent = margem.toFixed(1) + '%';
+  document.getElementById('vv-btn-editar').href   = '/vendas/editar/' + v.uid;
+  document.getElementById('vv-btn-editar').style.display = v.excluida ? 'none' : '';
 
   const lotes = v.consumo_lotes || [];
   const secao = document.getElementById('vv-secao-lotes');
@@ -580,6 +661,9 @@ window.abrirVisualizar = function(uid) {
     secao.style.display = 'none';
   }
   document.getElementById('vis-overlay').classList.add('open');
+}
+window.abrirVisualizar = function(uid) {
+  preencherVisualizar(VENDAS_MAP[uid]);
 };
 window.fecharVisualizar = function() {
   document.getElementById('vis-overlay').classList.remove('open');
@@ -592,12 +676,33 @@ window.fecharVisualizar = function() {
 
   window.abrirMenu = function(btn, uid, urlEditar, urlExcluir) {
     if (btnAtivo === btn && dropdown.classList.contains('aberto')) { fecharMenu(); return; }
-    document.getElementById('acao-ver').onclick = function(e) { e.preventDefault(); fecharMenu(); abrirVisualizar(uid); };
-    document.getElementById('acao-editar').href = urlEditar;
-    document.getElementById('acao-excluir').href = urlExcluir;
-    document.getElementById('acao-excluir').onclick = function() {
-      return confirm('Tem certeza que deseja excluir esta venda? O estoque será reposto.');
-    };
+    const elVer = document.getElementById('acao-ver');
+    if (elVer) elVer.onclick = function(e) { e.preventDefault(); fecharMenu(); abrirVisualizar(uid); };
+    const elEditar = document.getElementById('acao-editar');
+    if (elEditar) elEditar.href = urlEditar;
+    const elExcluir = document.getElementById('acao-excluir');
+    if (elExcluir) {
+      elExcluir.href = urlExcluir;
+      elExcluir.onclick = function(e) {
+        e.preventDefault();
+        const href = elExcluir.href;
+        const form = document.getElementById('form-excluir-venda');
+        form.action = href;
+        if (TEM_PERM_CANCELAR) {
+          showConfirm('Cancelar venda', 'Cancelar esta venda? O estoque dos itens será reposto e ela vai para "Vendas Canceladas".\n\nVocê tem permissão para esta ação — nenhum PIN necessário.', function(){
+            document.getElementById('excluir-autorizador-usuario').value = '';
+            document.getElementById('excluir-autorizador-pin').value = '';
+            form.submit();
+          });
+        } else {
+          showPinPrompt('Autorização necessária', 'Você não tem permissão para cancelar vendas. Informe o usuário e o PIN de alguém autorizado.', function(usuarioAut, pin){
+            document.getElementById('excluir-autorizador-usuario').value = usuarioAut;
+            document.getElementById('excluir-autorizador-pin').value = pin;
+            form.submit();
+          });
+        }
+      };
+    }
     const rect = btn.getBoundingClientRect();
     const menuW = 165;
     let left = rect.right - menuW;

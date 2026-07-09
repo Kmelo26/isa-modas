@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.cx-page{max-width:720px;margin:24px auto;padding:16px;}
+.cx-title{font-size:20px;font-weight:bold;color:#4ade80;margin-bottom:4px;}
+.cx-sub{font-size:12px;color:var(--text-muted);margin-bottom:24px;}
+.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.cx-card-title{font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.cx-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.cx-row:last-child{border-bottom:none;}
+.cx-label{color:var(--text-muted);}
+.cx-val{font-weight:600;color:var(--text);}
+.cx-dif-pos{color:#4ade80;}
+.cx-dif-neg{color:#f87171;}
+.cx-dif-zero{color:var(--text-muted);}
+.cx-btn{padding:10px 22px;border-radius:8px;border:none;font-size:13px;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-block;}
+.cx-btn-prim{background:var(--accent);color:#000;}
+.cx-btn-sec{background:var(--card-bg);color:var(--text);border:1px solid var(--border);}
+</style>
+
+<div class="cx-page">
+  <div class="cx-title">✅ Caixa Fechado com Sucesso</div>
+  <div class="cx-sub">Fechado em {{ caixa.data_fechamento | br_date }} às {{ caixa.hora_fechamento }} por {{ caixa.operador_fechamento }}</div>
+
+  <!-- Resumo de vendas -->
+  <div class="cx-card">
+    <div class="cx-card-title">Vendas do turno ({{ totais.qtd }})</div>
+    <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
+    <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
+    <div class="cx-row"><span class="cx-label">💳 Cartão</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
+    <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
+  </div>
+
+  <!-- Diferenças -->
+  <div class="cx-card">
+    <div class="cx-card-title">Conferência e Diferenças</div>
+    {% for forma, label in [('dinheiro','💵 Dinheiro'), ('pix','PIX')] %}
+    {% set dif = diferencas.get(forma, 0) %}
+    <div class="cx-row">
+      <span class="cx-label">{{ label }}</span>
+      <span>
+        <span class="cx-val">R$ {{ "%.2f"|format(conferencia.get(forma, 0)) }}</span>
+        {% if dif > 0 %}<span class="cx-dif-pos"> (+{{ "%.2f"|format(dif) }} sobra)</span>
+        {% elif dif < 0 %}<span class="cx-dif-neg"> ({{ "%.2f"|format(dif) }} falta)</span>
+        {% else %}<span class="cx-dif-zero"> (ok)</span>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+    {% set dif_cartao = (diferencas.get('credito', 0) or 0) + (diferencas.get('debito', 0) or 0) %}
+    <div class="cx-row">
+      <span class="cx-label">💳 Cartão Débito/Crédito</span>
+      <span>
+        <span class="cx-val">R$ {{ "%.2f"|format((conferencia.get('credito', 0) or 0) + (conferencia.get('debito', 0) or 0)) }}</span>
+        {% if dif_cartao > 0 %}<span class="cx-dif-pos"> (+{{ "%.2f"|format(dif_cartao) }} sobra)</span>
+        {% elif dif_cartao < 0 %}<span class="cx-dif-neg"> ({{ "%.2f"|format(dif_cartao) }} falta)</span>
+        {% else %}<span class="cx-dif-zero"> (ok)</span>{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;">
+    <a href="{{ url_for('caixa_historico_novo') }}" class="cx-btn cx-btn-sec">Ver Histórico</a>
+    <a href="{{ url_for('caixa_abrir') }}" class="cx-btn cx-btn-prim">Abrir Novo Caixa</a>
+  </div>
+</div>
+{% endblock %}

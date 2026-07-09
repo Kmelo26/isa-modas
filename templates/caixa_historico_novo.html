@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+*{box-sizing:border-box}
+.cx{max-width:1300px;margin:0 auto;padding:24px 20px;font-family:inherit}
+
+/* HEADER */
+.cx-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.cx-header-left h1{font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:1.5px;margin:0 0 4px}
+.cx-header-left p{font-size:.8rem;color:var(--text-muted);margin:0}
+.cx-header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cx-btn{padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);
+  color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none;
+  display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.cx-btn:hover{border-color:var(--accent);color:var(--accent)}
+.cx-btn-prim{background:var(--accent);color:#000;border-color:var(--accent)}
+.cx-btn-prim:hover{opacity:.9;color:#000}
+
+/* KPI CARDS */
+.cx-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+@media(max-width:1100px){.cx-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.cx-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:420px){.cx-kpis{grid-template-columns:1fr}}
+.kpi{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 18px;
+  display:flex;align-items:center;gap:14px}
+.kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-icon svg{width:22px;height:22px;color:#fff}
+.kpi-icon.azul{background:#2563eb}.kpi-icon.verde{background:#16a34a}
+.kpi-icon.laranja{background:#ea580c}.kpi-icon.roxo{background:#7c3aed}.kpi-icon.cinza{background:#52525b}
+.kpi-info{min-width:0}
+.kpi-label{font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.kpi-valor{font-size:1.35rem;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:2px}
+.kpi-valor.verde{color:#4ade80}.kpi-valor.vermelho{color:#f87171}.kpi-valor.azul{color:#60a5fa}
+.kpi-sub{font-size:.72rem;color:var(--text-muted)}
+
+/* TOOLBAR / FILTROS */
+.cx-toolbar{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.cx-toolbar-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+@media(max-width:800px){.cx-toolbar-sep{display:none}}
+.cx-input{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:8px;font-size:.82rem;outline:none;min-width:140px}
+.cx-input:focus{border-color:var(--accent)}
+.cx-select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:8px;font-size:.82rem;outline:none;cursor:pointer}
+.cx-select:focus{border-color:var(--accent)}
+.cx-quick{display:flex;gap:6px;flex-wrap:wrap}
+.cx-qbtn{background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);
+  padding:7px 14px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;transition:.15s}
+.cx-qbtn:hover{border-color:var(--accent);color:var(--accent)}
+.cx-qbtn.ativo{border-color:var(--accent);color:var(--accent);background:rgba(224,224,224,.07)}
+.cx-date-range{display:none;gap:8px;align-items:center;flex-wrap:wrap}
+.cx-date-range.aberto{display:flex}
+.cx-date-range label{font-size:.75rem;color:var(--text-muted);font-weight:600}
+
+/* TABELA */
+.cx-table-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.cx-table{width:100%;border-collapse:collapse}
+.cx-table th{background:#1a1a1a;color:var(--text-muted);font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.7px;padding:10px 12px;text-align:left;font-weight:700;white-space:nowrap}
+.cx-table td{padding:10px 12px;font-size:.82rem;color:var(--text);border-top:1px solid var(--border);white-space:nowrap}
+.cx-table tbody tr{transition:.12s}
+.cx-table tbody tr:hover{background:rgba(255,255,255,.03)}
+.cx-table tbody tr.ativo{background:rgba(224,224,224,.05)}
+.cx-empty{text-align:center;padding:48px 20px;color:var(--text-muted);font-size:.88rem}
+
+/* BADGES DE STATUS */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+  font-size:.72rem;font-weight:700;white-space:nowrap}
+.badge-aberto   {background:#0c1d3b;color:#60a5fa;border:1px solid #1e3a6e}
+.badge-ok       {background:#052e16;color:#4ade80;border:1px solid #1a5c30}
+.badge-sobra    {background:#2d1f00;color:#fbbf24;border:1px solid #78490a}
+.badge-falta    {background:#2a0f0f;color:#f87171;border:1px solid #5c1a1a}
+
+/* DIFERENÇA NA TABELA */
+.dif-zero{color:var(--text-muted)}.dif-pos{color:#fbbf24;font-weight:700}.dif-neg{color:#f87171;font-weight:700}
+
+/* BOTÃO VER DETALHES */
+.btn-det{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;
+  border:1px solid var(--border);background:transparent;color:var(--text);font-size:.78rem;
+  font-weight:600;cursor:pointer;transition:.15s;text-decoration:none}
+.btn-det:hover{border-color:var(--accent);color:var(--accent)}
+.btn-det.ativo{border-color:var(--accent);color:var(--accent);background:rgba(224,224,224,.06)}
+
+/* PAINEL DE DETALHE */
+.cx-detail{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  padding:22px 24px;margin-bottom:16px;display:none}
+.cx-detail.aberto{display:block}
+.cx-det-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.cx-det-title{display:flex;align-items:center;gap:10px;font-size:1.05rem;font-weight:800;color:var(--text)}
+.cx-det-close{background:transparent;border:1px solid var(--border);color:var(--text-muted);
+  width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:1rem;display:flex;
+  align-items:center;justify-content:center;transition:.15s;flex-shrink:0}
+.cx-det-close:hover{border-color:var(--accent);color:var(--accent)}
+.cx-det-info{display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+  background:var(--input-bg);border:1px solid var(--border);border-radius:10px;
+  margin-bottom:16px;overflow:hidden}
+@media(max-width:900px){.cx-det-info{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.cx-det-info{grid-template-columns:repeat(2,1fr)}}
+.cx-det-info-item{padding:12px 16px;border-right:1px solid var(--border)}
+.cx-det-info-item:last-child{border-right:none}
+.cx-det-info-label{font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.cx-det-info-val{font-size:.9rem;font-weight:700;color:var(--text)}
+.cx-det-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px}
+@media(max-width:700px){.cx-det-cards{grid-template-columns:1fr}}
+.cx-det-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.cx-det-card-title{font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.cx-row2{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.82rem}
+.cx-row2:last-child{border-bottom:none}
+.cx-row2-lbl{color:var(--text-muted)}
+.cx-row2-val{font-weight:600;color:var(--text)}
+.cx-row2-total{padding-top:8px;margin-top:4px;border-top:1px solid var(--border) !important;font-weight:800}
+.cx-row2-total .cx-row2-val{color:var(--accent)}
+.cx-row2-esp{background:rgba(255,255,255,.03);border-radius:6px;padding:6px 8px !important;margin:6px 0}
+.cx-det-footer{display:flex;justify-content:space-between;align-items:center;
+  padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.cx-det-footer-actions{display:flex;gap:8px}
+.cx-row2-mov{display:flex;justify-content:space-between;padding:4px 0;font-size:.78rem}
+.cx-mov-badge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:.68rem;font-weight:700}
+.cx-mov-sangria{background:#2a0f0f;color:#f87171}.cx-mov-suprimento{background:#052e16;color:#4ade80}
+.cx-mov-despesa{background:#2a2000;color:#fbbf24}
+</style>
+
+<div class="cx">
+
+  <!-- HEADER -->
+  <div class="cx-header">
+    <div class="cx-header-left">
+      <h1>Controle de Caixa</h1>
+      <p>Acompanhe todos os caixas abertos e fechados</p>
+    </div>
+    <div class="cx-header-actions">
+      <button class="cx-btn" onclick="alert('Exportação em desenvolvimento')" title="Em breve">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar Relatório
+      </button>
+      <a href="{{ url_for('caixa_abrir') }}" class="cx-btn cx-btn-prim">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Abrir Caixa
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="cx-kpis">
+    <!-- Caixa Atual -->
+    <div class="kpi">
+      <div class="kpi-icon azul">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Caixa Atual</div>
+        {% if caixa_aberto %}
+        <div class="kpi-valor azul">ABERTO</div>
+        <div class="kpi-sub">Desde {{ caixa_aberto.hora_abertura }}</div>
+        {% else %}
+        <div class="kpi-valor" style="color:var(--text-muted)">FECHADO</div>
+        <div class="kpi-sub">Nenhum aberto</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Total Vendido Hoje -->
+    <div class="kpi">
+      <div class="kpi-icon verde">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Total Vendido Hoje</div>
+        <div class="kpi-valor">R$ {{ "%.2f"|format(total_vendido_hoje) }}</div>
+        <div class="kpi-sub">
+          {% set vendas_hoje = namespace(n=0) %}
+          {% for s in sessoes %}{% if s.data_str == hoje %}{% set vendas_hoje.n = vendas_hoje.n + (s.qtd_vendas or 0) %}{% endif %}{% endfor %}
+          {{ vendas_hoje.n }} venda{{ 's' if vendas_hoje.n != 1 else '' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Total em Dinheiro -->
+    <div class="kpi">
+      <div class="kpi-icon roxo">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Total em Dinheiro</div>
+        <div class="kpi-valor">R$ {{ "%.2f"|format(total_dinheiro_hoje) }}</div>
+        <div class="kpi-sub">
+          {% if total_vendido_hoje > 0 %}{{ "%.1f"|format(total_dinheiro_hoje / total_vendido_hoje * 100) }}% do total{% else %}—{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Diferença do Dia -->
+    <div class="kpi">
+      <div class="kpi-icon laranja">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Diferença do Dia</div>
+        {% if diferenca_dia == 0 %}
+        <div class="kpi-valor verde">R$ 0,00</div>
+        <div class="kpi-sub">Sem diferenças</div>
+        {% elif diferenca_dia > 0 %}
+        <div class="kpi-valor" style="color:#fbbf24">R$ {{ "%.2f"|format(diferenca_dia) }}</div>
+        <div class="kpi-sub">Sobra no caixa</div>
+        {% else %}
+        <div class="kpi-valor vermelho">R$ {{ "%.2f"|format(diferenca_dia) }}</div>
+        <div class="kpi-sub">Falta no caixa</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Fechamentos Hoje -->
+    <div class="kpi">
+      <div class="kpi-icon cinza">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Fechamentos Hoje</div>
+        <div class="kpi-valor">{{ fechamentos_hoje }}</div>
+        <div class="kpi-sub">Ver histórico</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR / FILTROS -->
+  <div class="cx-toolbar">
+    <input type="date" id="filtro-data" class="cx-input" placeholder="Pesquisar por data" title="Pesquisar por data">
+    <input type="text" id="filtro-operador" class="cx-input" placeholder="Pesquisar por operador" oninput="aplicarFiltros()">
+    <select id="filtro-status" class="cx-select" onchange="aplicarFiltros()">
+      <option value="">Status: Todos</option>
+      <option value="aberto">Aberto</option>
+      <option value="fechado">Fechado</option>
+    </select>
+    <div class="cx-toolbar-sep"></div>
+    <div class="cx-quick">
+      <button class="cx-qbtn ativo" onclick="setQuick(this,'todos')">Todos</button>
+      <button class="cx-qbtn" onclick="setQuick(this,'hoje')">Hoje</button>
+      <button class="cx-qbtn" onclick="setQuick(this,'semana')">Esta Semana</button>
+      <button class="cx-qbtn" onclick="setQuick(this,'mes')">Este Mês</button>
+      <button class="cx-qbtn" onclick="setQuick(this,'custom')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Personalizado
+      </button>
+    </div>
+    <div class="cx-date-range" id="range-personalizado">
+      <label>De</label>
+      <input type="date" id="range-de" class="cx-input" style="min-width:120px" onchange="aplicarFiltros()">
+      <label>Até</label>
+      <input type="date" id="range-ate" class="cx-input" style="min-width:120px" onchange="aplicarFiltros()">
+    </div>
+  </div>
+
+  <!-- TABELA -->
+  {% if sessoes %}
+  <div class="cx-table-wrap">
+    <table class="cx-table" id="tabela-caixas">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Operador</th>
+          <th>Abertura</th>
+          <th>Fechamento</th>
+          <th>Tempo Aberto</th>
+          <th>Valor Inicial</th>
+          <th>Total Vendido</th>
+          <th>Diferença</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessoes %}
+        {% set dif = s.diferenca_total %}
+        <tr data-cid="{{ s.id }}"
+            data-date="{{ s.data_str }}"
+            data-operador="{{ s.operador_abertura | lower }}"
+            data-status="{{ s.status }}">
+          <td><strong>{{ s.data_abertura | br_date }}</strong></td>
+          <td>{{ s.operador_abertura }}</td>
+          <td>{{ s.hora_abertura }}</td>
+          <td>{{ s.hora_fechamento or '—' }}</td>
+          <td style="color:var(--text-muted)">{{ s.tempo_aberto }}</td>
+          <td>R$ {{ "%.2f"|format(s.valor_abertura) }}</td>
+          <td><strong>R$ {{ "%.2f"|format(s.total_vendas) }}</strong></td>
+          <td>
+            {% if s.status == 'aberto' %}
+            <span class="dif-zero">—</span>
+            {% elif dif == 0 %}
+            <span class="dif-zero">R$ 0,00</span>
+            {% elif dif > 0 %}
+            <span class="dif-pos">+R$ {{ "%.2f"|format(dif) }}</span>
+            {% else %}
+            <span class="dif-neg">R$ {{ "%.2f"|format(dif) }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.status == 'aberto' %}
+            <span class="badge badge-aberto">● Caixa Aberto</span>
+            {% elif dif == 0 %}
+            <span class="badge badge-ok">● Fechado</span>
+            {% elif dif > 0 %}
+            <span class="badge badge-sobra">● Fechado (Sobra)</span>
+            {% else %}
+            <span class="badge badge-falta">● Fechado (Falta)</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.status == 'aberto' %}
+            <a href="{{ url_for('caixa_turno') }}" class="btn-det">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Ver Turno
+            </a>
+            {% else %}
+            <button class="btn-det" onclick="toggleDetail('{{ s.id }}', this)">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Detalhes
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="sem-resultados" style="display:none" class="cx-empty">Nenhum resultado encontrado para os filtros aplicados.</div>
+  </div>
+  {% else %}
+  <div class="cx-table-wrap">
+    <div class="cx-empty">Nenhuma sessão de caixa encontrada.</div>
+  </div>
+  {% endif %}
+
+  <!-- PAINEL DE DETALHE -->
+  <div class="cx-detail" id="cx-detail">
+    <div class="cx-det-header">
+      <div class="cx-det-title" id="det-title">—</div>
+      <button class="cx-det-close" onclick="fecharDetail()" title="Fechar">✕</button>
+    </div>
+    <div class="cx-det-info" id="det-info"></div>
+    <div class="cx-det-cards" id="det-cards"></div>
+    <div class="cx-det-footer">
+      <div class="kpi-sub" id="det-footer-info"></div>
+      <div class="cx-det-footer-actions">
+        <button class="cx-btn" onclick="window.print()" title="Imprimir">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Imprimir Relatório
+        </button>
+        <a id="btn-comprovante" href="#" class="cx-btn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Ver Comprovante
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SESSOES = {{ sessoes_by_id | tojson | safe }};
+const MOVS    = {{ movs_por_caixa | tojson | safe }};
+const HOJE    = "{{ hoje }}";
+
+// ----------- FILTROS -----------
+let modoQuick = 'todos';
+let cidAtivo = null;
+let btnAtivo = null;
+
+document.getElementById('filtro-data').addEventListener('input', aplicarFiltros);
+
+function setQuick(btn, modo) {
+  modoQuick = modo;
+  document.querySelectorAll('.cx-qbtn').forEach(b => b.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  document.getElementById('range-personalizado').classList.toggle('aberto', modo === 'custom');
+  if (modo !== 'custom') aplicarFiltros();
+}
+
+function aplicarFiltros() {
+  const dataInput = (document.getElementById('filtro-data').value || '').trim();
+  const opInput   = (document.getElementById('filtro-operador').value || '').toLowerCase().trim();
+  const stInput   = (document.getElementById('filtro-status').value || '').toLowerCase().trim();
+  const rangeDe   = document.getElementById('range-de').value;
+  const rangeAte  = document.getElementById('range-ate').value;
+
+  const hoje = HOJE;
+  const agora = new Date(hoje + 'T00:00:00');
+  const diaSemana = agora.getDay();
+  const inicioSemana = new Date(agora);
+  inicioSemana.setDate(agora.getDate() - diaSemana);
+  const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+
+  let visiveis = 0;
+  document.querySelectorAll('#tabela-caixas tbody tr').forEach(tr => {
+    const d       = tr.dataset.date;
+    const op      = tr.dataset.operador;
+    const st      = tr.dataset.status;
+    const dt      = d ? new Date(d + 'T00:00:00') : null;
+
+    let ok = true;
+
+    if (dataInput && d !== dataInput) ok = false;
+    if (opInput && !op.includes(opInput)) ok = false;
+    if (stInput && st !== stInput) ok = false;
+
+    if (ok && modoQuick === 'hoje'   && d !== hoje) ok = false;
+    if (ok && modoQuick === 'semana' && dt && dt < inicioSemana) ok = false;
+    if (ok && modoQuick === 'mes'    && dt && dt < inicioMes)    ok = false;
+    if (ok && modoQuick === 'custom') {
+      if (rangeDe && d < rangeDe) ok = false;
+      if (rangeAte && d > rangeAte) ok = false;
+    }
+
+    tr.style.display = ok ? '' : 'none';
+    if (ok) visiveis++;
+  });
+
+  document.getElementById('sem-resultados').style.display = visiveis === 0 ? '' : 'none';
+}
+
+// ----------- DETALHE -----------
+function brl(v) {
+  const n = parseFloat(v) || 0;
+  return 'R$ ' + n.toFixed(2).replace('.', ',');
+}
+
+function brDate(iso) {
+  if (!iso) return '—';
+  const s = String(iso).slice(0, 10);
+  const p = s.split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s;
+}
+
+function difClass(v) {
+  if (v === 0) return 'dif-zero';
+  return v > 0 ? 'dif-pos' : 'dif-neg';
+}
+
+function difLabel(v) {
+  if (v === 0) return '<span class="dif-zero">R$ 0,00</span>';
+  return v > 0
+    ? '<span class="dif-pos">+' + brl(v) + '</span>'
+    : '<span class="dif-neg">' + brl(v) + '</span>';
+}
+
+function badgeHtml(s) {
+  const dif = s.diferenca_total || 0;
+  if (s.status === 'aberto') return '<span class="badge badge-aberto">● Caixa Aberto</span>';
+  if (dif === 0)  return '<span class="badge badge-ok">● Fechado</span>';
+  if (dif > 0)    return '<span class="badge badge-sobra">● Fechado (Sobra)</span>';
+  return '<span class="badge badge-falta">● Fechado (Falta)</span>';
+}
+
+function toggleDetail(cid, btn) {
+  const painel = document.getElementById('cx-detail');
+  if (cidAtivo === cid && painel.classList.contains('aberto')) {
+    fecharDetail();
+    return;
+  }
+  if (btnAtivo) btnAtivo.classList.remove('ativo');
+  document.querySelectorAll('#tabela-caixas tbody tr').forEach(tr => tr.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  btn.closest('tr').classList.add('ativo');
+  btnAtivo = btn;
+  cidAtivo = cid;
+  renderDetail(cid);
+  painel.classList.add('aberto');
+  painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function fecharDetail() {
+  document.getElementById('cx-detail').classList.remove('aberto');
+  if (btnAtivo) btnAtivo.classList.remove('ativo');
+  document.querySelectorAll('#tabela-caixas tbody tr').forEach(tr => tr.classList.remove('ativo'));
+  cidAtivo = null;
+  btnAtivo = null;
+}
+
+function renderDetail(cid) {
+  const s   = SESSOES[String(cid)];
+  const movs = (MOVS[String(cid)] || []);
+  if (!s) return;
+
+  const conf = s.conferencia || {};
+  const difs = s.diferencas  || {};
+  const dif  = s.diferenca_total || 0;
+
+  // Título
+  document.getElementById('det-title').innerHTML =
+    '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--text-muted)"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+    ' Caixa de ' + brDate(s.data_abertura) + '&nbsp;&nbsp;' + badgeHtml(s);
+
+  // Comprovante link
+  document.getElementById('btn-comprovante').href = '/caixa/historico/' + cid;
+
+  // Info bar
+  document.getElementById('det-info').innerHTML = `
+    <div class="cx-det-info-item"><div class="cx-det-info-label">Operador</div><div class="cx-det-info-val">${s.operador_abertura || '—'}</div></div>
+    <div class="cx-det-info-item"><div class="cx-det-info-label">Abertura</div><div class="cx-det-info-val">${s.hora_abertura || '—'}</div></div>
+    <div class="cx-det-info-item"><div class="cx-det-info-label">Fechamento</div><div class="cx-det-info-val">${s.hora_fechamento || '—'}</div></div>
+    <div class="cx-det-info-item"><div class="cx-det-info-label">Tempo Aberto</div><div class="cx-det-info-val">${s.tempo_aberto || '—'}</div></div>
+    <div class="cx-det-info-item"><div class="cx-det-info-label">Valor Inicial</div><div class="cx-det-info-val">${brl(s.valor_abertura)}</div></div>
+  `;
+
+  // Cards
+  const sangrias    = parseFloat(s.total_sangrias)    || 0;
+  const suprimentos = parseFloat(s.total_suprimentos) || 0;
+  const despesas    = parseFloat(s.total_despesas)    || 0;
+  const totalMovs   = suprimentos - sangrias - despesas;
+  const valorAb     = parseFloat(s.valor_abertura)    || 0;
+  const recDinheiro = parseFloat(s.total_dinheiro)    || 0;
+  const dinheiroEsp = valorAb + recDinheiro + suprimentos - sangrias - despesas;
+  const dinheiroInf = parseFloat(conf.dinheiro) || 0;
+  const dinDif      = parseFloat(difs.dinheiro) || 0;
+
+  // Movimentações: lista detalhada ou totais
+  let movsHtml = '';
+  if (movs.length > 0) {
+    movs.forEach(m => {
+      const sinal = m.tipo === 'suprimento' ? '+' : '-';
+      movsHtml += `<div class="cx-row2-mov">
+        <span><span class="cx-mov-badge cx-mov-${m.tipo}">${m.tipo}</span> ${m.hora || ''} — ${m.descricao || '—'}</span>
+        <span style="font-weight:600">${sinal}${brl(m.valor)}</span>
+      </div>`;
+    });
+  } else {
+    if (suprimentos) movsHtml += `<div class="cx-row2"><span class="cx-row2-lbl">Suprimentos</span><span class="cx-row2-val" style="color:#4ade80">+${brl(suprimentos)}</span></div>`;
+    if (sangrias)    movsHtml += `<div class="cx-row2"><span class="cx-row2-lbl">Sangrias</span><span class="cx-row2-val" style="color:#f87171">-${brl(sangrias)}</span></div>`;
+    if (despesas)    movsHtml += `<div class="cx-row2"><span class="cx-row2-lbl">Despesas</span><span class="cx-row2-val" style="color:#fbbf24">-${brl(despesas)}</span></div>`;
+    if (!suprimentos && !sangrias && !despesas) movsHtml = '<div style="color:var(--text-muted);font-size:.8rem;padding:8px 0">Nenhuma movimentação registrada.</div>';
+  }
+
+  // Conferência outros meios
+  function outroMeio(label, esperado, chave) {
+    const esp = parseFloat(esperado) || 0;
+    const inf = parseFloat(conf[chave]) || 0;
+    const d   = parseFloat(difs[chave]) || 0;
+    return `
+      <div class="cx-row2"><span class="cx-row2-lbl">${label} Esperado</span><span class="cx-row2-val">${brl(esp)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">${label} Informado</span><span class="cx-row2-val">${brl(inf)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">Diferença</span><span class="cx-row2-val">${difLabel(d)}</span></div>`;
+  }
+
+  document.getElementById('det-cards').innerHTML = `
+    <!-- Resumo de Vendas -->
+    <div class="cx-det-card">
+      <div class="cx-det-card-title">Resumo de Vendas</div>
+      <div class="cx-row2"><span class="cx-row2-lbl">💵 Dinheiro</span><span class="cx-row2-val">${brl(s.total_dinheiro)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">PIX</span><span class="cx-row2-val">${brl(s.total_pix)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">💳 Cartão</span><span class="cx-row2-val">${brl((parseFloat(s.total_cartao_cred)||0)+(parseFloat(s.total_cartao_deb)||0))}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">📒 Fiado</span><span class="cx-row2-val" style="color:#fbbf24">${brl(s.total_fiado)}</span></div>
+      <div class="cx-row2 cx-row2-total"><span class="cx-row2-lbl">Total Vendido</span><span class="cx-row2-val">${brl(s.total_vendas)}</span></div>
+    </div>
+
+    <!-- Movimentações -->
+    <div class="cx-det-card">
+      <div class="cx-det-card-title">Movimentações</div>
+      ${movsHtml}
+      ${(suprimentos || sangrias || despesas) ? `<div class="cx-row2 cx-row2-total"><span class="cx-row2-lbl">Total Movimentações</span><span class="cx-row2-val" style="color:${totalMovs >= 0 ? '#4ade80' : '#f87171'}">${totalMovs >= 0 ? '+' : ''}${brl(totalMovs)}</span></div>` : ''}
+    </div>
+
+    <!-- Conferência de Dinheiro -->
+    <div class="cx-det-card">
+      <div class="cx-det-card-title">Conferência de Dinheiro</div>
+      <div class="cx-row2"><span class="cx-row2-lbl">Dinheiro Inicial</span><span class="cx-row2-val">${brl(valorAb)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">+ Recebido em Dinheiro</span><span class="cx-row2-val">${brl(recDinheiro)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">+ Suprimentos</span><span class="cx-row2-val">${brl(suprimentos)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">- Sangrias</span><span class="cx-row2-val">${brl(sangrias)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">- Despesas</span><span class="cx-row2-val">${brl(despesas)}</span></div>
+      <div class="cx-row2 cx-row2-esp"><span class="cx-row2-lbl">= Esperado no Caixa</span><span class="cx-row2-val" style="color:#4ade80;font-weight:800">${brl(dinheiroEsp)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">Informado no Caixa</span><span class="cx-row2-val">${brl(dinheiroInf)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl" style="font-weight:700">Diferença</span><span class="cx-row2-val">${difLabel(dinDif)}</span></div>
+    </div>
+
+    <!-- Conferência Outros Meios -->
+    <div class="cx-det-card">
+      <div class="cx-det-card-title">Conferência Outros Meios</div>
+      ${outroMeio('PIX', s.total_pix, 'pix')}
+      <div style="border-top:1px solid var(--border);margin:8px 0"></div>
+      ${(()=>{
+        const cartaoEsp = (parseFloat(s.total_cartao_cred)||0)+(parseFloat(s.total_cartao_deb)||0);
+        const cartaoInf = (parseFloat(conf['credito'])||0)+(parseFloat(conf['debito'])||0);
+        const cartaoDif = (parseFloat(difs['credito'])||0)+(parseFloat(difs['debito'])||0);
+        return `
+          <div class="cx-row2"><span class="cx-row2-lbl">Cartão Esperado</span><span class="cx-row2-val">${brl(cartaoEsp)}</span></div>
+          <div class="cx-row2"><span class="cx-row2-lbl">Cartão Informado</span><span class="cx-row2-val">${brl(cartaoInf)}</span></div>
+          <div class="cx-row2"><span class="cx-row2-lbl">Diferença</span><span class="cx-row2-val">${difLabel(cartaoDif)}</span></div>`;
+      })()}
+    </div>
+  `;
+
+  document.getElementById('det-footer-info').textContent =
+    'Caixa #' + String(cid).slice(0,8) + ' · ' + (s.qtd_vendas || 0) + ' venda(s)';
+}
+</script>
+{% endblock %}

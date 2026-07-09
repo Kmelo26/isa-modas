@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.cx-page{max-width:720px;margin:24px auto;padding:16px;}
+.cx-title{font-size:20px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
+.cx-sub{font-size:12px;color:var(--text-muted);margin-bottom:24px;}
+.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.cx-card-title{font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.cx-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.cx-row:last-child{border-bottom:none;}
+.cx-label{color:var(--text-muted);}
+.cx-val{font-weight:600;color:var(--text);}
+.cx-dif-pos{color:#4ade80;}
+.cx-dif-neg{color:#f87171;}
+.cx-dif-zero{color:var(--text-muted);}
+.cx-btn{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;font-weight:bold;text-decoration:none;display:inline-block;}
+.cx-mov-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:bold;}
+.cx-mov-sangria{background:#2a0f0f;color:#f87171;}
+.cx-mov-suprimento{background:#052e16;color:#4ade80;}
+.cx-mov-despesa{background:#2a2000;color:#fbbf24;}
+</style>
+
+<div class="cx-page">
+  <div class="cx-title">📋 Detalhe do Caixa</div>
+  <div class="cx-sub">
+    {{ sessao.data_abertura | br_date }} | Abertura: {{ sessao.hora_abertura }} | Fechamento: {{ sessao.hora_fechamento or '—' }}<br>
+    Operador: {{ sessao.operador_abertura }} {% if sessao.operador_fechamento and sessao.operador_fechamento != sessao.operador_abertura %}/ {{ sessao.operador_fechamento }}{% endif %}
+  </div>
+
+  <!-- Informações gerais -->
+  <div class="cx-card">
+    <div class="cx-card-title">Informações</div>
+    <div class="cx-row"><span class="cx-label">Valor Inicial</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.valor_abertura) }}</span></div>
+    <div class="cx-row"><span class="cx-label">Total de Vendas</span><span class="cx-val">{{ sessao.qtd_vendas }} vendas</span></div>
+    <div class="cx-row"><span class="cx-label">Total Arrecadado</span><span class="cx-val" style="color:var(--accent);">R$ {{ "%.2f"|format(sessao.total_vendas) }}</span></div>
+  </div>
+
+  <!-- Vendas por forma -->
+  <div class="cx-card">
+    <div class="cx-card-title">Recebimentos por forma de pagamento</div>
+    <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_dinheiro) }}</span></div>
+    <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_pix) }}</span></div>
+    <div class="cx-row"><span class="cx-label">💳 Cartão Débito/Crédito</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_cartao_cred + sessao.total_cartao_deb) }}</span></div>
+    <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(sessao.total_fiado) }}</span></div>
+  </div>
+
+  <!-- Movimentações -->
+  {% if sessao.total_sangrias or sessao.total_suprimentos or sessao.total_despesas %}
+  <div class="cx-card">
+    <div class="cx-card-title">Movimentações</div>
+    {% if sessao.total_suprimentos %}<div class="cx-row"><span class="cx-label">Suprimentos</span><span class="cx-val" style="color:#4ade80;">+ R$ {{ "%.2f"|format(sessao.total_suprimentos) }}</span></div>{% endif %}
+    {% if sessao.total_sangrias %}<div class="cx-row"><span class="cx-label">Sangrias</span><span class="cx-val" style="color:#f87171;">- R$ {{ "%.2f"|format(sessao.total_sangrias) }}</span></div>{% endif %}
+    {% if sessao.total_despesas %}<div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val" style="color:#fbbf24;">- R$ {{ "%.2f"|format(sessao.total_despesas) }}</span></div>{% endif %}
+    {% if movs %}
+    <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+      {% for m in movs %}
+      <div style="display:flex;justify-content:space-between;padding:4px 0;">
+        <span><span class="cx-mov-badge cx-mov-{{ m.tipo }}">{{ m.tipo }}</span> {{ m.hora }} — {{ m.descricao or '—' }}</span>
+        <span>R$ {{ "%.2f"|format(m.valor) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Conferência e diferenças -->
+  {% if sessao.conferencia %}
+  <div class="cx-card">
+    <div class="cx-card-title">Conferência e Diferenças</div>
+    {% for forma, label in [('dinheiro','💵 Dinheiro'), ('pix','PIX')] %}
+    {% set conf = sessao.conferencia.get(forma, 0) %}
+    {% set dif = sessao.diferencas.get(forma, 0) %}
+    <div class="cx-row">
+      <span class="cx-label">{{ label }}</span>
+      <span>
+        R$ {{ "%.2f"|format(conf) }}
+        {% if dif > 0 %}<span class="cx-dif-pos"> (+{{ "%.2f"|format(dif) }} sobra)</span>
+        {% elif dif < 0 %}<span class="cx-dif-neg"> ({{ "%.2f"|format(dif) }} falta)</span>
+        {% else %}<span class="cx-dif-zero"> (ok)</span>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+    {% set conf_cartao = (sessao.conferencia.get('credito', 0) or 0) + (sessao.conferencia.get('debito', 0) or 0) %}
+    {% set dif_cartao  = (sessao.diferencas.get('credito', 0) or 0) + (sessao.diferencas.get('debito', 0) or 0) %}
+    <div class="cx-row">
+      <span class="cx-label">💳 Cartão Débito/Crédito</span>
+      <span>
+        R$ {{ "%.2f"|format(conf_cartao) }}
+        {% if dif_cartao > 0 %}<span class="cx-dif-pos"> (+{{ "%.2f"|format(dif_cartao) }} sobra)</span>
+        {% elif dif_cartao < 0 %}<span class="cx-dif-neg"> ({{ "%.2f"|format(dif_cartao) }} falta)</span>
+        {% else %}<span class="cx-dif-zero"> (ok)</span>{% endif %}
+      </span>
+    </div>
+  </div>
+  {% endif %}
+
+  <a href="{{ url_for('caixa_historico_novo') }}" class="cx-btn">← Voltar ao Histórico</a>
+</div>
+{% endblock %}

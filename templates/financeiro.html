@@ -42,6 +42,8 @@
 .kpi-icon.verde{background:#16a34a}
 .kpi-icon.laranja{background:#ea580c}
 .kpi-icon.roxo{background:#7c3aed}
+.kpi-icon.amarelo{background:#d97706}
+.kpi-icon.ciano{background:#0891b2}
 .kpi-info{min-width:0}
 .kpi-label{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
 .kpi-valor{font-size:1.45rem;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:2px}
@@ -180,11 +182,12 @@
       </div>
       <div class="kpi-info">
         <div class="kpi-label">Nº de Vendas</div>
-        <div class="kpi-valor">{{ num_vendas }}</div>
+        <div class="kpi-valor">{{ num_vendas_geral }}</div>
         <div class="kpi-sub">vendas realizadas</div>
       </div>
     </div>
 
+    {% if tipo == "admin" or "ver_faturamento_diario" in permissoes %}
     <div class="kpi">
       <div class="kpi-icon verde">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -195,11 +198,13 @@
       </div>
       <div class="kpi-info">
         <div class="kpi-label">Total Vendido</div>
-        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido)|replace(".", ",") }}</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido_geral)|replace(".", ",") }}</div>
         <div class="kpi-sub">valor bruto</div>
       </div>
     </div>
+    {% endif %}
 
+    {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
     <div class="kpi">
       <div class="kpi-icon laranja">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -210,7 +215,7 @@
       </div>
       <div class="kpi-info">
         <div class="kpi-label">Total Investido</div>
-        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_investido)|replace(".", ",") }}</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_investido_geral)|replace(".", ",") }}</div>
         <div class="kpi-sub">custo dos produtos</div>
       </div>
     </div>
@@ -225,12 +230,44 @@
       </div>
       <div class="kpi-info">
         <div class="kpi-label">Lucro</div>
-        <div class="kpi-valor fin-val fin-oculto {% if lucro_total >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
-          R$ {{ "%.2f"|format(lucro_total)|replace(".", ",") }}
+        <div class="kpi-valor fin-val fin-oculto {% if lucro_total_geral >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
+          R$ {{ "%.2f"|format(lucro_total_geral)|replace(".", ",") }}
         </div>
         <div class="kpi-sub">lucro líquido</div>
       </div>
     </div>
+    {% endif %}
+
+    {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+    <div class="kpi">
+      <div class="kpi-icon amarelo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">A Receber</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_a_receber)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{{ num_comandas_pendentes }} comanda{{ "s" if num_comandas_pendentes != 1 else "" }} em aberto</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if tipo == "admin" or "ver_faturamento_diario" in permissoes %}
+    <div class="kpi">
+      <div class="kpi-icon ciano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Valor Recebido</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(valor_recebido)|replace(".", ",") }}</div>
+        <div class="kpi-sub">recebido no período</div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- MIDDLE: TOP PRODUTOS + PAGAMENTOS -->
@@ -245,7 +282,7 @@
           <tr>
             <th>Produto</th>
             <th>Quantidade</th>
-            <th>Lucro Total</th>
+            {% if tipo == "admin" or "ver_lucro_periodo" in permissoes %}<th>Lucro Total</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -253,7 +290,9 @@
           <tr>
             <td>{{ p.nome }}</td>
             <td>{{ p.quantidade }}</td>
+            {% if tipo == "admin" or "ver_lucro_periodo" in permissoes %}
             <td class="top-lucro fin-val fin-oculto">R$ {{ "%.2f"|format(p.lucro)|replace(".", ",") }}</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
@@ -282,14 +321,18 @@
             </div>
             <div class="pag-right">
               <div class="pag-pct">{{ p.pct }}%</div>
+              {% if tipo == "admin" or "ver_caixa" in permissoes %}
               <div class="pag-val fin-val fin-oculto">R$ {{ "%.2f"|format(p.total)|replace(".", ",") }}</div>
+              {% endif %}
             </div>
           </div>
           {% endfor %}
+          {% if tipo == "admin" or "ver_caixa" in permissoes %}
           <div class="pag-total-row">
             <span>Total</span>
             <span class="fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido)|replace(".", ",") }}</span>
           </div>
+          {% endif %}
         </div>
       </div>
       {% else %}
@@ -324,10 +367,10 @@
             <th>Data</th>
             <th>Produto</th>
             <th>Preço Venda</th>
-            <th>Investido</th>
+            {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}<th>Investido</th>{% endif %}
             <th>Qtd.</th>
             <th>Pagamento</th>
-            <th>Lucro da Venda</th>
+            {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}<th>Lucro da Venda</th>{% endif %}
           </tr>
         </thead>
         <tbody id="tbodyDet">
@@ -337,10 +380,14 @@
             <td>{{ v.data|br_date }}</td>
             <td>{{ v.nome }}</td>
             <td class="fin-val fin-oculto">R$ {{ "%.2f"|format(v.valor_venda)|replace(".", ",") }}</td>
+            {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
             <td class="fin-val fin-oculto">R$ {{ "%.2f"|format(v.valor_investido)|replace(".", ",") }}</td>
+            {% endif %}
             <td>{{ v.quantidade }}</td>
             <td>{{ v.forma_pagamento }}</td>
+            {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}
             <td class="td-lucro fin-val fin-oculto">R$ {{ "%.2f"|format((v.valor_venda - v.valor_investido) * v.quantidade)|replace(".", ",") }}</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
@@ -433,7 +480,7 @@ function togglePicker(){
 function aplicarCustom(){
   const ini = document.getElementById("pickerIni").value;
   const fim = document.getElementById("pickerFim").value;
-  if(!ini || !fim){ alert("Selecione as duas datas."); return; }
+  if(!ini || !fim){ showNotif('Datas não selecionadas', 'Selecione as duas datas para aplicar o filtro.'); return; }
   document.getElementById("inpIni").value = ini;
   document.getElementById("inpFim").value = fim;
   document.getElementById("formFin").submit();

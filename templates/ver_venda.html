@@ -44,8 +44,26 @@ label { font-weight:bold; color:var(--accent); font-size:13px; }
         <div class="valor">{{ venda.id_venda or '—' }}</div>
       </div>
       <div class="campo">
-        <label>Data</label>
-        <div class="valor">{{ venda.data or '—' }}</div>
+        <label>Código da Venda</label>
+        <div class="valor">{{ venda.codigo or '—' }}</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label>Código do Produto</label>
+        <div class="valor">{{ venda.codigo_produto or '—' }}</div>
+      </div>
+      <div class="campo">
+        <label>Data / Hora</label>
+        <div class="valor">{{ venda.data or '—' }}{% if venda.hora %} {{ venda.hora }}{% endif %}</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="campo">
+        <label>Operador</label>
+        <div class="valor">{{ venda.usuario or '—' }}</div>
       </div>
     </div>
 

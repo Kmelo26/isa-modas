@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.vc-wrap { max-width:1300px; margin:0 auto; padding:20px 20px 40px; }
+.vc-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
+.vc-header h2 { margin:0; font-size:22px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+.vc-header-sub { font-size:12px; color:var(--text-muted); margin-top:3px; }
+.vc-back { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; background:var(--card-bg);
+  border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:13px; font-weight:600;
+  text-decoration:none; cursor:pointer; transition:all 0.15s; }
+.vc-back:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+
+.vc-table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); overflow:hidden; overflow-x:auto; }
+.vc-table { width:100%; border-collapse:collapse; }
+.vc-table th { background:#1e1e1e; color:var(--accent); font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.8px; padding:10px 12px; text-align:left;
+  border-bottom:1px solid var(--border); white-space:nowrap; }
+.vc-table td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text); font-size:13px;
+  vertical-align:middle; white-space:nowrap; }
+.vc-table tr:last-child td { border-bottom:none; }
+.vc-table tr:hover td { background:rgba(255,255,255,0.02); }
+.vc-codigo { font-family:monospace; font-weight:700; color:var(--accent); letter-spacing:1px; }
+.vc-empty { text-align:center; padding:40px; color:var(--text-muted); font-size:13px; }
+.vc-btn-excluir { padding:6px 12px; border:1px solid #f87171; border-radius:6px; background:rgba(248,113,113,.1);
+  color:#f87171; font-size:12px; font-weight:700; cursor:pointer; }
+.vc-btn-excluir:hover { background:rgba(248,113,113,.22); }
+</style>
+
+<div class="vc-wrap">
+
+  <div class="vc-header">
+    <div>
+      <h2>VENDAS CANCELADAS</h2>
+      <div class="vc-header-sub">{{ vendas|length }} venda{{ "s" if vendas|length != 1 else "" }} cancelada{{ "s" if vendas|length != 1 else "" }}</div>
+    </div>
+    <a class="vc-back" href="/vendas">← Voltar às vendas</a>
+  </div>
+
+  <div class="vc-table-wrap">
+    {% if vendas %}
+    <table class="vc-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>Qtd</th>
+          <th>Venda</th>
+          <th>Operador</th>
+          <th>Data/Hora original</th>
+          <th>Cancelada em</th>
+          <th>Cancelada por</th>
+          {% if tipo == "admin" or "excluir_vendas" in permissoes %}<th></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vendas %}
+        <tr>
+          <td class="vc-codigo">{{ v.codigo or '—' }}</td>
+          <td>{{ v.nome or '—' }}</td>
+          <td>{{ v.quantidade or 0 }}</td>
+          <td>{{ v.id_venda or '—' }}</td>
+          <td>{{ v.usuario or '—' }}</td>
+          <td>{{ v.data or '—' }}{% if v.hora %} {{ v.hora }}{% endif %}</td>
+          <td>{{ v.excluida_em or '—' }}</td>
+          <td>{{ v.excluida_por or '—' }}</td>
+          {% if tipo == "admin" or "excluir_vendas" in permissoes %}
+          <td>
+            <form method="post" action="/vendas/canceladas/excluir/{{ v.uid }}" class="vc-del-form">
+              <button type="button" class="vc-btn-excluir"
+                onclick="var f=this.closest('form');showConfirm('Excluir definitivamente','Apagar esta venda de vez? Isso não tem volta — o código continuará reservado, mas o histórico some para sempre.',function(){f.submit()})">
+                Excluir de vez
+              </button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="vc-empty">Nenhuma venda cancelada.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

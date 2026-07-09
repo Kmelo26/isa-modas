@@ -112,7 +112,9 @@
     <div class="alerta">{{ erro }}</div>
   {% endif %}
 
-  <form method="POST">
+  <form method="POST" id="form-editar-produto">
+    <input type="hidden" name="autorizador_usuario" id="ep-autorizador-usuario">
+    <input type="hidden" name="autorizador_pin" id="ep-autorizador-pin">
 
     <!-- 1. INFORMAÇÕES BÁSICAS -->
     <div class="cp-secao">
@@ -287,6 +289,10 @@
       </div>
     </div>
 
+    {% if tipo == "admin" or "editar_produto" in permissoes %}
+    <p class="cp-hint" style="text-align:right; margin-top:-4px;">Você tem permissão para esta ação — nenhum PIN necessário.</p>
+    {% endif %}
+
     <div class="cp-footer">
       <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
       <button type="submit" class="btn-salvar">💾 Salvar Alterações</button>
@@ -412,6 +418,20 @@
   }
   document.addEventListener('click', function() {
     document.getElementById('tp-dropdown').classList.remove('aberto');
+  });
+</script>
+
+<script>
+  const TEM_PERM_EDITAR = {{ 'true' if tipo == "admin" or "editar_produto" in permissoes else 'false' }};
+  document.getElementById('form-editar-produto').addEventListener('submit', function(e) {
+    if (TEM_PERM_EDITAR) return;
+    e.preventDefault();
+    const form = this;
+    showPinPrompt('Autorização necessária', 'Você não tem permissão para editar produtos. Informe o usuário e o PIN de alguém autorizado.', function(usuarioAut, pin){
+      document.getElementById('ep-autorizador-usuario').value = usuarioAut;
+      document.getElementById('ep-autorizador-pin').value = pin;
+      form.submit();
+    });
   });
 </script>
 

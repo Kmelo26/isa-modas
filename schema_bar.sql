@@ -10,8 +10,11 @@ CREATE TABLE IF NOT EXISTS bar_products (
     unit        TEXT NOT NULL DEFAULT 'un',       -- 'ml', 'g', 'un'
     sale_price  NUMERIC(10,2) NOT NULL DEFAULT 0,
     active      BOOLEAN NOT NULL DEFAULT true,
-    created_at  TIMESTAMPTZ DEFAULT NOW()
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    codigo      TEXT UNIQUE  -- código de rastreio, prefixo "P" (ver tracking_codes em schema.sql)
 );
+-- Se a tabela já existir, rodar no Supabase SQL Editor:
+-- ALTER TABLE bar_products ADD COLUMN IF NOT EXISTS codigo TEXT UNIQUE;
 
 -- Lotes de estoque (controle FIFO por produto simples)
 -- quantity_total e quantity_remaining estão SEMPRE na unidade base (ml, g, ou un)
@@ -73,6 +76,7 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS produto_tipo TEXT NOT NULL DEFAULT 'e
 
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_bar_products_active     ON bar_products(active);
+CREATE INDEX IF NOT EXISTS idx_bar_products_codigo     ON bar_products(codigo);
 CREATE INDEX IF NOT EXISTS idx_bar_batches_product     ON bar_stock_batches(product_id);
 CREATE INDEX IF NOT EXISTS idx_bar_batches_remaining   ON bar_stock_batches(quantity_remaining);
 CREATE INDEX IF NOT EXISTS idx_bar_components_product  ON bar_product_components(product_id);

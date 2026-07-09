@@ -158,19 +158,28 @@
 
 .alerta-box{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
   color:#f87171;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+.margem-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.mb-alta {background:#0d2e1a;color:#4ade80}
+.mb-media{background:#2a2000;color:#facc15}
+.mb-baixa{background:var(--accent-dim);color:var(--accent)}
+.mb-neg  {background:#2a0f0f;color:#f87171}
 </style>
 
 <!-- Dropdown menu -->
 <div id="acoes-dropdown">
+  {% if tipo == "admin" or "visualizar_produto" in permissoes %}
   <a id="acao-visualizar" href="#" onclick="abrirVisualizar(event)">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
     Visualizar
   </a>
+  {% endif %}
+  {% if tipo == "admin" or "editar_produto" in permissoes %}
   <a id="acao-editar" href="#">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     Editar
   </a>
-  {% if tipo == 'admin' %}
+  {% endif %}
+  {% if tipo == "admin" or "excluir_produto" in permissoes %}
   <a id="acao-remover" href="#" class="remover">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
     Remover
@@ -209,6 +218,7 @@
           <div class="vis-field"><label>Estoque mínimo</label><div class="vis-val" id="v-estoque-minimo">—</div></div>
         </div>
       </div>
+      {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
       <div class="vis-secao">
         <div class="vis-secao-titulo">3. Preços</div>
         <div class="vis-grid vis-grid-3">
@@ -217,6 +227,7 @@
           <div class="vis-field"><label>Margem de lucro</label><div class="vis-val" id="v-margem">—</div></div>
         </div>
       </div>
+      {% endif %}
       <div class="vis-secao">
         <div class="vis-secao-titulo">4. Informações Adicionais</div>
         <div class="vis-grid vis-grid-2">
@@ -260,7 +271,9 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exportar
       </a>
+      {% if tipo == "admin" or "cadastrar_produto" in permissoes %}
       <a href="{{ url_for('estoque_novo') }}" class="est-btn est-btn-primary">+ Novo Produto</a>
+      {% endif %}
     </div>
   </div>
 
@@ -273,6 +286,11 @@
           <input id="buscaProduto" type="text" name="q" value="{{ q or '' }}"
                  placeholder="Buscar produto..." autocomplete="off">
           <ul id="sugestoes"></ul>
+        </div>
+        <div class="est-search-wrap" style="max-width:180px;">
+          <input type="text" name="codigo" value="{{ codigo_filtro or '' }}"
+                 placeholder="Pesquisar código..." autocomplete="off"
+                 style="text-transform:uppercase;font-family:monospace;letter-spacing:1px;">
         </div>
         <div class="est-filter-btns">
           <button type="submit" class="est-btn est-btn-primary">Pesquisar</button>
@@ -295,6 +313,19 @@
           <option value="CRÍTICO"  {% if status_filtro == 'CRÍTICO' %}selected{% endif %}>Crítico</option>
         </select>
       </div>
+
+      {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
+      <div class="est-filter-row2" style="margin-top:4px;">
+        <input type="number" name="margem_min" class="est-select"
+          placeholder="Margem mín. %" step="1" min="0" max="100"
+          value="{{ margem_min_raw or '' }}"
+          style="max-width:160px">
+        <input type="number" name="margem_max" class="est-select"
+          placeholder="Margem máx. %" step="1" min="0" max="100"
+          value="{{ margem_max_raw or '' }}"
+          style="max-width:160px">
+      </div>
+      {% endif %}
     </div>
   </form>
 
@@ -321,6 +352,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
+    {% if tipo == "admin" or "ver_valor_estoque" in permissoes %}
     <div class="est-kpi">
       <div class="est-kpi-label">Valor Total Estoque</div>
       <div class="est-kpi-val oculto" id="kv-valor">R$ {{ "%.2f"|format(valor_total_estoque)|replace(".", ",") }}</div>
@@ -328,28 +360,37 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
+    {% endif %}
   </div>
 
   <!-- TABLE -->
+  {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
     <button class="est-toggle-val" id="btnToggleTabela" onclick="toggleTabelaValores(this)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       <span id="lbl-toggle-tabela">Mostrar valores</span>
     </button>
   </div>
+  {% endif %}
   <div class="est-table-card">
     <div class="est-table-wrap">
       <table class="est-table">
         <thead>
           <tr>
             <th style="text-align:left">Produto</th>
+            <th style="text-align:center">Código</th>
             <th style="text-align:center">Categoria</th>
             <th>Estoque</th>
             <th>Est. mínimo</th>
+            {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
             <th>Custo médio</th>
             <th>Venda</th>
             <th>Lucro un.</th>
             <th>Lucro total</th>
+            {% endif %}
+            {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
+            <th style="text-align:center">Margem</th>
+            {% endif %}
             <th style="text-align:center">Status</th>
             <th style="text-align:center">Ações</th>
           </tr>
@@ -361,13 +402,29 @@
           {% set qty = p.quantidade | int %}
           <tr class="est-row">
             <td class="td-nome">{{ p.nome }}</td>
+            <td style="text-align:center;font-family:monospace;font-weight:700;color:var(--accent);">{{ p.codigo or '—' }}</td>
             <td style="text-align:center">{{ p.categoria or '—' }}</td>
             <td>{{ qty }} un.</td>
             <td>{{ (p.estoque_minimo | int) if p.estoque_minimo else '—' }} {% if p.estoque_minimo %}un.{% endif %}</td>
+            {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
             <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_investido) }}</td>
             <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_venda) }}</td>
             <td class="td-lucro td-val val-oculto">R$ {{ "%.2f"|format(lucro_un) }}</td>
             <td class="td-lucro td-val val-oculto">R$ {{ "%.2f"|format(lucro_total) }}</td>
+            {% endif %}
+            {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
+            <td style="text-align:center">
+              {% if p.valor_venda and p.valor_venda > 0 and p.valor_investido and p.valor_investido > 0 %}
+                {% set margem = ((p.valor_venda - p.valor_investido) / p.valor_venda * 100) %}
+                {% if margem >= 40 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
+                {% elif margem >= 20 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
+                {% elif margem >= 0 %}<span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
+                {% else %}<span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>{% endif %}
+              {% else %}
+                <span style="color:var(--text-muted)">—</span>
+              {% endif %}
+            </td>
+            {% endif %}
             <td style="text-align:center">
               {% if p._status == 'CRÍTICO' %}
               <span class="badge badge-critico">CRÍTICO</span>
@@ -389,7 +446,8 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="10" style="padding:24px;text-align:center;color:var(--text-muted,#888)">Nenhum produto encontrado.</td></tr>
+          {% set n_cols = 6 %}{% if tipo == 'admin' or 'ver_custo_produtos' in permissoes %}{% set n_cols = n_cols + 4 %}{% endif %}{% if tipo == 'admin' or 'ver_margem_estoque' in permissoes %}{% set n_cols = n_cols + 1 %}{% endif %}
+          <tr><td colspan="{{ n_cols }}" style="padding:24px;text-align:center;color:var(--text-muted,#888)">Nenhum produto encontrado.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -520,14 +578,16 @@ renderPag();
   window.abrirMenu = function(btn){
     if(btnAtivo===btn && dropdown.classList.contains("aberto")){ fecharMenu(); return; }
     pidAtivo = btn.dataset.pid;
-    document.getElementById("acao-editar").href = btn.dataset.editar;
+    const elEditar = document.getElementById("acao-editar");
+    if (elEditar) elEditar.href = btn.dataset.editar;
     const aRemover = document.getElementById("acao-remover");
     if(aRemover){
       aRemover.onclick = function(e){
         e.preventDefault();
-        if(!confirm("Remover '"+btn.dataset.nome+"'?")) return;
-        const f=document.createElement("form"); f.method="POST"; f.action=btn.dataset.remover;
-        document.body.appendChild(f); f.submit();
+        showConfirm('Remover produto', "Remover '" + btn.dataset.nome + "'? Esta ação não pode ser desfeita.", function(){
+          const f=document.createElement("form"); f.method="POST"; f.action=btn.dataset.remover;
+          document.body.appendChild(f); f.submit();
+        }); return;
       };
     }
     const rect = btn.getBoundingClientRect();

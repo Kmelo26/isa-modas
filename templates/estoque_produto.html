@@ -175,7 +175,8 @@
     <div class="lp-top-img">📦</div>
     <div class="lp-top-info">
       <div class="lp-top-nome">{{ produto.nome }}</div>
-      <div class="lp-top-sub">Código: {{ produto.pid }}</div>
+      <div class="lp-top-sub" style="font-family:monospace;letter-spacing:1px;color:var(--accent);">Código de rastreio: {{ produto.codigo or '—' }}</div>
+      <div class="lp-top-sub">ID interno: {{ produto.pid }}</div>
       {% if produto.get('categoria') %}
         <div class="lp-top-sub">Categoria: {{ produto.categoria | capitalize }}</div>
       {% endif %}
@@ -452,8 +453,9 @@
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
                 <form method="POST" action="{{ url_for('remover_lote', pid=produto.pid, idx=loop.index0) }}"
-                      onsubmit="return confirm('Remover este lote?')" style="display:inline;">
-                  <button type="submit" class="btn-icon del" title="Remover">
+                      style="display:inline;" class="form-rm-lote">
+                  <button type="button" class="btn-icon del" title="Remover"
+                    onclick="showConfirm('Remover lote','Remover este lote? O estoque será ajustado.',()=>this.closest('form').submit())">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                   </button>
                 </form>
@@ -572,7 +574,7 @@
       <table class="lp-hist-table">
         <thead>
           <tr>
-            <th>Data</th><th>Qtd</th><th>Preço venda</th><th>Forma Pgto</th><th>Total recebido</th>
+            <th>Data</th><th>Código</th><th>Qtd</th><th>Preço venda</th><th>Forma Pgto</th><th>Operador</th><th>Total recebido</th>
           </tr>
         </thead>
         <tbody>
@@ -581,13 +583,15 @@
           {% set ns.total_qtd = ns.total_qtd + (s.quantidade|float) %}
           {% set ns.total_val = ns.total_val + (s.quantidade|float * s.valor_venda|float) %}
           <tr>
-            <td>{{ s.data|br_date if s.data else '—' }}</td>
+            <td>{{ s.data|br_date if s.data else '—' }}{% if s.hora %} {{ s.hora }}{% endif %}</td>
+            <td style="font-family:monospace;font-weight:700;color:var(--accent);">{{ s.codigo or '—' }}</td>
             <td>
               {% if prod_cont_val %}{{ "%.3f"|format(s.quantidade|float) }}{% else %}{{ s.quantidade|int }}{% endif %} un.
               {% if prod_cont_val %}<br><span style="font-size:.75rem;color:var(--text-muted);">{{ "%.1f"|format(s.quantidade|float * prod_cont_val|float) }} {{ prod_cont_unit }}</span>{% endif %}
             </td>
             <td>R$ {{ "%.2f"|format(s.valor_venda|float) }}</td>
             <td>{{ s.get('forma_pagamento') or '—' }}</td>
+            <td>{{ s.usuario or '—' }}</td>
             <td>R$ {{ "%.2f"|format(s.quantidade|float * s.valor_venda|float) }}</td>
           </tr>
           {% endfor %}
@@ -595,8 +599,9 @@
         <tfoot>
           <tr style="font-weight:700;border-top:2px solid var(--border);">
             <td>Total</td>
+            <td>—</td>
             <td>{% if prod_cont_val %}{{ "%.3f"|format(ns.total_qtd) }}{% else %}{{ ns.total_qtd|int }}{% endif %} un.</td>
-            <td>—</td><td>—</td>
+            <td>—</td><td>—</td><td>—</td>
             <td>R$ {{ "%.2f"|format(ns.total_val) }}</td>
           </tr>
         </tfoot>
@@ -614,7 +619,7 @@
         {% set _ = mov_list.append({'tipo': 'entrada', 'data': l.data, 'qtd': l.get('qtd_informada', l.qtd)|float, 'restante': l.qtd|float, 'custo_unit': l.custo_unit|float, 'info': ('Caixa ×' ~ l.get('unidades_por_caixa','')) if l.get('forma_entrada')=='caixa' else 'Unidade'}) %}
       {% endfor %}
       {% for s in saidas %}
-        {% set _ = mov_list.append({'tipo': 'saida', 'data': s.data, 'qtd': s.quantidade|float, 'custo_unit': s.valor_venda|float, 'info': s.get('forma_pagamento') or ''}) %}
+        {% set _ = mov_list.append({'tipo': 'saida', 'data': s.data, 'qtd': s.quantidade|float, 'custo_unit': s.valor_venda|float, 'info': s.get('forma_pagamento') or '', 'codigo': s.codigo, 'usuario': s.usuario}) %}
       {% endfor %}
       {% set mov_sorted = mov_list|sort(attribute='data', reverse=True) %}
       {% if not mov_sorted %}
@@ -622,7 +627,7 @@
       {% else %}
       <table class="lp-hist-table">
         <thead>
-          <tr><th>Data</th><th>Tipo</th><th>Quantidade</th><th>Valor unit.</th><th>Info</th></tr>
+          <tr><th>Data</th><th>Tipo</th><th>Código</th><th>Quantidade</th><th>Valor unit.</th><th>Operador</th><th>Info</th></tr>
         </thead>
         <tbody>
           {% for m in mov_sorted %}
@@ -635,11 +640,13 @@
                 <span class="tipo-badge" style="background:#2a0f0f;color:#f87171;border:1px solid #7f1d1d44;">▼ Saída</span>
               {% endif %}
             </td>
+            <td style="font-family:monospace;font-weight:700;color:var(--accent);">{{ m.codigo or '—' }}</td>
             <td>
               {% if prod_cont_val %}{{ "%.3f"|format(m.qtd) }}{% else %}{{ m.qtd|int }}{% endif %} un.
               {% if prod_cont_val %}<br><span style="font-size:.75rem;color:var(--text-muted);">{{ "%.1f"|format(m.qtd * prod_cont_val|float) }} {{ prod_cont_unit }}</span>{% endif %}
             </td>
             <td>R$ {{ "%.2f"|format(m.custo_unit) }}</td>
+            <td>{{ m.usuario or '—' }}</td>
             <td style="color:var(--text-muted);font-size:.8rem;">{{ m.info }}</td>
           </tr>
           {% endfor %}

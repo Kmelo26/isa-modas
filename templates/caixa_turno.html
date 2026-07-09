@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.cx-page{max-width:900px;margin:24px auto;padding:16px;}
+.cx-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.cx-title{font-size:18px;font-weight:bold;color:var(--accent);}
+.cx-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.cx-btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.cx-btn-fechar{background:#7c2d12;color:#fed7aa;border:1px solid #9a3412;}
+.cx-btn-fechar:hover{background:#9a3412;}
+.cx-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+@media(max-width:600px){.cx-grid{grid-template-columns:1fr;}}
+.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.cx-card-title{font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.cx-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.cx-row:last-child{border-bottom:none;}
+.cx-label{color:var(--text-muted);}
+.cx-val{font-weight:600;color:var(--text);}
+.cx-val.green{color:#4ade80;}
+.cx-val.amber{color:#fbbf24;}
+.cx-val.red{color:#f87171;}
+.cx-total{display:flex;justify-content:space-between;padding:10px 0 0;margin-top:8px;font-size:15px;font-weight:bold;color:var(--accent);}
+.cx-movs-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.cx-mov-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:bold;}
+.cx-mov-sangria{background:#2a0f0f;color:#f87171;border:1px solid rgba(248,113,113,.3);}
+.cx-mov-suprimento{background:#052e16;color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+.cx-mov-despesa{background:#2a2000;color:#fbbf24;border:1px solid rgba(251,191,36,.3);}
+.cx-input{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg,#1a1a1a);color:var(--text);font-size:13px;}
+.cx-input:focus{outline:none;border-color:var(--accent);}
+.cx-mov-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+.cx-mov-form select,.cx-mov-form input{flex:1;min-width:120px;}
+.cx-mov-btn{padding:8px 16px;border-radius:8px;border:none;background:var(--btn-bg,#2a2a2a);color:var(--accent);font-weight:bold;font-size:13px;cursor:pointer;}
+.cx-info{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+.cx-info-item{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:12px;color:var(--text-muted);}
+.cx-info-item strong{display:block;font-size:14px;color:var(--text);margin-top:2px;}
+</style>
+
+<div class="cx-page">
+  <div class="cx-header">
+    <div>
+      <div class="cx-title">📊 Caixa Ativo</div>
+      <div class="cx-sub">Aberto em {{ caixa.data_abertura | br_date }} às {{ caixa.hora_abertura }} por {{ caixa.operador_abertura }}</div>
+    </div>
+    <a href="{{ url_for('caixa_fechar') }}" class="cx-btn cx-btn-fechar">🔒 Fechar Caixa</a>
+  </div>
+
+  <div class="cx-info">
+    <div class="cx-info-item">Valor Inicial<strong>R$ {{ "%.2f"|format(caixa.valor_abertura) }}</strong></div>
+    <div class="cx-info-item">Vendas<strong>{{ totais.qtd }}</strong></div>
+    <div class="cx-info-item">Total Vendido<strong>R$ {{ "%.2f"|format(totais.total) }}</strong></div>
+    <div class="cx-info-item">Dinheiro Esperado<strong class="green">R$ {{ "%.2f"|format(dinheiro_esperado) }}</strong></div>
+  </div>
+
+  <div class="cx-grid">
+    <!-- Recebimentos -->
+    <div class="cx-card">
+      <div class="cx-card-title">Recebimentos por forma</div>
+      <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
+      <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
+      <div class="cx-row"><span class="cx-label">💳 Cartão</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
+      <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
+      <div class="cx-total"><span>Total</span><span>R$ {{ "%.2f"|format(totais.total) }}</span></div>
+    </div>
+
+    <!-- Movimentações -->
+    <div class="cx-card">
+      <div class="cx-card-title">Movimentações de Caixa</div>
+      <div class="cx-row"><span class="cx-label">Sangrias</span><span class="cx-val red">- R$ {{ "%.2f"|format(total_sangrias) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Suprimentos</span><span class="cx-val green">+ R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val amber">- R$ {{ "%.2f"|format(total_despesas) }}</span></div>
+    </div>
+  </div>
+
+  <!-- Registrar movimentação -->
+  <div class="cx-card" style="margin-bottom:20px;">
+    <div class="cx-card-title">Registrar Movimentação</div>
+    <form method="post" action="{{ url_for('caixa_movimentacao') }}" class="cx-mov-form">
+      <select name="tipo" class="cx-input">
+        <option value="sangria">Sangria (retirada)</option>
+        <option value="suprimento">Suprimento (entrada)</option>
+        <option value="despesa">Despesa</option>
+      </select>
+      <input type="number" name="valor" class="cx-input" placeholder="Valor (R$)" step="0.01" min="0.01" required>
+      <input type="text" name="descricao" class="cx-input" placeholder="Descrição (opcional)">
+      <button type="submit" class="cx-mov-btn">Registrar</button>
+    </form>
+  </div>
+
+  <!-- Histórico de movimentações -->
+  {% if movs %}
+  <div class="cx-card">
+    <div class="cx-card-title">Histórico de Movimentações</div>
+    {% for m in movs %}
+    <div class="cx-row">
+      <span class="cx-label">
+        <span class="cx-mov-badge cx-mov-{{ m.tipo }}">{{ m.tipo | upper }}</span>
+        {{ m.hora }} — {{ m.descricao or '—' }}
+      </span>
+      <span class="cx-val {% if m.tipo == 'suprimento' %}green{% elif m.tipo == 'sangria' or m.tipo == 'despesa' %}red{% endif %}">
+        {% if m.tipo == 'suprimento' %}+{% else %}-{% endif %} R$ {{ "%.2f"|format(m.valor) }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

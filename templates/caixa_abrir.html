@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.cx-page{max-width:480px;margin:40px auto;padding:20px;}
+.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:28px;}
+.cx-title{font-size:20px;font-weight:bold;color:var(--accent);margin-bottom:6px;}
+.cx-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px;}
+.cx-label{font-size:12px;color:var(--text-muted);margin-bottom:6px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:.06em;}
+.cx-input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg,#1a1a1a);color:var(--text);font-size:15px;margin-bottom:16px;box-sizing:border-box;}
+.cx-input:focus{outline:none;border-color:var(--accent);}
+.cx-btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#000;font-size:15px;font-weight:bold;cursor:pointer;margin-top:4px;}
+.cx-btn:hover{opacity:.88;}
+.cx-erro{background:#2a0f0f;border:1px solid #f87171;border-radius:8px;padding:10px 14px;color:#f87171;font-size:13px;margin-bottom:16px;}
+.cx-aberto{background:#052e16;border:1px solid #16a34a;border-radius:10px;padding:16px;color:#4ade80;margin-bottom:20px;}
+</style>
+
+<div class="cx-page">
+  <div class="cx-card">
+    <div class="cx-title">🏦 Abrir Caixa</div>
+    <div class="cx-sub">Informe o valor disponível para troco no início do turno.</div>
+
+    {% if erro %}<div class="cx-erro">{{ erro }}</div>{% endif %}
+
+    {% if caixa_aberto %}
+    <div class="cx-aberto">
+      ✅ Já existe um caixa aberto desde {{ caixa_aberto.hora_abertura }} por <strong>{{ caixa_aberto.operador_abertura }}</strong>.<br>
+      <a href="{{ url_for('caixa_turno') }}" style="color:#86efac;font-weight:bold;">Ver caixa ativo →</a>
+    </div>
+    {% else %}
+    <form method="post" action="{{ url_for('caixa_abrir') }}">
+      <label class="cx-label">Operador</label>
+      <input class="cx-input" type="text" value="{{ session.get('usuario','') }}" disabled
+        style="opacity:.6;cursor:not-allowed;">
+
+      <label class="cx-label">Valor Inicial para Troco (R$)</label>
+      <input class="cx-input" type="number" name="valor_abertura"
+        placeholder="0,00" step="0.01" min="0" value="0" required autofocus>
+
+      <button type="submit" class="cx-btn">Abrir Caixa</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

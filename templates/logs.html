@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.lg-wrap { max-width:1300px; margin:0 auto; padding:20px 20px 40px; }
+.lg-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
+.lg-header h2 { margin:0; font-size:22px; font-weight:800; color:var(--accent); letter-spacing:1px; }
+.lg-sub { font-size:12px; color:var(--text-muted); margin-top:3px; }
+
+.lg-filtros { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); padding:14px 16px; margin-bottom:12px; }
+.lg-filtros-row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+.lg-filtros-row label { font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase;
+  letter-spacing:0.5px; display:block; margin-bottom:4px; }
+.lg-filtros-row input, .lg-filtros-row select {
+  padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+  background:var(--input-bg); color:var(--text); font-size:13px; }
+.lg-filtros-row input:focus, .lg-filtros-row select:focus { outline:none; border-color:var(--accent); }
+.btn-filt { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700; }
+.btn-filt-pri { background:var(--btn-bg); color:var(--accent); }
+.btn-filt-pri:hover { background:var(--accent-hover); }
+.btn-filt-sec { background:transparent; border:1px solid var(--border); color:var(--text-muted); text-decoration:none; display:inline-flex; align-items:center; }
+
+.lg-table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); overflow:hidden; }
+.lg-table { width:100%; border-collapse:collapse; }
+.lg-table th { background:#1e1e1e; color:var(--accent); font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.8px; padding:10px 12px; text-align:left;
+  border-bottom:1px solid var(--border); white-space:nowrap; }
+.lg-table td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text); font-size:12.5px; vertical-align:middle; }
+.lg-table tr:last-child td { border-bottom:none; }
+.lg-table tr:hover td { background:rgba(255,255,255,0.02); }
+
+.lg-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.lg-badge-sucesso { background:#0f1e10; color:#60b870; border:1px solid #1a4020; }
+.lg-badge-negado  { background:#2a0f0f; color:#f87171; border:1px solid #5a1f1f; }
+
+.lg-empty { padding:60px 20px; text-align:center; color:var(--text-muted); font-size:13px; }
+.lg-limite { padding:10px 16px; font-size:11px; color:var(--text-muted); border-top:1px solid var(--border); }
+</style>
+
+<div class="lg-wrap">
+  <div class="lg-header">
+    <div>
+      <h2>Logs de Auditoria</h2>
+      <div class="lg-sub">Histórico permanente de ações no sistema — {{ registros|length }} registro(s) encontrado(s).</div>
+    </div>
+  </div>
+
+  <form class="lg-filtros" method="get">
+    <div class="lg-filtros-row">
+      <div>
+        <label>De</label>
+        <input type="date" name="data_ini" value="{{ data_ini }}">
+      </div>
+      <div>
+        <label>Até</label>
+        <input type="date" name="data_fim" value="{{ data_fim }}">
+      </div>
+      <div>
+        <label>Usuário</label>
+        <select name="usuario">
+          <option value="">Todos</option>
+          {% for u in usuarios_conhecidos %}
+          <option value="{{ u }}" {{ 'selected' if u == usuario_filtro else '' }}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Tipo de ação</label>
+        <select name="tipo_evento">
+          <option value="">Todos</option>
+          {% for t in tipos_conhecidos %}
+          <option value="{{ t }}" {{ 'selected' if t == tipo_evento_filtro else '' }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Resultado</label>
+        <select name="resultado">
+          <option value="">Todos</option>
+          <option value="sucesso" {{ 'selected' if resultado_filtro == 'sucesso' else '' }}>Sucesso</option>
+          <option value="negado" {{ 'selected' if resultado_filtro == 'negado' else '' }}>Negado</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-filt btn-filt-pri">Filtrar</button>
+      <a href="{{ url_for('logs') }}" class="btn-filt btn-filt-sec">Limpar</a>
+    </div>
+  </form>
+
+  <div class="lg-table-wrap">
+    {% if registros %}
+    <table class="lg-table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Hora</th>
+          <th>Usuário</th>
+          <th>Autorizado por</th>
+          <th>Tipo</th>
+          <th>Descrição</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in registros %}
+        <tr>
+          <td>{{ r.data }}</td>
+          <td>{{ r.hora }}</td>
+          <td>{{ r.usuario }}</td>
+          <td>{{ r.autorizado_por or '—' }}</td>
+          <td>{{ r.tipo_evento }}</td>
+          <td>{{ r.descricao }}</td>
+          <td><span class="lg-badge lg-badge-{{ r.resultado }}">{{ r.resultado }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="lg-limite">Exibindo até 500 registros mais recentes que atendem ao filtro.</div>
+    {% else %}
+    <div class="lg-empty">Nenhum registro encontrado para o filtro selecionado.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

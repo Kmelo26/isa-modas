@@ -1,84 +1,611 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-<meta charset="UTF-8">
-<title>Permissões - Isa Bar</title>
-<style>
-body { font-family: Arial; background:#141414; color:#b8b8b8; margin:0; }
-.header { display:flex; justify-content:space-between; align-items:center; padding:15px 30px; background:#0e0e0e; border-bottom:1px solid #303030; }
-.logo { font-size:1.5em; font-weight:bold; color:#e0e0e0; }
-.btn { background:#282828; color:#e0e0e0; border:1px solid #383838; padding:8px 16px; border-radius:20px; cursor:pointer; font-weight:bold; }
-.btn:hover { background:#363636; }
-.container { max-width:1100px; margin:20px auto; padding:20px; }
-h2 { text-align:center; color:#e0e0e0; }
-.card { background:#1c1c1c; padding:15px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.5); border:1px solid #303030; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px; margin-top:15px; }
-.userbox { background:#1c1c1c; padding:12px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.4); border:1px solid #303030; }
-.small { color:#646464; font-size:0.95em; margin-top:6px; }
-label { display:flex; gap:10px; align-items:center; padding:6px 0; color:#b8b8b8; }
-select { width:100%; padding:10px; border-radius:8px; border:1px solid #303030; background:#181818; color:#b8b8b8; }
-</style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="header">
-  <div class="logo">Isa Bar</div>
-  <div>
-    <a href="{{ url_for('vendas') }}"><button class="btn">Vendas</button></a>
-    <a href="{{ url_for('logout') }}"><button class="btn">Sair</button></a>
+{% block conteudo %}
+<style>
+.perm-wrap { max-width: 1300px; padding: 0 0 40px; }
+.perm-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.perm-title { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 0; }
+
+/* ── MENU DE OPÇÕES (engrenagem / 3 pontos) ── */
+.pt-wrap { position: relative; }
+.pt-btn { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+  width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); transition: background .15s, color .15s; }
+.pt-btn:hover { background: var(--accent-dim); color: var(--accent); }
+.pt-dropdown { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5); min-width: 190px; overflow: hidden; }
+.pt-dropdown.aberto { display: block; }
+.pt-dropdown a { display: flex; align-items: center; gap: 8px; padding: 11px 15px;
+  font-size: 13px; text-decoration: none; color: var(--text); border-bottom: 1px solid var(--border);
+  transition: background .12s; white-space: nowrap; }
+.pt-dropdown a:last-child { border-bottom: none; }
+.pt-dropdown a:hover { background: var(--accent-dim); color: var(--accent); }
+
+.perm-layout { display: flex; gap: 16px; height: calc(100vh - 148px); }
+
+/* ── LISTA DE USUÁRIOS ── */
+.perm-users {
+  width: 240px; min-width: 240px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.perm-users-head { padding: 12px; border-bottom: 1px solid var(--border); }
+.perm-users-count { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 8px; }
+.perm-search { width: 100%; padding: 7px 10px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s; }
+.perm-search:focus { border-color: var(--accent); }
+.perm-search::placeholder { color: var(--text-muted); }
+.perm-user-list { overflow-y: auto; flex: 1; padding: 8px; }
+.perm-user-list::-webkit-scrollbar { width: 4px; }
+.perm-user-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.perm-user-card { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 7px; cursor: pointer; transition: background .12s; margin-bottom: 2px; border: 1px solid transparent; }
+.perm-user-card:hover { background: var(--btn-bg); }
+.perm-user-card.selected { background: var(--btn-bg); border-color: var(--border); }
+.perm-user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--btn-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+.perm-user-info { flex: 1; min-width: 0; }
+.perm-user-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
+.badge-admin    { background: #1a1020; color: #a080e0; border: 1px solid #3a2060; }
+.badge-gerente  { background: #0f1a2a; color: #60a0e0; border: 1px solid #1a3060; }
+.badge-vendedor { background: #0f1e10; color: #60b870; border: 1px solid #1a4020; }
+.badge-caixa    { background: #1e1808; color: #d0a030; border: 1px solid #403010; }
+.badge-funcionario { background: #181818; color: var(--text-muted); border: 1px solid var(--border); }
+
+/* ── PAINEL DIREITO ── */
+.perm-right { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-width: 0; }
+.perm-right::-webkit-scrollbar { width: 4px; }
+.perm-right::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.perm-empty { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 50px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+.perm-user-header { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.perm-hdr-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--btn-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+.perm-hdr-name { font-size: 15px; font-weight: 700; color: var(--accent); }
+.perm-hdr-type { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.cargo-select { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.cargo-select label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.cargo-select select { padding: 5px 10px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; outline: none; cursor: pointer; }
+.cargo-select select:focus { border-color: var(--accent); }
+
+.admin-notice { background: #1a1020; border: 1px solid #3a2060; border-radius: 8px; padding: 9px 14px; font-size: 12px; color: #a080e0; }
+
+/* ── CATEGORIAS ── */
+.perm-category { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+.perm-category.critical { border-color: #5a1f1f; }
+
+.perm-cat-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; user-select: none; transition: background .12s; }
+.perm-cat-header:hover { background: var(--btn-bg); }
+.perm-cat-icon { font-size: 14px; flex-shrink: 0; }
+.perm-cat-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: .08em; flex: 1; }
+.perm-category.critical .perm-cat-title { color: #f87171; }
+.perm-cat-count { font-size: 11px; color: var(--text-muted); }
+.perm-cat-arrow { font-size: 11px; color: var(--text-muted); transition: transform .2s; }
+.perm-cat-header.open .perm-cat-arrow { transform: rotate(180deg); }
+
+.perm-cat-body { border-top: 1px solid var(--border); display: none; }
+.perm-cat-body.open { display: block; }
+
+.perm-rows { padding: 4px 0; }
+.perm-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.perm-row:last-child { border-bottom: none; }
+.perm-row-label { font-size: 13px; color: var(--text); }
+.perm-row-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.perm-row-info { flex: 1; }
+
+/* ── TOGGLE ── */
+.toggle-wrap { position: relative; flex-shrink: 0; }
+.toggle-wrap input[type="checkbox"] { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle { display: block; width: 36px; height: 20px; background: var(--btn-bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: background .2s, border-color .2s; position: relative; }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .2s, background .2s; }
+.toggle-wrap input:checked + .toggle { background: #2a2a2a; border-color: var(--accent); }
+.toggle-wrap input:checked + .toggle::after { transform: translateX(16px); background: var(--accent); }
+.toggle-wrap input:disabled + .toggle { cursor: not-allowed; opacity: .4; }
+
+/* ── SALVAR ── */
+.perm-save-bar { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; }
+.perm-save-info { font-size: 12px; color: var(--text-muted); }
+.perm-success { background: #0f1e10; border: 1px solid #1a4020; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #60b870; display: flex; align-items: center; gap: 8px; }
+
+/* ── STATUS ATIVO/INATIVO ── */
+.perm-user-card.inativo { opacity: 0.5; }
+.perm-dot { font-size: 10px; display: block; margin-top: 2px; }
+.dot-ativo   { color: #4ade80; }
+.dot-inativo { color: #f87171; }
+.btn-toggle-ativo { padding: 5px 12px; border-radius: 6px; border: 1px solid; background: transparent; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+.btn-toggle-ativo:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ── ONLINE STATUS DOT ── */
+.online-dot { font-size: 9px; }
+.online-dot.on { color: #4ade80; }
+.online-dot.off { color: #555; }
+
+/* ── NOVO CABEÇALHO / AÇÕES EXTRAS ── */
+.perm-users-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.btn-mini { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--btn-bg); color: var(--text); font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity .15s; }
+.btn-mini:hover { opacity: .8; }
+.btn-mini.danger { border-color: #5a1f1f; color: #f87171; }
+.btn-mini.warn { border-color: #403010; color: #d0a030; }
+
+.perm-hdr-meta { display: flex; flex-direction: column; gap: 1px; margin-left: 4px; }
+.perm-hdr-meta span { font-size: 11px; color: var(--text-muted); }
+
+.perm-hdr-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+
+.perm-erro { background: #2a0f0f; border: 1px solid #5a1f1f; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #f87171; }
+
+/* ── MODAL GENÉRICO (novo usuário / trocar senha / trocar pin) ── */
+.pm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.pm-overlay.g-hidden { display: none; }
+.pm-box { background: #1c1c1c; border: 1px solid #2e2e2e; border-radius: 14px; width: 100%; max-width: 380px; padding: 22px 22px 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.pm-title { font-size: 15px; font-weight: 700; color: #e8e8e8; margin-bottom: 4px; }
+.pm-msg { font-size: 12px; color: #999; margin-bottom: 16px; }
+.pm-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.pm-field label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.pm-field input, .pm-field select { padding: 9px 11px; border-radius: 8px; border: 1px solid #333; background: #141414; color: #e8e8e8; font-size: 13px; outline: none; }
+.pm-field input:focus, .pm-field select:focus { border-color: #666; }
+.pm-erro { font-size: 12px; color: #f87171; margin-bottom: 10px; }
+.pm-btns { display: flex; gap: 8px; margin-top: 8px; }
+.pm-btns button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; font-size: 13px; font-weight: 600; cursor: pointer; }
+.pm-btn-cancel { background: transparent; color: #999; }
+.pm-btn-ok { background: #2e2e2e; color: #fff; border-color: #444; }
+</style>
+
+<div class="perm-wrap">
+  <div class="perm-title-row">
+    <div class="perm-title">Gerenciar Permissões</div>
+    <div class="pt-wrap" id="pt-wrap">
+      <button type="button" class="pt-btn" onclick="togglePt(event)" title="Mais opções">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div class="pt-dropdown" id="pt-dropdown">
+        <a href="{{ url_for('usuarios_online') }}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+          Usuários Online
+        </a>
+        <a href="{{ url_for('logs') }}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+          Logs
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="perm-layout">
+
+    <!-- LISTA DE USUÁRIOS -->
+    <div class="perm-users">
+      <div class="perm-users-head">
+        <div class="perm-users-head-row">
+          <div class="perm-users-count">Usuários ({{ usuarios|length }})</div>
+          <button type="button" class="btn-mini" onclick="abrirNovoUsuario()">+ Novo</button>
+        </div>
+        <input type="text" class="perm-search" id="perm-search" placeholder="Buscar usuário...">
+      </div>
+      <div class="perm-user-list" id="perm-user-list">
+        {% for nome, info in usuarios.items() if not info.arquivado %}
+        <div class="perm-user-card{% if not info.ativo %} inativo{% endif %}" data-username="{{ nome }}" data-tipo="{{ info.tipo }}"
+             onclick="selectUser('{{ nome }}')">
+          <div class="perm-user-avatar">{{ nome[0]|upper }}</div>
+          <div class="perm-user-info">
+            <div class="perm-user-name">{{ nome }} <span class="online-dot {{ 'on' if nome in sessoes_ativas else 'off' }}">●</span></div>
+            <span class="badge badge-{{ info.cargo if info.cargo else info.tipo }}">
+              {{ info.cargo if info.cargo else info.tipo }}
+            </span>
+            <span class="perm-dot {{ 'dot-ativo' if info.ativo else 'dot-inativo' }}">● {{ 'Ativo' if info.ativo else 'Inativo' }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% set arquivados = [] %}
+      {% for nome, info in usuarios.items() if info.arquivado %}{% set _ = arquivados.append(nome) %}{% endfor %}
+      {% if arquivados %}
+      <div style="padding:8px 12px; border-top:1px solid var(--border);">
+        <button type="button" class="btn-mini" style="width:100%;" onclick="document.getElementById('pm-arquivados').classList.remove('g-hidden')">Arquivados ({{ arquivados|length }})</button>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- PAINEL DE PERMISSÕES -->
+    <div class="perm-right" id="perm-right">
+
+      <div class="perm-empty" id="perm-empty">Selecione um usuário para gerenciar as permissões.</div>
+
+      <div id="perm-content" style="display:none; flex-direction:column; gap:12px;">
+
+        {% if request.args.get('salvo') %}
+        <div class="perm-success">✓ Alterações salvas com sucesso.</div>
+        {% endif %}
+        {% if request.args.get('erro') %}
+        <div class="perm-erro">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        <div class="perm-user-header">
+          <div class="perm-hdr-avatar" id="perm-hdr-avatar">?</div>
+          <div>
+            <div class="perm-hdr-name" id="perm-hdr-name">—</div>
+            <div class="perm-hdr-type" id="perm-hdr-type">—</div>
+            <div class="perm-hdr-meta">
+              <span id="perm-hdr-online">—</span>
+              <span id="perm-hdr-ultimo-login">—</span>
+            </div>
+          </div>
+          <div class="cargo-select" id="cargo-select-wrap">
+            <label for="cargo-select">Cargo</label>
+            <select id="cargo-select" name="cargo">
+              {% for c in cargos %}
+              <option value="{{ c }}">{{ c|title }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn-mini" id="btn-aplicar-modelo" onclick="aplicarModeloCargo()">Aplicar modelo do cargo</button>
+          </div>
+          <div class="perm-hdr-actions" id="perm-hdr-actions">
+            <button type="button" class="btn-mini" onclick="abrirTrocarSenha()">Trocar Senha</button>
+            <button type="button" class="btn-mini" onclick="abrirTrocarPin()">Trocar PIN</button>
+            <form method="post" id="form-encerrar-sessoes" style="display:inline;">
+              <input type="hidden" name="acao" value="encerrar_sessoes">
+              <input type="hidden" name="usuario_alvo" id="encerrar-sessoes-alvo">
+              <button type="submit" class="btn-mini">Encerrar Sessões</button>
+            </form>
+            <form method="post" id="form-arquivar" style="display:inline;">
+              <input type="hidden" name="acao" value="arquivar_usuario">
+              <input type="hidden" name="usuario_alvo" id="arquivar-alvo">
+              <button type="submit" id="btn-arquivar" class="btn-mini warn">Arquivar</button>
+            </form>
+            <form method="post" id="form-toggle-ativo">
+              <input type="hidden" name="acao" value="toggle_ativo">
+              <input type="hidden" name="usuario_alvo" id="toggle-ativo-alvo">
+              <button type="submit" id="btn-toggle-ativo" class="btn-toggle-ativo">Desativar</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="admin-notice" id="perm-admin-notice" style="display:none;">
+          Administrador possui todas as permissões do sistema automaticamente.
+        </div>
+
+        <form method="post" id="perm-form">
+          <input type="hidden" name="usuario_alvo" id="usuario_alvo_input">
+          <input type="hidden" name="cargo" id="cargo_input">
+          <div id="perm-groups" style="display:flex; flex-direction:column; gap:10px;"></div>
+          <div class="perm-save-bar" style="margin-top:12px;">
+            <span class="perm-save-info">As alterações são aplicadas imediatamente após salvar.</span>
+            <button type="submit" class="btn" id="perm-btn-save">Salvar Alterações</button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
   </div>
 </div>
 
-<div class="container">
-  <h2>GERENCIAR PERMISSÕES</h2>
-
-  <div class="card">
+<!-- MODAL: NOVO USUÁRIO -->
+<div class="pm-overlay g-hidden" id="pm-novo-usuario">
+  <div class="pm-box">
+    <div class="pm-title">Novo usuário</div>
+    <div class="pm-msg">O login não pode ser alterado depois. O PIN é definido separadamente.</div>
     <form method="post">
-      <p style="font-weight:bold; margin:0 0 8px;">Selecione o funcionário</p>
-
-      <select id="usuario_alvo" name="usuario_alvo" required>
-        {% for nome, info in usuarios.items() %}
-          {% if info.tipo != 'admin' %}
-            <option value="{{ nome }}">{{ nome }} ({{ info.tipo }})</option>
-          {% endif %}
-        {% endfor %}
-      </select>
-
-      <div style="margin-top:15px;">
-        <p style="font-weight:bold; margin:0 0 8px;">Permissões</p>
-
-        {% for p in permissoes_disponiveis %}
-          <label>
-            <input class="permcheck" type="checkbox" name="permissoes" value="{{ p }}">
-            <span>{{ p|capitalize }}</span>
-          </label>
-        {% endfor %}
+      <input type="hidden" name="acao" value="criar_usuario">
+      <div class="pm-field"><label>Nome</label><input type="text" name="novo_nome" placeholder="Nome completo"></div>
+      <div class="pm-field"><label>Login</label><input type="text" name="novo_login" required placeholder="login de acesso"></div>
+      <div class="pm-field"><label>Senha</label><input type="password" name="nova_senha" required placeholder="senha inicial"></div>
+      <div class="pm-field">
+        <label>Cargo</label>
+        <select name="novo_cargo">
+          {% for c in cargos if c != 'admin' %}
+          <option value="{{ c }}">{{ c|title }}</option>
+          {% endfor %}
+        </select>
       </div>
-
-      <button class="btn" type="submit" style="margin-top:15px;">Salvar</button>
+      <div class="pm-btns">
+        <button type="button" class="pm-btn-cancel" onclick="document.getElementById('pm-novo-usuario').classList.add('g-hidden')">Cancelar</button>
+        <button type="submit" class="pm-btn-ok">Criar</button>
+      </div>
     </form>
   </div>
+</div>
 
-  <div style="margin-top:25px;">
-    <h2 style="font-size:1.3em;">Status Atual</h2>
-    <div class="grid">
-      {% for nome, info in usuarios.items() %}
-        <div class="userbox">
-          <div style="font-weight:bold;">{{ nome }}</div>
-          <div class="small">Tipo: {{ info.tipo }}</div>
-          <div class="small">
-            <strong>Permissões:</strong>
-            {% if info.tipo == 'admin' %}
-              todas
-            {% else %}
-              {{ info.permissoes|join(", ") if info.permissoes else "nenhuma" }}
-            {% endif %}
-          </div>
-        </div>
+<!-- MODAL: TROCAR SENHA -->
+<div class="pm-overlay g-hidden" id="pm-trocar-senha">
+  <div class="pm-box">
+    <div class="pm-title">Trocar senha</div>
+    <div class="pm-msg">A senha atual não é exibida — defina uma nova para <b id="pm-senha-nome">—</b>.</div>
+    <form method="post">
+      <input type="hidden" name="acao" value="trocar_senha">
+      <input type="hidden" name="usuario_alvo" id="pm-senha-alvo">
+      <div class="pm-field"><label>Nova senha</label><input type="password" name="nova_senha" required placeholder="nova senha"></div>
+      <div class="pm-btns">
+        <button type="button" class="pm-btn-cancel" onclick="document.getElementById('pm-trocar-senha').classList.add('g-hidden')">Cancelar</button>
+        <button type="submit" class="pm-btn-ok">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: TROCAR PIN -->
+<div class="pm-overlay g-hidden" id="pm-trocar-pin">
+  <div class="pm-box">
+    <div class="pm-title">Trocar PIN</div>
+    <div class="pm-msg">O PIN nunca é exibido depois de definido — 4 ou 6 dígitos, para <b id="pm-pin-nome">—</b>.</div>
+    <form method="post">
+      <input type="hidden" name="acao" value="trocar_pin">
+      <input type="hidden" name="usuario_alvo" id="pm-pin-alvo">
+      <div class="pm-field"><label>Novo PIN</label><input type="password" name="novo_pin" inputmode="numeric" maxlength="6" required placeholder="4 ou 6 dígitos"></div>
+      <div class="pm-btns">
+        <button type="button" class="pm-btn-cancel" onclick="document.getElementById('pm-trocar-pin').classList.add('g-hidden')">Cancelar</button>
+        <button type="submit" class="pm-btn-ok">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: ARQUIVADOS -->
+<div class="pm-overlay g-hidden" id="pm-arquivados">
+  <div class="pm-box" style="max-width:420px;">
+    <div class="pm-title">Usuários arquivados</div>
+    <div class="pm-msg">Arquivar remove o usuário da lista principal sem apagar o cadastro.</div>
+    <div style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
+      {% for nome, info in usuarios.items() if info.arquivado %}
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:8px;">
+        <span style="font-size:13px;">{{ nome }}</span>
+        <form method="post">
+          <input type="hidden" name="acao" value="arquivar_usuario">
+          <input type="hidden" name="usuario_alvo" value="{{ nome }}">
+          <button type="submit" class="btn-mini">Desarquivar</button>
+        </form>
+      </div>
+      {% else %}
+      <span style="font-size:12px; color:var(--text-muted);">Nenhum usuário arquivado.</span>
       {% endfor %}
+    </div>
+    <div class="pm-btns">
+      <button type="button" class="pm-btn-cancel" onclick="document.getElementById('pm-arquivados').classList.add('g-hidden')">Fechar</button>
     </div>
   </div>
 </div>
 
-</body>
-</html>
+<script>
+const USUARIOS = {{ usuarios | tojson }};
+const SESSOES_ATIVAS = {{ sessoes_ativas | list | tojson }};
+const CARGO_PADRAO = {{ cargo_permissoes_padrao | tojson }};
+
+function abrirNovoUsuario() { document.getElementById('pm-novo-usuario').classList.remove('g-hidden'); }
+function abrirTrocarSenha() {
+  const nome = document.getElementById('usuario_alvo_input').value;
+  if (!nome) return;
+  document.getElementById('pm-senha-nome').textContent = nome;
+  document.getElementById('pm-senha-alvo').value = nome;
+  document.getElementById('pm-trocar-senha').classList.remove('g-hidden');
+}
+function abrirTrocarPin() {
+  const nome = document.getElementById('usuario_alvo_input').value;
+  if (!nome) return;
+  document.getElementById('pm-pin-nome').textContent = nome;
+  document.getElementById('pm-pin-alvo').value = nome;
+  document.getElementById('pm-trocar-pin').classList.remove('g-hidden');
+}
+function aplicarModeloCargo() {
+  const cargoSel = document.getElementById('cargo-select');
+  const modelo = CARGO_PADRAO[cargoSel.value] || [];
+  document.querySelectorAll('.perm-toggle').forEach(t => { t.checked = modelo.includes(t.value); });
+  updateCounts();
+}
+document.querySelectorAll('.pm-overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.add('g-hidden'); });
+});
+
+function togglePt(e) {
+  e.stopPropagation();
+  document.getElementById('pt-dropdown').classList.toggle('aberto');
+}
+document.addEventListener('click', function() {
+  document.getElementById('pt-dropdown').classList.remove('aberto');
+});
+
+const CATEGORIAS = [
+  {
+    id: "operacional", icon: "🛒", titulo: "Operacional", critical: false,
+    perms: [
+      { v: "ver_vendas",         l: "Acessar tela de vendas" },
+      { v: "visualizar_venda",   l: "Visualizar detalhe da venda" },
+      { v: "criar_vendas",       l: "Criar vendas" },
+      { v: "editar_vendas",      l: "Editar vendas" },
+      { v: "cancelar_vendas",    l: "Cancelar vendas" },
+      { v: "aplicar_desconto",   l: "Aplicar desconto" },
+      { v: "editar_desconto",    l: "Editar desconto" },
+      { v: "ver_valor_comandas", l: "Ver valores monetários em comandas (R$ nos cards e tabela)" },
+    ]
+  },
+  {
+    id: "indicadores", icon: "📊", titulo: "Indicadores e Métricas", critical: false,
+    perms: [
+      { v: "ver_margem_lucro",     l: "Ver margem de lucro" },
+      { v: "ver_lucro_venda",      l: "Ver lucro da venda" },
+      { v: "ver_faturamento_diario", l: "Ver faturamento diário" },
+      { v: "ver_qtd_vendas",       l: "Ver quantidade de vendas" },
+      { v: "ver_ticket_medio",     l: "Ver ticket médio" },
+      { v: "ver_lucro_periodo",    l: "Ver lucro do período" },
+    ]
+  },
+  {
+    id: "estoque", icon: "📦", titulo: "Estoque", critical: false,
+    perms: [
+      { v: "ver_estoque",         l: "Acessar estoque" },
+      { v: "visualizar_produto",  l: "Visualizar detalhe do produto" },
+      { v: "editar_estoque",      l: "Editar estoque (lotes)" },
+      { v: "cadastrar_produto", l: "Cadastrar produto" },
+      { v: "editar_produto",    l: "Editar produto" },
+      { v: "excluir_produto",   l: "Excluir produto" },
+    ]
+  },
+  {
+    id: "dados_estoque", icon: "🔒", titulo: "Dados Sensíveis do Estoque", critical: false,
+    perms: [
+      { v: "ver_valor_estoque",     l: "Ver valor total do estoque" },
+      { v: "ver_margem_estoque",    l: "Ver margem do estoque" },
+      { v: "ver_custo_produtos",    l: "Ver custo dos produtos" },
+      { v: "ver_qtd_estoque",       l: "Ver quantidade total de produtos" },
+      { v: "ver_produtos_sem_lucro",l: "Ver produtos sem lucro" },
+    ]
+  },
+  {
+    id: "financeiro", icon: "💰", titulo: "Financeiro", critical: false,
+    perms: [
+      { v: "ver_financeiro",       l: "Acessar financeiro" },
+      { v: "abrir_fechar_caixa",   l: "Abrir / Fechar caixa" },
+      { v: "lancar_entrada_saida", l: "Lançar entrada / saída" },
+      { v: "editar_lancamentos",   l: "Editar lançamentos" },
+    ]
+  },
+  {
+    id: "info_financeiro", icon: "📈", titulo: "Informações Financeiras", critical: false,
+    perms: [
+      { v: "ver_historico_caixa", l: "Ver histórico de caixas (exibe botão Caixa no menu)" },
+      { v: "ver_caixa",           l: "Ver caixa" },
+      { v: "ver_lucro_liquido",   l: "Ver lucro líquido" },
+      { v: "ver_despesas",        l: "Ver despesas" },
+      { v: "ver_metas",           l: "Ver metas" },
+      { v: "exportar_financeiro", l: "Exportar dados financeiros" },
+    ]
+  },
+  {
+    id: "criticas", icon: "⚠", titulo: "Permissões Críticas", critical: true,
+    perms: [
+      { v: "excluir_vendas",           l: "Excluir vendas definitivamente" },
+      { v: "ver_vendas_canceladas",    l: "Ver vendas canceladas" },
+      { v: "alterar_preco_venda",      l: "Alterar preço de venda" },
+      { v: "alterar_custo_produto",    l: "Alterar custo do produto" },
+      { v: "cancelar_sem_permissao",   l: "Cancelar vendas sem permissão" },
+      { v: "gerenciar_usuarios",       l: "Gerenciar usuários" },
+      { v: "alterar_permissoes",       l: "Alterar permissões" },
+    ]
+  }
+];
+
+function buildGroups() {
+  const container = document.getElementById('perm-groups');
+  container.innerHTML = '';
+  CATEGORIAS.forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'perm-category' + (cat.critical ? ' critical' : '');
+    div.innerHTML = `
+      <div class="perm-cat-header" onclick="toggleCat(this)">
+        <span class="perm-cat-icon">${cat.icon}</span>
+        <span class="perm-cat-title">${cat.titulo}</span>
+        <span class="perm-cat-count" id="count-${cat.id}">${cat.perms.length} permissões</span>
+        <span class="perm-cat-arrow">▾</span>
+      </div>
+      <div class="perm-cat-body" id="body-${cat.id}">
+        <div class="perm-rows">
+          ${cat.perms.map(p => `
+          <div class="perm-row">
+            <div class="perm-row-info"><div class="perm-row-label">${p.l}</div></div>
+            <label class="toggle-wrap">
+              <input type="checkbox" name="permissoes" value="${p.v}" class="perm-toggle" id="tog-${p.v}">
+              <span class="toggle"></span>
+            </label>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+function toggleCat(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function selectUser(nome) {
+  const info = USUARIOS[nome];
+  document.querySelectorAll('.perm-user-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.perm-user-card[data-username="${nome}"]`)?.classList.add('selected');
+
+  document.getElementById('perm-hdr-avatar').textContent = nome[0].toUpperCase();
+  document.getElementById('perm-hdr-name').textContent = nome;
+  document.getElementById('perm-hdr-type').textContent = info.tipo === 'admin' ? 'Administrador' : 'Funcionário';
+  document.getElementById('usuario_alvo_input').value = nome;
+
+  // set cargo
+  const cargoSel = document.getElementById('cargo-select');
+  const cargoInput = document.getElementById('cargo_input');
+  cargoSel.value = info.cargo || info.tipo || 'funcionario';
+  cargoInput.value = cargoSel.value;
+  cargoSel.onchange = () => { cargoInput.value = cargoSel.value; };
+
+  const isAdmin = info.tipo === 'admin';
+  document.getElementById('perm-admin-notice').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('cargo-select-wrap').style.display = isAdmin ? 'none' : 'flex';
+  document.getElementById('perm-btn-save').disabled = isAdmin;
+
+  const isAtivo = info.ativo !== false;
+  const btnToggle = document.getElementById('btn-toggle-ativo');
+  document.getElementById('toggle-ativo-alvo').value = nome;
+  btnToggle.textContent = isAtivo ? 'Desativar' : 'Ativar';
+  btnToggle.style.color = isAtivo ? '#f87171' : '#4ade80';
+  btnToggle.style.borderColor = isAtivo ? '#f87171' : '#4ade80';
+  btnToggle.disabled = isAdmin;
+
+  document.getElementById('arquivar-alvo').value = nome;
+  document.getElementById('encerrar-sessoes-alvo').value = nome;
+  document.getElementById('btn-arquivar').disabled = isAdmin;
+
+  const online = SESSOES_ATIVAS.includes(nome);
+  document.getElementById('perm-hdr-online').textContent = online ? '🟢 Online agora' : '🔴 Offline';
+  document.getElementById('perm-hdr-ultimo-login').textContent = 'Último login: ' + (info.ultimo_login || '—');
+
+  document.querySelectorAll('.perm-toggle').forEach(t => {
+    t.checked = isAdmin || (info.permissoes || []).includes(t.value);
+    t.disabled = isAdmin;
+  });
+
+  // update active counts
+  updateCounts();
+
+  document.getElementById('perm-empty').style.display = 'none';
+  const content = document.getElementById('perm-content');
+  content.style.display = 'flex';
+}
+
+function updateCounts() {
+  CATEGORIAS.forEach(cat => {
+    const checked = cat.perms.filter(p => {
+      const el = document.getElementById('tog-' + p.v);
+      return el && el.checked;
+    }).length;
+    const el = document.getElementById('count-' + cat.id);
+    if (el) el.textContent = checked + '/' + cat.perms.length + ' ativas';
+  });
+}
+
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('perm-toggle')) updateCounts();
+});
+
+document.getElementById('perm-search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.perm-user-card').forEach(card => {
+    card.style.display = card.dataset.username.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+buildGroups();
+
+window.addEventListener('DOMContentLoaded', () => {
+  const cards = document.querySelectorAll('.perm-user-card');
+  const first = Array.from(cards).find(c => c.dataset.tipo !== 'admin') || cards[0];
+  if (first) selectUser(first.dataset.username);
+  // open first 2 categories by default
+  document.querySelectorAll('.perm-cat-header').forEach((h, i) => {
+    if (i < 2) { h.classList.add('open'); h.nextElementSibling.classList.add('open'); }
+  });
+});
+</script>
+{% endblock %}

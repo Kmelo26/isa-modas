@@ -3,7 +3,7 @@
 
 <style>
 /* ── Wrapper ── */
-.cmd-wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
+.cmd-wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 60px; }
 
 /* ── Top bar ── */
 .cmd-topbar {
@@ -22,37 +22,40 @@
 
 /* ── Stats ── */
 .cmd-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
   margin-bottom: 20px;
 }
 .cmd-stat {
   background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 18px;
-  display: flex; align-items: center; gap: 14px;
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
 }
 .cmd-stat-icon {
-  width: 42px; height: 42px; border-radius: 10px;
+  width: 38px; height: 38px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; flex-shrink: 0;
+  font-size: 18px; flex-shrink: 0;
 }
-.cmd-stat-icon.abertas   { background: rgba(74,222,128,.15); }
-.cmd-stat-icon.em-pag    { background: rgba(251,191,36,.15); }
-.cmd-stat-icon.fechadas  { background: rgba(74,222,128,.12); }
-.cmd-stat-icon.fat       { background: rgba(139,92,246,.15); }
-.cmd-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
-.cmd-stat-count { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1; }
-.cmd-stat-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.cmd-stat-icon.st-aberta        { background: rgba(74,222,128,.15); }
+.cmd-stat-icon.st-aguardando    { background: rgba(251,191,36,.15); }
+.cmd-stat-icon.st-parcial       { background: rgba(251,146,60,.15); }
+.cmd-stat-icon.st-agendado      { background: rgba(96,165,250,.15); }
+.cmd-stat-icon.st-quitada       { background: rgba(74,222,128,.12); }
+.cmd-stat-icon.st-fat           { background: rgba(139,92,246,.15); }
+.cmd-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
+.cmd-stat-count { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1; }
+.cmd-stat-sub   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 /* ── Main layout ── */
-.cmd-main { display: flex; gap: 16px; align-items: flex-start; }
+.cmd-main { display: flex; gap: 14px; align-items: flex-start; }
 .cmd-left { flex: 1; min-width: 0; }
 .cmd-right {
-  width: 370px; flex-shrink: 0;
+  width: 390px; flex-shrink: 0;
   background: var(--card-bg); border: 1px solid var(--border);
   border-radius: 14px; overflow: hidden;
-  display: none;
+  display: none; flex-direction: column;
+  max-height: calc(100vh - 200px); overflow-y: auto;
 }
-.cmd-right.open { display: flex; flex-direction: column; }
+.cmd-right.open { display: flex; }
 
 /* ── Toolbar ── */
 .cmd-toolbar {
@@ -89,41 +92,49 @@
 .cmd-table th {
   font-size: 11px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .6px;
-  padding: 10px 14px; text-align: left;
+  padding: 10px 12px; text-align: left;
   border-bottom: 1px solid var(--border);
   background: var(--card-bg);
 }
-.cmd-table td { padding: 11px 14px; vertical-align: middle; }
+.cmd-table td { padding: 10px 12px; vertical-align: middle; }
 .cmd-table tr + tr td { border-top: 1px solid var(--border); }
 .cmd-table tbody tr:hover { background: var(--accent-dim); cursor: pointer; }
 .cmd-table tbody tr.selected { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
-.cmd-nome { font-size: 14px; font-weight: 600; color: var(--text); }
+.cmd-nome { font-size: 13px; font-weight: 600; color: var(--text); }
 .cmd-sub  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.cmd-mesa-tag { font-size: 10px; color: var(--accent); font-weight: 600; }
 
 /* Status badges */
 .badge {
   display: inline-block; border-radius: 20px;
-  padding: 3px 10px; font-size: 11px; font-weight: 700;
+  padding: 3px 9px; font-size: 10px; font-weight: 700; white-space: nowrap;
 }
-.badge-aberta      { background: #0d2e1a; color: #4ade80; border: 1px solid #1a5c30; }
-.badge-em_pagamento{ background: #2d1f00; color: #fbbf24; border: 1px solid #78490a; }
-.badge-fechada     { background: #1e1e1e; color: #9ca3af; border: 1px solid #333; }
-.badge-cancelada   { background: #2a0f0f; color: #f87171; border: 1px solid #5c1a1a; }
+.badge-aberta              { background:#0d2e1a; color:#4ade80; border:1px solid #1a5c30; }
+.badge-aguardando_pagamento{ background:#2d1f00; color:#fbbf24; border:1px solid #78490a; }
+.badge-em_pagamento        { background:#2d1f00; color:#fbbf24; border:1px solid #78490a; }
+.badge-pagamento_parcial   { background:#2d1500; color:#fb923c; border:1px solid #7c3108; }
+.badge-agendado            { background:#0c1d3b; color:#60a5fa; border:1px solid #1e3a6e; }
+.badge-quitada             { background:#0d2e1a; color:#86efac; border:1px solid #166534; }
+.badge-atrasada            { background:#2a0f0f; color:#f87171; border:1px solid #5c1a1a; }
 
-.cmd-total-cell { font-size: 14px; font-weight: 600; color: var(--text); }
+.cmd-total-cell  { font-size: 13px; font-weight: 600; color: var(--text); }
+.cmd-saldo-cell  { font-size: 13px; font-weight: 700; }
+.saldo-ok    { color: var(--text-muted); }
+.saldo-warn  { color: #fb923c; }
+.saldo-venc  { color: #f87171; }
 
-/* Action buttons in table */
-.cmd-actions-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+/* Action buttons */
+.cmd-actions-cell { display: flex; align-items: center; gap: 5px; justify-content: flex-end; }
 .cmd-act-btn {
-  width: 32px; height: 32px; border-radius: 7px; border: none;
+  width: 30px; height: 30px; border-radius: 7px; border: none;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 14px; transition: opacity .15s;
+  cursor: pointer; font-size: 13px; transition: opacity .15s;
 }
 .cmd-act-btn:hover { opacity: .8; }
 .cmd-act-eye  { background: rgba(255,255,255,.08); color: var(--text-muted); }
-.cmd-act-add  { background: rgba(74,222,128,.15); color: #4ade80; font-size: 18px; font-weight: 300; }
-.cmd-act-pay  { background: rgba(251,191,36,.15); color: #fbbf24; font-size: 15px; font-weight: 700; }
+.cmd-act-add  { background: rgba(74,222,128,.15); color: #4ade80; font-size: 17px; font-weight: 300; }
+.cmd-act-pay  { background: rgba(251,191,36,.15); color: #fbbf24; font-size: 13px; font-weight: 700; }
 
 /* Empty row */
 .cmd-empty-row td {
@@ -150,48 +161,136 @@
 
 /* ── Right panel ── */
 .cmd-panel-header {
-  padding: 16px 18px; border-bottom: 1px solid var(--border);
+  padding: 16px 16px 12px; border-bottom: 1px solid var(--border);
   display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  flex-shrink: 0;
 }
-.cmd-panel-title { font-size: 18px; font-weight: 800; color: var(--text); }
+.cmd-panel-title { font-size: 17px; font-weight: 800; color: var(--text); }
+.cmd-panel-subtitle { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 1px; }
 .cmd-panel-close {
   background: none; border: none; color: var(--text-muted);
   font-size: 18px; cursor: pointer; line-height: 1; padding: 2px;
   flex-shrink: 0;
 }
 .cmd-panel-close:hover { color: var(--text); }
-.cmd-panel-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-.cmd-panel-total-row {
-  display: flex; align-items: baseline; gap: 8px;
-  margin-top: 6px;
+.cmd-panel-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+/* Financial summary row */
+.cmd-fin-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
-.cmd-panel-total { font-size: 22px; font-weight: 800; color: var(--text); }
-.cmd-panel-itens-count { font-size: 13px; color: var(--text-muted); }
+.cmd-fin-card { background: var(--input-bg); border-radius: 8px; padding: 10px 12px; }
+.cmd-fin-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.cmd-fin-val { font-size: 14px; font-weight: 800; color: var(--text); }
+.cmd-fin-val.pago    { color: #4ade80; }
+.cmd-fin-val.restante{ color: #fb923c; }
+.cmd-fin-val.zerado  { color: var(--text-muted); }
 
-.cmd-panel-body { flex: 1; overflow-y: auto; }
+/* Progress bar */
+.prog-wrap { padding: 0 16px 12px; flex-shrink: 0; }
+.prog-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+.prog-bar { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.prog-fill.pct-low  { background: #4ade80; }
+.prog-fill.pct-mid  { background: #fbbf24; }
+.prog-fill.pct-high { background: #fb923c; }
+.prog-fill.pct-full { background: #86efac; }
 
-.cmd-panel-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+/* Limit bar */
+.limit-wrap { padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.limit-header { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.limit-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+.limit-warn { color: #fbbf24; font-weight: 700; }
+.limit-danger { color: #f87171; font-weight: 700; }
+
+/* Panel tabs */
+.cmd-panel-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cmd-panel-tab {
+  flex: 1; padding: 10px 8px; text-align: center;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  cursor: pointer; border: none; background: none;
+  text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color .15s;
+}
+.cmd-panel-tab.ativo { color: var(--accent); border-bottom-color: var(--accent); }
+.cmd-panel-tab:hover:not(.ativo) { color: var(--text); }
+
+.cmd-tab-content { display: none; }
+.cmd-tab-content.ativo { display: block; }
+
+/* Items tab */
+.cmd-panel-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .cmd-panel-table th {
   font-size: 10px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .5px;
   padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border);
 }
-.cmd-panel-table td { padding: 9px 14px; vertical-align: middle; color: var(--text); }
+.cmd-panel-table td { padding: 8px 14px; vertical-align: middle; color: var(--text); }
 .cmd-panel-table tr + tr td { border-top: 1px solid var(--border); }
 .cmd-panel-table .td-right { text-align: right; font-weight: 600; }
 .cmd-panel-empty { text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; }
 
-.cmd-panel-total-bar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 14px; border-top: 1px solid var(--border);
-  font-size: 14px; font-weight: 700; color: var(--text);
+/* Payments tab */
+.pag-form { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.pag-form-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.pag-field { margin-bottom: 10px; }
+.pag-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px; }
+.pag-input {
+  width: 100%; padding: 9px 11px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text); font-size: 13px; outline: none; box-sizing: border-box;
 }
-.cmd-panel-total-bar .total-val { color: #4ade80; font-size: 16px; }
+.pag-input:focus { border-color: var(--accent); }
+.pag-btn-submit {
+  width: 100%; padding: 10px; background: var(--accent); color: #000;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+  margin-top: 4px;
+}
+.pag-btn-submit:hover { opacity: .9; }
+.pag-actions { padding: 10px 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+.pag-action-btn {
+  flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--input-bg); color: var(--text); font-size: 12px; font-weight: 600;
+  cursor: pointer; text-align: center; white-space: nowrap;
+}
+.pag-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.pag-action-btn.danger { color: #f87171; border-color: rgba(248,113,113,.3); }
+.pag-action-btn.danger:hover { border-color: #f87171; }
+
+/* History tab */
+.hist-list { padding: 12px 16px; }
+.hist-item {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px;
+}
+.hist-item:last-child { border-bottom: none; }
+.hist-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.hist-body { flex: 1; min-width: 0; }
+.hist-valor { font-size: 14px; font-weight: 800; color: var(--text); }
+.hist-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.hist-obs { font-size: 11px; color: var(--accent); margin-top: 2px; font-style: italic; }
+.hist-empty { text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; }
+
+/* Vencimento/agendado info */
+.venc-box {
+  margin: 10px 16px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid; font-size: 12px;
+}
+.venc-box.ok     { background: rgba(96,165,250,.08); border-color: #1e3a6e; color: #60a5fa; }
+.venc-box.warn   { background: rgba(251,191,36,.08); border-color: #78490a; color: #fbbf24; }
+.venc-box.danger { background: rgba(248,113,113,.08); border-color: #5c1a1a; color: #f87171; }
+.venc-label { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
 
 /* Panel action buttons */
-.cmd-panel-btns { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.cmd-panel-btns { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
 .cmd-panel-btn {
-  width: 100%; padding: 11px; border-radius: 9px; border: none;
+  width: 100%; padding: 10px; border-radius: 9px; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 7px;
   text-decoration: none;
@@ -199,16 +298,11 @@
 .cmd-panel-btn:hover { opacity: .88; }
 .cmd-panel-btn-add    { background: #4ade80; color: #000; }
 .cmd-panel-btn-edit   { background: var(--input-bg); color: var(--text); border: 1px solid var(--border); }
-.cmd-panel-btn-close  { background: #3b82f6; color: #fff; }
+.cmd-panel-btn-pay    { background: #3b82f6; color: #fff; }
 .cmd-panel-btn-cancel { background: rgba(248,113,113,.12); color: #f87171; border: 1px solid rgba(248,113,113,.3); }
+.cmd-panel-btn-done   { background: rgba(74,222,128,.12); color: #4ade80; border: 1px solid rgba(74,222,128,.3); cursor: default; }
 
-.cmd-panel-footer {
-  padding: 12px 14px; border-top: 1px solid var(--border);
-  display: flex; gap: 20px; font-size: 12px; color: var(--text-muted);
-}
-.cmd-panel-footer span strong { color: var(--text); }
-
-/* ── Modal nova comanda ── */
+/* ── Modals ── */
 .cmd-modal-bg {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
@@ -217,23 +311,24 @@
 .cmd-modal-bg.open { display: flex; }
 .cmd-modal-box {
   background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: 16px; padding: 28px;
-  width: 100%; max-width: 420px;
+  border-radius: 16px; padding: 26px;
+  width: 100%; max-width: 440px;
   box-shadow: 0 24px 64px rgba(0,0,0,.6);
   animation: modal-in .2s cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes modal-in { from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none} }
-.cmd-modal-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.cmd-modal-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
-.cmd-modal-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; display: block; }
+.cmd-modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.cmd-modal-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+.cmd-modal-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 5px; display: block; }
 .cmd-modal-input {
   width: 100%; padding: 10px 13px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--input-bg);
   color: var(--text); font-size: 14px; outline: none; box-sizing: border-box;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .cmd-modal-input:focus { border-color: var(--accent); }
 .cmd-modal-row { display: flex; gap: 10px; }
+.cmd-modal-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cmd-modal-btn-submit {
   flex: 1; padding: 11px; background: var(--accent); color: #000;
   border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
@@ -245,40 +340,38 @@
 }
 .cmd-modal-btn-cancel:hover { color: var(--text); }
 
-/* ── Modal fechar comanda ── */
-.pay-opts { display: flex; gap: 8px; margin-bottom: 16px; }
+/* pay opts in modal fechar */
+.pay-opts { display: flex; gap: 8px; margin-bottom: 14px; }
 .pay-opt {
-  flex: 1; padding: 12px 8px; border-radius: 10px;
+  flex: 1; padding: 11px 8px; border-radius: 10px;
   border: 2px solid var(--border); background: var(--input-bg);
-  color: var(--text); font-size: 13px; font-weight: 600;
-  cursor: pointer; text-align: center; transition: border-color .15s, background .15s;
+  color: var(--text); font-size: 12px; font-weight: 600;
+  cursor: pointer; text-align: center; transition: border-color .15s;
 }
 .pay-opt:hover { border-color: var(--accent); }
 .pay-opt.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
-.pay-opt-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+.pay-opt-icon { font-size: 18px; display: block; margin-bottom: 3px; }
 
-@media (max-width: 900px) {
-  .cmd-stats { grid-template-columns: repeat(2, 1fr); }
-  .cmd-main  { flex-direction: column; }
-  .cmd-right { width: 100%; }
+/* ── Filtros ── */
+.cmd-status-btns { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+.csb {
+  background:var(--card-bg); border:1px solid var(--border); border-radius:20px;
+  padding:5px 12px; font-size:11px; font-weight:bold; color:var(--text-muted); cursor:pointer;
+  transition:.15s; display:inline-flex; align-items:center; gap:5px;
 }
-@media (max-width: 560px) {
-  .cmd-stats { grid-template-columns: 1fr 1fr; }
-}
-
-/* ── Filtro de status ── */
-.cmd-status-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-.csb { background:var(--card-bg); border:1px solid var(--border); border-radius:20px;
-  padding:5px 14px; font-size:12px; font-weight:bold; color:var(--text-muted); cursor:pointer;
-  transition:.15s; }
 .csb.ativo { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
+.csb-count {
+  background: rgba(255,255,255,.1); border-radius: 10px;
+  padding: 1px 6px; font-size: 10px; font-weight: 800;
+}
+.csb.ativo .csb-count { background: rgba(0,0,0,.2); }
 
-/* ── Olhinho faturamento ── */
+/* ── Olhinho ── */
 .fat-oculto { filter:blur(8px); user-select:none; transition:filter .2s; }
 .cmd-eye-btn { background:none; border:none; cursor:pointer; font-size:16px;
   padding:0 4px; vertical-align:middle; line-height:1; }
 
-/* ── Autocomplete busca ── */
+/* ── Autocomplete ── */
 .cmd-sugestoes { display:none; position:absolute; top:100%; left:0; right:0; z-index:999;
   margin:2px 0 0; padding:0; list-style:none;
   background:var(--card-bg); border:1px solid var(--accent); border-radius:8px;
@@ -287,51 +380,262 @@
   border-bottom:1px solid var(--border); font-size:13px; }
 .cmd-sugestoes li:last-child { border-bottom:none; }
 .cmd-sugestoes li:hover { background:var(--accent-dim); color:var(--accent); }
+
+@media (max-width: 1100px) {
+  .cmd-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  .cmd-stats { grid-template-columns: repeat(2, 1fr); }
+  .cmd-main  { flex-direction: column; }
+  .cmd-right { width: 100%; max-height: none; }
+}
 </style>
 
 <!-- Modal: nova comanda -->
 <div class="cmd-modal-bg" id="modal-nova">
-  <div class="cmd-modal-box">
+  <div class="cmd-modal-box" style="max-width:480px;">
     <div class="cmd-modal-title">Nova Comanda</div>
-    <div class="cmd-modal-sub">Informe o nome da mesa ou cliente para abrir a comanda.</div>
-    <form method="post" action="/comandas/nova">
-      <label class="cmd-modal-label">Nome da mesa / cliente <span style="color:#f87171">*</span></label>
+
+    <!-- Tipo de Atendimento -->
+    <div style="display:flex;gap:12px;margin-bottom:18px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;
+        padding:10px 14px;border-radius:8px;border:1px solid var(--border);
+        background:var(--card-bg);font-size:13px;color:var(--text);"
+        id="lbl-avulso">
+        <input type="radio" name="_tipo_ui" value="avulso" checked
+          onchange="novaTipo('avulso')" style="accent-color:var(--accent);">
+        Cliente Avulso
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;
+        padding:10px 14px;border-radius:8px;border:1px solid var(--border);
+        background:var(--card-bg);font-size:13px;color:var(--text);"
+        id="lbl-fiado">
+        <input type="radio" name="_tipo_ui" value="fiado"
+          onchange="novaTipo('fiado')" style="accent-color:var(--accent);">
+        Cliente Conta Fiado
+      </label>
+    </div>
+
+    <!-- FORM: Avulso -->
+    <form method="post" action="/comandas/nova" id="form-nova-avulso">
+      <input type="hidden" name="tipo_atendimento" value="avulso">
+      <label class="cmd-modal-label">Nome do cliente <span style="color:#f87171">*</span></label>
       <input type="text" name="nome" class="cmd-modal-input"
-        placeholder="Ex: Mesa 3, João, Balcão 01" required autocomplete="off">
-      <div class="cmd-modal-row">
+        placeholder="Ex: João, Ana, Balcão" required autocomplete="off">
+      <label class="cmd-modal-label">Mesa / Local</label>
+      <input type="text" name="mesa" class="cmd-modal-input"
+        placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
+      <div class="cmd-modal-row" style="margin-top:6px;">
         <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
         <button type="submit" class="cmd-modal-btn-submit">Abrir Comanda</button>
+      </div>
+    </form>
+
+    <!-- FORM: Fiado -->
+    <form method="post" action="/comandas/nova" id="form-nova-fiado" style="display:none;">
+      <input type="hidden" name="tipo_atendimento" value="fiado">
+      <input type="hidden" name="cliente_id" id="fiado-cliente-id">
+
+      <label class="cmd-modal-label">Pesquisar Cliente</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px;position:relative;">
+        <input type="text" id="fiado-busca" class="cmd-modal-input" style="margin-bottom:0;flex:1;"
+          placeholder="Nome, telefone ou CPF..." autocomplete="off">
+        <button type="button"
+          style="padding:8px 12px;border-radius:8px;border:1px solid var(--accent);
+                 background:var(--accent-dim);color:var(--accent);font-size:12px;
+                 font-weight:bold;cursor:pointer;white-space:nowrap;"
+          onclick="abrirModalCliente()">+ Cadastrar</button>
+        <ul id="fiado-sugestoes" style="display:none;position:absolute;top:100%;left:0;
+          right:60px;z-index:9999;margin:2px 0 0;padding:0;list-style:none;
+          background:var(--card-bg);border:1px solid var(--accent);border-radius:8px;
+          box-shadow:0 4px 16px rgba(0,0,0,0.5);max-height:200px;overflow-y:auto;"></ul>
+      </div>
+
+      <!-- Painel do cliente selecionado -->
+      <div id="fiado-painel" style="display:none;background:var(--table-even);
+        border:1px solid var(--border);border-radius:10px;padding:12px;margin:12px 0 10px;">
+        <div style="font-size:13px;font-weight:bold;color:var(--accent);margin-bottom:8px;"
+          id="fiado-painel-nome">—</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
+          <div><span style="color:var(--text-muted);">Telefone:</span>
+            <span id="fiado-p-tel" style="color:var(--text);margin-left:4px;">—</span></div>
+          <div><span style="color:var(--text-muted);">Limite:</span>
+            <span id="fiado-p-limite" style="color:var(--text);margin-left:4px;">—</span></div>
+          <div><span style="color:var(--text-muted);">Saldo utilizado:</span>
+            <span id="fiado-p-saldo" style="color:#f87171;margin-left:4px;">—</span></div>
+          <div><span style="color:var(--text-muted);">Disponível:</span>
+            <span id="fiado-p-disp" style="color:#4ade80;margin-left:4px;">—</span></div>
+          <div style="grid-column:1/-1;"><span style="color:var(--text-muted);">Próx. Vencimento:</span>
+            <span id="fiado-p-venc" style="color:var(--text);margin-left:4px;">—</span></div>
+        </div>
+      </div>
+
+      <label class="cmd-modal-label">Mesa / Local</label>
+      <input type="text" name="mesa" class="cmd-modal-input"
+        placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
+      <div class="cmd-modal-row" style="margin-top:6px;">
+        <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
+        <button type="submit" class="cmd-modal-btn-submit" id="fiado-btn-abrir" disabled
+          style="opacity:.45;">Abrir Comanda</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Modal: fechar comanda (pagamento) -->
+<!-- Modal: cadastrar cliente -->
+<div class="cmd-modal-bg" id="modal-cliente" style="z-index:10100;">
+  <div class="cmd-modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="cmd-modal-title">Cadastrar Cliente</div>
+
+    <div style="font-size:11px;font-weight:bold;color:var(--text-muted);
+      letter-spacing:.08em;margin:0 0 10px;text-transform:uppercase;">Dados Pessoais</div>
+    <div class="cmd-modal-row-2" style="margin-bottom:10px;">
+      <div>
+        <label class="cmd-modal-label">Nome Completo <span style="color:#f87171">*</span></label>
+        <input type="text" id="cli-nome" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Nome completo" autocomplete="off">
+      </div>
+      <div>
+        <label class="cmd-modal-label">Apelido</label>
+        <input type="text" id="cli-apelido" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Como é chamado(a)" autocomplete="off">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label class="cmd-modal-label">Telefone <span style="color:#f87171">*</span></label>
+      <input type="text" id="cli-tel" class="cmd-modal-input" style="margin-bottom:0;"
+        placeholder="(00) 00000-0000" autocomplete="off">
+    </div>
+    <div class="cmd-modal-row-2" style="margin-bottom:10px;">
+      <div>
+        <label class="cmd-modal-label">CPF</label>
+        <input type="text" id="cli-cpf" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="000.000.000-00" autocomplete="off">
+      </div>
+      <div>
+        <label class="cmd-modal-label">RG</label>
+        <input type="text" id="cli-rg" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Opcional" autocomplete="off">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label class="cmd-modal-label">Endereço</label>
+      <input type="text" id="cli-end" class="cmd-modal-input" style="margin-bottom:0;"
+        placeholder="Rua, número, bairro..." autocomplete="off">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="cmd-modal-label">Observações</label>
+      <textarea id="cli-obs" class="cmd-modal-input" rows="2" style="margin-bottom:0;resize:vertical;"
+        placeholder="Observações sobre o cliente..."></textarea>
+    </div>
+
+    <div style="font-size:11px;font-weight:bold;color:var(--text-muted);
+      letter-spacing:.08em;margin:0 0 10px;text-transform:uppercase;">Crédito</div>
+    <div class="cmd-modal-row-2" style="margin-bottom:10px;">
+      <div>
+        <label class="cmd-modal-label">Limite de Crédito (R$) <span style="color:#f87171">*</span></label>
+        <input type="number" id="cli-limite" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Ex: 300.00" step="0.01" min="0">
+      </div>
+      <div>
+        <label class="cmd-modal-label">Todo dia (vencimento)</label>
+        <input type="number" id="cli-dia" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Ex: 10" min="1" max="31">
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="cmd-modal-label">Próximo Vencimento</label>
+      <input type="date" id="cli-venc" class="cmd-modal-input" style="margin-bottom:0;">
+    </div>
+
+    <div id="cli-erro" style="display:none;color:#f87171;font-size:13px;margin-bottom:10px;"></div>
+    <div class="cmd-modal-row">
+      <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalCliente()">Cancelar</button>
+      <button type="button" class="cmd-modal-btn-submit" onclick="salvarCliente()" id="cli-btn-salvar">
+        Salvar Cliente
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: fechar comanda direto (quitar de uma vez) -->
 <div class="cmd-modal-bg" id="modal-fechar">
   <div class="cmd-modal-box">
-    <div class="cmd-modal-title">Fechar Comanda</div>
-    <div class="cmd-modal-sub" id="modal-fechar-sub">Selecione a forma de pagamento.</div>
+    <div class="cmd-modal-title">Quitar Comanda</div>
+    <div class="cmd-modal-sub" id="modal-fechar-sub">Selecione a forma de pagamento para quitar a comanda.</div>
     <form method="post" id="form-fechar">
       <div class="pay-opts">
         <label class="pay-opt selected" onclick="selecionarPag(this,'dinheiro')">
-          <span class="pay-opt-icon">💵</span>
-          Dinheiro
+          <span class="pay-opt-icon">💵</span>Dinheiro
           <input type="radio" name="forma_pagamento" value="dinheiro" checked style="display:none">
         </label>
         <label class="pay-opt" onclick="selecionarPag(this,'pix')">
-          <span class="pay-opt-icon">📱</span>
-          Pix
+          <span class="pay-opt-icon">📱</span>Pix
           <input type="radio" name="forma_pagamento" value="pix" style="display:none">
         </label>
         <label class="pay-opt" onclick="selecionarPag(this,'cartao')">
-          <span class="pay-opt-icon">💳</span>
-          Cartão
+          <span class="pay-opt-icon">💳</span>Cartão
           <input type="radio" name="forma_pagamento" value="cartao" style="display:none">
         </label>
       </div>
       <div class="cmd-modal-row">
         <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalFechar()">Cancelar</button>
-        <button type="submit" class="cmd-modal-btn-submit">Confirmar</button>
+        <button type="submit" class="cmd-modal-btn-submit">Quitar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: registrar pagamento parcial -->
+<div class="cmd-modal-bg" id="modal-pagar">
+  <div class="cmd-modal-box">
+    <div class="cmd-modal-title">Registrar Pagamento</div>
+    <div class="cmd-modal-sub" id="modal-pagar-sub">Saldo restante: <strong id="modal-pagar-saldo">—</strong></div>
+    <form method="post" id="form-pagar">
+      <label class="cmd-modal-label">Valor <span style="color:#f87171">*</span></label>
+      <input type="number" name="valor" id="pagar-valor" class="cmd-modal-input"
+        placeholder="R$ 0,00" step="0.01" min="0.01" required>
+      <label class="cmd-modal-label">Forma de pagamento</label>
+      <div class="pay-opts" style="margin-bottom:14px">
+        <label class="pay-opt selected" onclick="selecionarPagM(this,'dinheiro')">
+          <span class="pay-opt-icon">💵</span>Dinheiro
+          <input type="radio" name="forma" value="dinheiro" checked style="display:none">
+        </label>
+        <label class="pay-opt" onclick="selecionarPagM(this,'pix')">
+          <span class="pay-opt-icon">📱</span>Pix
+          <input type="radio" name="forma" value="pix" style="display:none">
+        </label>
+        <label class="pay-opt" onclick="selecionarPagM(this,'cartao')">
+          <span class="pay-opt-icon">💳</span>Cartão
+          <input type="radio" name="forma" value="cartao" style="display:none">
+        </label>
+      </div>
+      <label class="cmd-modal-label">Observação</label>
+      <input type="text" name="obs" class="cmd-modal-input"
+        placeholder="Opcional" autocomplete="off">
+      <div class="cmd-modal-row">
+        <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalPagar()">Cancelar</button>
+        <button type="submit" class="cmd-modal-btn-submit">Registrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: agendar pagamento -->
+<div class="cmd-modal-bg" id="modal-agendar">
+  <div class="cmd-modal-box">
+    <div class="cmd-modal-title">Agendar Pagamento</div>
+    <div class="cmd-modal-sub">Defina a data de vencimento e uma observação.</div>
+    <form method="post" id="form-agendar">
+      <label class="cmd-modal-label">Data de vencimento <span style="color:#f87171">*</span></label>
+      <input type="date" name="vencimento" class="cmd-modal-input" required
+        min="{{ hoje }}">
+      <label class="cmd-modal-label">Observação</label>
+      <input type="text" name="observacao" class="cmd-modal-input"
+        placeholder="Ex: Cliente paga sexta" autocomplete="off">
+      <div class="cmd-modal-row">
+        <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalAgendar()">Cancelar</button>
+        <button type="submit" class="cmd-modal-btn-submit">Agendar</button>
       </div>
     </form>
   </div>
@@ -348,43 +652,56 @@
   <!-- Stats -->
   <div class="cmd-stats">
     <div class="cmd-stat">
-      <div class="cmd-stat-icon abertas">👥</div>
+      <div class="cmd-stat-icon st-aberta">👥</div>
       <div class="cmd-stat-body">
         <div class="cmd-stat-label">Abertas</div>
-        <div class="cmd-stat-count">{{ stat_abertas_count }}</div>
-        <div class="cmd-stat-sub fat-val fat-oculto">R$ {{ "%.2f"|format(stat_abertas_total)|replace(".",",") }}</div>
+        <div class="cmd-stat-count">{{ stats.aberta.count }}</div>
+        {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+        <div class="cmd-stat-sub">R$ {{ "%.2f"|format(stats.aberta.total)|replace(".",",") }}</div>
+        {% endif %}
       </div>
     </div>
     <div class="cmd-stat">
-      <div class="cmd-stat-icon em-pag">🕐</div>
+      <div class="cmd-stat-icon st-aguardando">🕐</div>
       <div class="cmd-stat-body">
-        <div class="cmd-stat-label">Em pagamento</div>
-        <div class="cmd-stat-count">{{ stat_em_pag_count }}</div>
-        <div class="cmd-stat-sub fat-val fat-oculto">R$ {{ "%.2f"|format(stat_em_pag_total)|replace(".",",") }}</div>
+        <div class="cmd-stat-label">Aguardando</div>
+        <div class="cmd-stat-count">{{ stats.aguardando_pagamento.count }}</div>
+        {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+        <div class="cmd-stat-sub">R$ {{ "%.2f"|format(stats.aguardando_pagamento.total)|replace(".",",") }}</div>
+        {% endif %}
       </div>
     </div>
     <div class="cmd-stat">
-      <div class="cmd-stat-icon fechadas">✅</div>
+      <div class="cmd-stat-icon st-parcial">💳</div>
       <div class="cmd-stat-body">
-        <div class="cmd-stat-label">Fechadas hoje</div>
-        <div class="cmd-stat-count">{{ stat_fechadas_count }}</div>
-        <div class="cmd-stat-sub fat-val fat-oculto">R$ {{ "%.2f"|format(stat_fechadas_total)|replace(".",",") }}</div>
+        <div class="cmd-stat-label">Parcial</div>
+        <div class="cmd-stat-count">{{ stats.pagamento_parcial.count }}</div>
+        {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+        <div class="cmd-stat-sub">R$ {{ "%.2f"|format(stats.pagamento_parcial.total)|replace(".",",") }}</div>
+        {% endif %}
       </div>
     </div>
     <div class="cmd-stat">
-      <div class="cmd-stat-icon fat">💰</div>
+      <div class="cmd-stat-icon st-agendado">📅</div>
       <div class="cmd-stat-body">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div class="cmd-stat-label">Faturamento hoje</div>
-          <button class="cmd-eye-btn" id="fat-eye-btn" onclick="toggleFat(this)" title="Mostrar/ocultar valores">👁</button>
-        </div>
-        <div class="cmd-stat-count fat-val fat-oculto" style="font-size:18px;">R$ {{ "%.2f"|format(stat_faturamento_hoje)|replace(".",",") }}</div>
-        <div class="cmd-stat-sub">&nbsp;</div>
+        <div class="cmd-stat-label">Agendadas</div>
+        <div class="cmd-stat-count">{{ stats.agendado.count + stats.atrasada.count }}</div>
+        {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+        <div class="cmd-stat-sub">R$ {{ "%.2f"|format(stats.agendado.total + stats.atrasada.total)|replace(".",",") }}</div>
+        {% endif %}
       </div>
     </div>
   </div>
 
   <!-- Main -->
+  {% if erro_caixa %}
+  <div style="background:#2a0f0f;border:1px solid #f87171;border-radius:10px;
+    padding:12px 18px;margin:0 0 14px;color:#f87171;font-size:13px;font-weight:600;">
+    {{ erro_caixa }}
+    <a href="{{ url_for('caixa_abrir') }}" style="color:#fca5a5;margin-left:12px;text-decoration:underline;">Abrir Caixa →</a>
+  </div>
+  {% endif %}
+
   <div class="cmd-main">
 
     <!-- Left: table -->
@@ -407,16 +724,19 @@
           <option value="maior">Maior valor</option>
           <option value="menor">Menor valor</option>
           <option value="nome">Nome A-Z</option>
+          <option value="saldo">Maior saldo</option>
         </select>
       </div>
 
       <!-- Filtro de status -->
       <div class="cmd-status-btns">
-        <button class="csb ativo" data-status="todas"        onclick="setStatus(this)">Todas</button>
-        <button class="csb"       data-status="aberta"       onclick="setStatus(this)">Abertas</button>
-        <button class="csb"       data-status="em_pagamento" onclick="setStatus(this)">Em pagamento</button>
-        <button class="csb"       data-status="fechada"      onclick="setStatus(this)">Fechadas</button>
-        <button class="csb"       data-status="cancelada"    onclick="setStatus(this)">Canceladas</button>
+        <button class="csb" data-status="todas" onclick="setStatus(this)">TODAS <span class="csb-count" id="cnt-todas"></span></button>
+        <button class="csb ativo" data-status="aberta" onclick="setStatus(this)">ABERTAS <span class="csb-count" id="cnt-aberta"></span></button>
+        <button class="csb" data-status="aguardando_pagamento" onclick="setStatus(this)">AGUARDANDO <span class="csb-count" id="cnt-aguardando_pagamento"></span></button>
+        <button class="csb" data-status="pagamento_parcial" onclick="setStatus(this)">PARCIAL <span class="csb-count" id="cnt-pagamento_parcial"></span></button>
+        <button class="csb" data-status="agendado" onclick="setStatus(this)">AGENDADAS <span class="csb-count" id="cnt-agendado"></span></button>
+        <button class="csb" data-status="quitada" onclick="setStatus(this)">QUITADAS <span class="csb-count" id="cnt-quitada"></span></button>
+        <button class="csb" data-status="atrasada" onclick="setStatus(this)">ATRASADAS <span class="csb-count" id="cnt-atrasada"></span></button>
       </div>
 
       <!-- Table -->
@@ -428,6 +748,8 @@
               <th>Status</th>
               <th>Itens</th>
               <th>Total</th>
+              <th>Saldo</th>
+              <th>Aberta em</th>
               <th style="text-align:right">Ações</th>
             </tr>
           </thead>
@@ -445,51 +767,93 @@
 
     <!-- Right: detail panel -->
     <div class="cmd-right" id="cmd-panel">
+      <!-- Header -->
       <div class="cmd-panel-header">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div class="cmd-panel-title" id="panel-nome">—</div>
             <span id="panel-badge"></span>
           </div>
+          <div class="cmd-panel-subtitle" id="panel-mesa"></div>
           <div class="cmd-panel-meta" id="panel-meta"></div>
-          <div class="cmd-panel-total-row">
-            <div class="cmd-panel-total" id="panel-total">R$ 0,00</div>
-            <div class="cmd-panel-itens-count" id="panel-count"></div>
-          </div>
         </div>
         <button class="cmd-panel-close" onclick="fecharPainel()">✕</button>
       </div>
 
-      <div class="cmd-panel-body">
-        <table class="cmd-panel-table">
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th style="text-align:center">Qtd</th>
-              <th style="text-align:right">Preço</th>
-              <th style="text-align:right">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody id="panel-tbody"></tbody>
-        </table>
-        <div id="panel-empty" class="cmd-panel-empty" style="display:none">
-          Nenhum item nesta comanda.
+      <!-- Financial summary -->
+      <div class="cmd-fin-row" id="panel-fin-row">
+        <div class="cmd-fin-card">
+          <div class="cmd-fin-label">Total</div>
+          <div class="cmd-fin-val" id="fin-total">R$ 0,00</div>
+        </div>
+        <div class="cmd-fin-card">
+          <div class="cmd-fin-label">Pago</div>
+          <div class="cmd-fin-val pago" id="fin-pago">R$ 0,00</div>
+        </div>
+        <div class="cmd-fin-card">
+          <div class="cmd-fin-label">Restante</div>
+          <div class="cmd-fin-val restante" id="fin-restante">R$ 0,00</div>
         </div>
       </div>
 
-      <div class="cmd-panel-total-bar">
-        <span>TOTAL</span>
-        <span class="total-val" id="panel-total-bar">R$ 0,00</span>
+      <!-- Progress bar -->
+      <div class="prog-wrap">
+        <div class="prog-label">
+          <span>Progresso de Pagamento</span>
+          <span id="prog-pct">0%</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
       </div>
 
+      <!-- Vencimento box (agendado/atrasada) -->
+      <div id="venc-box" style="display:none"></div>
+
+      <!-- Limite box -->
+      <div id="limit-box" style="display:none"></div>
+
+      <!-- Tabs -->
+      <div class="cmd-panel-tabs">
+        <button class="cmd-panel-tab ativo" data-tab="itens" onclick="trocarTab(this)">Itens da Comanda</button>
+        <button class="cmd-panel-tab" data-tab="pagamentos" onclick="trocarTab(this)">Pagamentos</button>
+        <button class="cmd-panel-tab" data-tab="historico" onclick="trocarTab(this)">Histórico</button>
+      </div>
+
+      <!-- Tab: Itens -->
+      <div class="cmd-tab-content ativo" id="tab-itens">
+        <div style="overflow-y:auto">
+          <table class="cmd-panel-table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Produto</th>
+                <th style="text-align:center">Qtd</th>
+                <th style="text-align:right">Preço</th>
+                <th style="text-align:right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="panel-tbody"></tbody>
+          </table>
+          <div id="panel-empty" class="cmd-panel-empty" style="display:none">
+            Nenhum item nesta comanda.
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Pagamentos -->
+      <div class="cmd-tab-content" id="tab-pagamentos">
+        <div id="pag-form-wrap"></div>
+        <div class="pag-actions" id="pag-extra-actions"></div>
+      </div>
+
+      <!-- Tab: Histórico -->
+      <div class="cmd-tab-content" id="tab-historico">
+        <div class="hist-list" id="hist-list"></div>
+      </div>
+
+      <!-- Action buttons -->
       <div class="cmd-panel-btns" id="panel-btns"></div>
 
-      <div class="cmd-panel-footer">
-        <span>Cliente: <strong id="panel-cliente">—</strong></span>
-        <span>Atendente: <strong id="panel-atendente">—</strong></span>
-      </div>
     </div>
-
   </div>
 </div>
 
@@ -498,27 +862,36 @@
 <script type="application/json" id="data-cmd">
 [{% for c in comandas %}
   {%- set total = namespace(v=0) -%}
+  {%- set pago = namespace(v=0) -%}
   {%- for i in c.itens %}{% set total.v = total.v + i.valor_venda * i.quantidade %}{% endfor -%}
+  {%- for p in c.pagamentos %}{% set pago.v = pago.v + p.valor %}{% endfor -%}
   {"cid":{{ c.cid|tojson }},"nome":{{ c.nome|tojson }},"status":{{ c.status|tojson }},
+   "_status_display":{{ c._status_display|tojson }},
+   "mesa":{{ (c.mesa or "")|tojson }},
+   "limite":{{ (c.limite if c.limite is not none else "null") }},
+   "vencimento":{{ (c.vencimento or "")|tojson }},
+   "observacao":{{ (c.observacao or "")|tojson }},
    "data_abertura":{{ (c.data_abertura or "")|tojson }},"hora_abertura":{{ (c.hora_abertura or "")|tojson }},
-   "data_fechamento":{{ (c.data_fechamento or "")|tojson }},"hora_fechamento":{{ (c.hora_fechamento or "")|tojson }},
    "itens":{{ c.itens|tojson }},"total":{{ total.v|round(2) }},
-   "atendente":{{ (c.atendente if c.atendente is defined else "")|tojson }}}
+   "valor_pago":{{ pago.v|round(2) }},"saldo":{{ [total.v - pago.v, 0]|max|round(2) }},
+   "pagamentos":{{ c.pagamentos|tojson }}}
   {%- if not loop.last %},{% endif %}
 {% endfor %}]
 </script>
-
+<script type="application/json" id="data-hoje">{{ hoje|tojson }}</script>
 <script type="application/json" id="data-usuario">{{ usuario|tojson }}</script>
 
 <script>
 const USUARIO_ATUAL = JSON.parse(document.getElementById('data-usuario').textContent);
-const TODAS_CMDS = JSON.parse(document.getElementById('data-cmd').textContent);
+const TODAS_CMDS    = JSON.parse(document.getElementById('data-cmd').textContent);
+const HOJE          = JSON.parse(document.getElementById('data-hoje').textContent);
 
-let paginaAtual = 1;
+let paginaAtual  = 1;
 const POR_PAGINA = 10;
 let cidSelecionado = null;
-let statusFiltro = 'todas';
-let fatOculto = true;
+let statusFiltro = 'aberta';
+const verValorCmd = {{ (tipo == "admin" or "ver_valor_comandas" in permissoes)|tojson }};
+let abaPanel = 'itens';
 
 function setStatus(btn) {
   document.querySelectorAll('.csb').forEach(b => b.classList.remove('ativo'));
@@ -528,18 +901,12 @@ function setStatus(btn) {
   renderTabela();
 }
 
-function toggleFat(btn) {
-  fatOculto = !fatOculto;
-  document.querySelectorAll('.fat-val').forEach(el => el.classList.toggle('fat-oculto', fatOculto));
-  btn.textContent = fatOculto ? '👁' : '🙈';
-}
-
-/* ── Autocomplete busca ── */
+/* Autocomplete */
 (function(){
   const input = document.getElementById('cmd-search');
   const lista = document.getElementById('cmd-sugestoes');
   const nomes = JSON.parse(document.getElementById('data-nomes-cmds').textContent);
-  function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+  function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
   function mostrar() {
     const termo = norm(input.value);
     lista.innerHTML = '';
@@ -566,11 +933,11 @@ function toggleFat(btn) {
 })();
 
 function normaliza(s) {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 }
 
 function fmtBRL(v) {
-  return 'R$ ' + Math.abs(parseFloat(v) || 0).toFixed(2).replace('.', ',');
+  return 'R$ ' + parseFloat(Math.abs(v) || 0).toFixed(2).replace('.', ',');
 }
 
 function tempoAberta(dataStr, horaStr) {
@@ -579,15 +946,23 @@ function tempoAberta(dataStr, horaStr) {
   const diff = Math.floor((Date.now() - dt.getTime()) / 60000);
   if (diff < 60) return 'Aberta há ' + diff + 'm';
   const h = Math.floor(diff / 60), m = diff % 60;
-  return 'Aberta há ' + h + 'h ' + (m > 0 ? m + 'm' : '');
+  return 'Aberta há ' + h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+}
+
+function fmtData(d) {
+  if (!d) return '';
+  return d.split('-').reverse().join('/');
 }
 
 function statusLabel(s) {
   const map = {
     aberta: 'Aberta',
-    em_pagamento: 'Em pagamento',
-    fechada: 'Fechada',
-    cancelada: 'Cancelada'
+    aguardando_pagamento: 'Aguardando Pagamento',
+    em_pagamento: 'Aguardando Pagamento',
+    pagamento_parcial: 'Pagamento Parcial',
+    agendado: 'Agendado',
+    quitada: 'Quitada',
+    atrasada: 'Atrasada'
   };
   return map[s] || s;
 }
@@ -596,25 +971,48 @@ function badgeHTML(s) {
   return '<span class="badge badge-' + s + '">' + statusLabel(s) + '</span>';
 }
 
+function formaIcon(f) {
+  if (f === 'pix') return '📱';
+  if (f === 'cartao') return '💳';
+  return '💵';
+}
+
 function filtrados() {
   const termo = normaliza(document.getElementById('cmd-search').value);
   const sort  = document.getElementById('cmd-sort').value;
 
   let lista = TODAS_CMDS.filter(c =>
-    (!termo || normaliza(c.nome).includes(termo)) &&
-    (statusFiltro === 'todas' || c.status === statusFiltro)
+    (!termo || normaliza(c.nome).includes(termo) || normaliza(c.mesa || '').includes(termo)) &&
+    (statusFiltro === 'todas' || c._status_display === statusFiltro)
   );
 
-  if (sort === 'recentes') lista.sort((a,b) => (b.data_abertura+b.hora_abertura).localeCompare(a.data_abertura+a.hora_abertura));
+  if (sort === 'recentes')    lista.sort((a,b) => (b.data_abertura+b.hora_abertura).localeCompare(a.data_abertura+a.hora_abertura));
   else if (sort === 'antigas') lista.sort((a,b) => (a.data_abertura+a.hora_abertura).localeCompare(b.data_abertura+b.hora_abertura));
-  else if (sort === 'maior') lista.sort((a,b) => b.total - a.total);
-  else if (sort === 'menor') lista.sort((a,b) => a.total - b.total);
-  else if (sort === 'nome')  lista.sort((a,b) => normaliza(a.nome).localeCompare(normaliza(b.nome)));
+  else if (sort === 'maior')   lista.sort((a,b) => b.total - a.total);
+  else if (sort === 'menor')   lista.sort((a,b) => a.total - b.total);
+  else if (sort === 'nome')    lista.sort((a,b) => normaliza(a.nome).localeCompare(normaliza(b.nome)));
+  else if (sort === 'saldo')   lista.sort((a,b) => b.saldo - a.saldo);
 
   return lista;
 }
 
+function atualizarContagens() {
+  const contagens = {};
+  TODAS_CMDS.forEach(c => {
+    const s = c._status_display;
+    contagens[s] = (contagens[s] || 0) + 1;
+  });
+  contagens['todas'] = TODAS_CMDS.length;
+
+  document.querySelectorAll('.csb').forEach(btn => {
+    const s = btn.dataset.status;
+    const el = btn.querySelector('.csb-count');
+    if (el) el.textContent = contagens[s] || '0';
+  });
+}
+
 function renderTabela() {
+  atualizarContagens();
   const lista  = filtrados();
   const total  = lista.length;
   const pages  = Math.max(1, Math.ceil(total / POR_PAGINA));
@@ -627,34 +1025,39 @@ function renderTabela() {
   tbody.innerHTML = '';
 
   if (!pagina.length) {
-    tbody.innerHTML = '<tr class="cmd-empty-row"><td colspan="5">Nenhuma comanda encontrada.</td></tr>';
+    tbody.innerHTML = '<tr class="cmd-empty-row"><td colspan="7">Nenhuma comanda encontrada.</td></tr>';
   } else {
     pagina.forEach(c => {
       const tr = document.createElement('tr');
       if (c.cid === cidSelecionado) tr.classList.add('selected');
 
-      const subText = c.status === 'aberta' || c.status === 'em_pagamento'
-        ? tempoAberta(c.data_abertura, c.hora_abertura)
-        : (c.data_fechamento ? 'Fechada às ' + (c.hora_fechamento || '') : '');
+      const subText = tempoAberta(c.data_abertura, c.hora_abertura);
+      const mesaTag = c.mesa ? '<div class="cmd-mesa-tag">' + c.mesa + '</div>' : '';
+      const saldoClass = c.saldo <= 0 ? 'saldo-ok' : (c._status_display === 'atrasada' ? 'saldo-venc' : 'saldo-warn');
+      const saldoText = c.saldo > 0 ? fmtBRL(c.saldo) : '—';
 
       let acoes = `<button class="cmd-act-btn cmd-act-eye" title="Visualizar" onclick="event.stopPropagation();abrirPainel('${c.cid}')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>`;
 
       if (c.status === 'aberta') {
         acoes += `<button class="cmd-act-btn cmd-act-add" title="Adicionar item" onclick="event.stopPropagation();window.location='/comandas/${c.cid}'">+</button>`;
-      } else if (c.status === 'em_pagamento') {
-        acoes += `<button class="cmd-act-btn cmd-act-pay" title="Fechar comanda" onclick="event.stopPropagation();abrirModalFechar('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">$</button>`;
+      }
+      if (['aguardando_pagamento','pagamento_parcial','agendado','atrasada','em_pagamento'].includes(c._status_display)) {
+        acoes += `<button class="cmd-act-btn cmd-act-pay" title="Registrar pagamento" onclick="event.stopPropagation();abrirModalPagar('${c.cid}')">$</button>`;
       }
 
       tr.innerHTML = `
         <td>
           <div class="cmd-nome">${c.nome}</div>
+          ${mesaTag}
           <div class="cmd-sub">${subText}</div>
         </td>
-        <td>${badgeHTML(c.status)}</td>
-        <td style="color:var(--text-muted)">${c.itens.length}</td>
-        <td class="cmd-total-cell fat-val${fatOculto ? ' fat-oculto' : ''}">${fmtBRL(c.total)}</td>
+        <td>${badgeHTML(c._status_display)}</td>
+        <td style="color:var(--text-muted);font-size:13px">${c.itens.length}</td>
+        <td class="cmd-total-cell">${verValorCmd ? fmtBRL(c.total) : '—'}</td>
+        <td class="cmd-saldo-cell ${saldoClass}">${verValorCmd ? saldoText : '—'}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${fmtData(c.data_abertura)} ${c.hora_abertura || ''}</td>
         <td><div class="cmd-actions-cell">${acoes}</div></td>
       `;
       tr.addEventListener('click', () => abrirPainel(c.cid));
@@ -666,17 +1069,15 @@ function renderTabela() {
 }
 
 function renderPaginacao(total, pages) {
-  const info  = document.getElementById('pag-info');
-  const pages_el = document.getElementById('pag-pages');
-  const inicio = Math.min((paginaAtual - 1) * POR_PAGINA + 1, total);
-  const fim    = Math.min(paginaAtual * POR_PAGINA, total);
+  const info      = document.getElementById('pag-info');
+  const pages_el  = document.getElementById('pag-pages');
+  const inicio    = Math.min((paginaAtual - 1) * POR_PAGINA + 1, total);
+  const fim       = Math.min(paginaAtual * POR_PAGINA, total);
   info.textContent = total > 0 ? `Exibir ${inicio}-${fim} de ${total}` : '';
 
   pages_el.innerHTML = '';
-
   const prev = document.createElement('button');
-  prev.className = 'cmd-pag-btn';
-  prev.textContent = '‹';
+  prev.className = 'cmd-pag-btn'; prev.textContent = '‹';
   prev.disabled = paginaAtual === 1;
   prev.onclick = () => { paginaAtual--; renderTabela(); };
   pages_el.appendChild(prev);
@@ -690,11 +1091,19 @@ function renderPaginacao(total, pages) {
   }
 
   const next = document.createElement('button');
-  next.className = 'cmd-pag-btn';
-  next.textContent = '›';
+  next.className = 'cmd-pag-btn'; next.textContent = '›';
   next.disabled = paginaAtual === pages;
   next.onclick = () => { paginaAtual++; renderTabela(); };
   pages_el.appendChild(next);
+}
+
+/* ── Panel ── */
+function trocarTab(btn) {
+  document.querySelectorAll('.cmd-panel-tab').forEach(t => t.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  abaPanel = btn.dataset.tab;
+  document.querySelectorAll('.cmd-tab-content').forEach(t => t.classList.remove('ativo'));
+  document.getElementById('tab-' + abaPanel).classList.add('ativo');
 }
 
 function abrirPainel(cid) {
@@ -702,28 +1111,81 @@ function abrirPainel(cid) {
   if (!c) return;
   cidSelecionado = cid;
 
-  document.getElementById('panel-nome').textContent = c.nome;
-  document.getElementById('panel-badge').innerHTML  = badgeHTML(c.status);
-  document.getElementById('panel-meta').textContent =
-    'Aberta em ' + (c.data_abertura || '').split('-').reverse().join('/') + ' às ' + (c.hora_abertura || '');
-  document.getElementById('panel-total').textContent     = fmtBRL(c.total);
-  document.getElementById('panel-total-bar').textContent = fmtBRL(c.total);
-  document.getElementById('panel-count').textContent     = c.itens.length + ' item' + (c.itens.length !== 1 ? 's' : '');
-  document.getElementById('panel-cliente').textContent   = c.nome;
-  document.getElementById('panel-atendente').textContent = c.atendente || USUARIO_ATUAL || 'Administrador';
+  /* Header */
+  document.getElementById('panel-nome').textContent   = c.nome;
+  document.getElementById('panel-badge').innerHTML    = badgeHTML(c._status_display);
+  document.getElementById('panel-mesa').textContent   = c.mesa || '';
+  document.getElementById('panel-meta').textContent   =
+    'Aberta em ' + fmtData(c.data_abertura) + ' às ' + (c.hora_abertura || '');
 
+  /* Financial row */
+  const pct = c.total > 0 ? Math.min(100, Math.round(c.valor_pago / c.total * 100)) : 0;
+  document.getElementById('fin-total').textContent    = verValorCmd ? fmtBRL(c.total) : '—';
+  document.getElementById('fin-pago').textContent     = verValorCmd ? fmtBRL(c.valor_pago) : '—';
+  const finRest = document.getElementById('fin-restante');
+  finRest.textContent = verValorCmd ? fmtBRL(c.saldo) : '—';
+  finRest.className = 'cmd-fin-val' + (c.saldo <= 0 ? ' zerado' : ' restante');
+
+  /* Progress */
+  document.getElementById('prog-pct').textContent = pct + '%';
+  const fill = document.getElementById('prog-fill');
+  fill.style.width = pct + '%';
+  fill.className = 'prog-fill ' + (pct >= 100 ? 'pct-full' : pct >= 75 ? 'pct-high' : pct >= 30 ? 'pct-mid' : 'pct-low');
+
+  /* Vencimento box */
+  const vencBox = document.getElementById('venc-box');
+  if (c.vencimento) {
+    const diasDiff = Math.ceil((new Date(c.vencimento) - new Date(HOJE)) / 86400000);
+    let cls = 'ok', label = 'Vencimento (Pagamento Agendado)';
+    let msg = 'Data de vencimento: ' + fmtData(c.vencimento);
+    if (diasDiff < 0) { cls = 'danger'; msg += ' — <strong>Atrasado ' + Math.abs(diasDiff) + ' dia(s)</strong>'; }
+    else if (diasDiff <= 2) { cls = 'warn'; msg += ' — <strong>Faltam ' + diasDiff + ' dia(s)</strong>'; }
+    else { msg += ' — Faltam ' + diasDiff + ' dia(s)'; }
+    if (c.observacao) msg += '<br><em>' + c.observacao + '</em>';
+    vencBox.innerHTML = '<div class="venc-box ' + cls + '"><div class="venc-label">' + label + '</div>' + msg + '</div>';
+    vencBox.style.display = '';
+  } else {
+    vencBox.style.display = 'none';
+  }
+
+  /* Limite box */
+  const limitBox = document.getElementById('limit-box');
+  if (c.limite > 0) {
+    const usoPct = Math.round(c.total / c.limite * 100);
+    const cls = usoPct >= 100 ? 'limit-danger' : usoPct >= 85 ? 'limit-warn' : '';
+    const fillCls = usoPct >= 100 ? 'pct-high' : usoPct >= 85 ? 'pct-mid' : 'pct-low';
+    limitBox.innerHTML = `
+      <div class="limit-wrap">
+        <div class="limit-header">Limite da Comanda</div>
+        <div class="limit-row">
+          <span>Limite definido</span><span>${verValorCmd ? fmtBRL(c.limite) : '—'}</span>
+        </div>
+        <div class="limit-row">
+          <span>Utilizado</span><span class="${cls}">${verValorCmd ? fmtBRL(c.total) + ' (' + usoPct + '%)' : '—'}</span>
+        </div>
+        <div class="prog-bar" style="margin-top:4px">
+          <div class="prog-fill ${fillCls}" style="width:${Math.min(usoPct,100)}%"></div>
+        </div>
+      </div>`;
+    limitBox.style.display = '';
+  } else {
+    limitBox.style.display = 'none';
+  }
+
+  /* Tab itens */
   const tbody = document.getElementById('panel-tbody');
   tbody.innerHTML = '';
   const emptyEl = document.getElementById('panel-empty');
-
   if (!c.itens.length) {
     emptyEl.style.display = '';
   } else {
     emptyEl.style.display = 'none';
     c.itens.forEach(item => {
       const sub = (parseFloat(item.valor_venda) || 0) * (parseInt(item.quantidade) || 0);
+      const dataHora = fmtData(item.data || c.data_abertura) + ' ' + (item.hora || '');
       const tr = document.createElement('tr');
       tr.innerHTML =
+        '<td style="white-space:nowrap">' + dataHora + '</td>' +
         '<td>' + (item.nome || '') + '</td>' +
         '<td style="text-align:center">' + (item.quantidade || 0) + '</td>' +
         '<td class="td-right">' + fmtBRL(item.valor_venda) + '</td>' +
@@ -732,27 +1194,135 @@ function abrirPainel(cid) {
     });
   }
 
-  /* Botões de ação */
-  const btns = document.getElementById('panel-btns');
-  btns.innerHTML = '';
+  /* Tab pagamentos */
+  renderPagForm(c);
 
-  if (c.status === 'aberta') {
-    btns.innerHTML = `
-      <a href="/comandas/${c.cid}" class="cmd-panel-btn cmd-panel-btn-add">+ Adicionar item</a>
-      <a href="/comandas/${c.cid}" class="cmd-panel-btn cmd-panel-btn-edit">✏ Editar itens</a>
-      <button class="cmd-panel-btn cmd-panel-btn-close" onclick="abrirModalFechar('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">🔒 Fechar comanda</button>
-      <button class="cmd-panel-btn cmd-panel-btn-cancel" onclick="cancelarComanda('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">🗑 Cancelar comanda</button>
-    `;
-  } else if (c.status === 'em_pagamento') {
-    btns.innerHTML = `
-      <a href="/comandas/${c.cid}" class="cmd-panel-btn cmd-panel-btn-edit">✏ Editar itens</a>
-      <button class="cmd-panel-btn cmd-panel-btn-close" onclick="abrirModalFechar('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">🔒 Fechar comanda</button>
-      <button class="cmd-panel-btn cmd-panel-btn-cancel" onclick="cancelarComanda('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">🗑 Cancelar comanda</button>
-    `;
-  }
+  /* Tab histórico */
+  renderHistorico(c);
+
+  /* Botões de ação */
+  renderBotoesPainel(c);
 
   document.getElementById('cmd-panel').classList.add('open');
   renderTabela();
+}
+
+function renderPagForm(c) {
+  const wrap = document.getElementById('pag-form-wrap');
+  const extras = document.getElementById('pag-extra-actions');
+
+  const PAGAVEIS = ['aberta','aguardando_pagamento','pagamento_parcial','agendado','atrasada','em_pagamento'];
+
+  if (c._status_display === 'quitada') {
+    wrap.innerHTML = '<div class="hist-empty">✅ Comanda quitada.</div>';
+    extras.innerHTML = '';
+    return;
+  }
+
+  if (PAGAVEIS.includes(c._status_display)) {
+    wrap.innerHTML = `
+      <div class="pag-form">
+        <div class="pag-form-title">Registrar Pagamento</div>
+        <form method="post" action="/comandas/${c.cid}/pagar">
+          <div class="pag-field">
+            <label class="pag-label">Valor (saldo: ${fmtBRL(c.saldo)})</label>
+            <input type="number" name="valor" class="pag-input" placeholder="R$ 0,00"
+              step="0.01" min="0.01" max="${c.saldo}" required>
+          </div>
+          <div class="pag-field">
+            <label class="pag-label">Forma de pagamento</label>
+            <div class="pay-opts">
+              <label class="pay-opt selected" onclick="selPagOpt(this,'dinheiro')">
+                💵 Dinheiro<input type="radio" name="forma" value="dinheiro" checked style="display:none">
+              </label>
+              <label class="pay-opt" onclick="selPagOpt(this,'pix')">
+                📱 Pix<input type="radio" name="forma" value="pix" style="display:none">
+              </label>
+              <label class="pay-opt" onclick="selPagOpt(this,'cartao')">
+                💳 Cartão<input type="radio" name="forma" value="cartao" style="display:none">
+              </label>
+            </div>
+          </div>
+          <div class="pag-field">
+            <label class="pag-label">Observação</label>
+            <input type="text" name="obs" class="pag-input" placeholder="Opcional">
+          </div>
+          <button type="submit" class="pag-btn-submit">+ Registrar Pagamento</button>
+        </form>
+      </div>`;
+
+    let extrasHtml = '';
+    if (['aberta','aguardando_pagamento','em_pagamento','pagamento_parcial'].includes(c._status_display)) {
+      extrasHtml += `<button class="pag-action-btn" onclick="agendarPagamento('${c.cid}')">📅 Agendar pagamento</button>`;
+    }
+    if (c.status === 'aberta') {
+      extrasHtml += `<form method="post" action="/comandas/${c.cid}/aguardar" style="flex:1">
+        <button type="submit" class="pag-action-btn" style="width:100%">🕐 Aguardar pagamento</button>
+      </form>`;
+    }
+    extras.innerHTML = extrasHtml;
+  } else {
+    wrap.innerHTML = '<div class="hist-empty">Nenhuma ação disponível.</div>';
+    extras.innerHTML = '';
+  }
+}
+
+function renderHistorico(c) {
+  const list = document.getElementById('hist-list');
+  if (!c.pagamentos || !c.pagamentos.length) {
+    list.innerHTML = '<div class="hist-empty">Nenhum pagamento registrado.</div>';
+    return;
+  }
+  list.innerHTML = c.pagamentos.map(p => `
+    <div class="hist-item">
+      <div class="hist-icon">${formaIcon(p.forma)}</div>
+      <div class="hist-body">
+        <div class="hist-valor">${fmtBRL(p.valor)}</div>
+        <div class="hist-meta">${p.forma === 'pix' ? 'Pix' : p.forma === 'cartao' ? 'Cartão' : 'Dinheiro'} · ${fmtData(p.data)} ${p.hora || ''} · ${p.usuario || ''}</div>
+        ${p.obs ? '<div class="hist-obs">' + p.obs + '</div>' : ''}
+      </div>
+    </div>`).join('');
+}
+
+function fmtStatus(s) {
+  const mapa = {
+    'aberta': 'ABERTA', 'aguardando_pagamento': 'AGUARDANDO PAGAMENTO',
+    'pagamento_parcial': 'PAGAMENTO PARCIAL', 'agendado': 'AGENDADA',
+    'atrasada': 'ATRASADA', 'em_pagamento': 'EM PAGAMENTO', 'quitada': 'QUITADA'
+  };
+  return mapa[s] || (s || '').toUpperCase();
+}
+
+function renderBotoesPainel(c) {
+  const btns = document.getElementById('panel-btns');
+  btns.innerHTML = '';
+
+  const hist = c.historico || [];
+  const btnVoltar = hist.length
+    ? `<button class="cmd-panel-btn" style="border:1px solid #f59e0b;color:#f59e0b;"
+         onclick="reverterComanda('${c.cid}','${fmtStatus(hist[hist.length-1].de)}')">
+         ↩ Voltar para ${fmtStatus(hist[hist.length-1].de)}
+       </button>`
+    : '';
+
+  if (c._status_display === 'quitada') {
+    btns.innerHTML = `<div class="cmd-panel-btn cmd-panel-btn-done">✅ Comanda Quitada</div>${btnVoltar}`;
+    return;
+  }
+
+  let html = '';
+  if (c.status === 'aberta') {
+    html += `<a href="/comandas/${c.cid}" class="cmd-panel-btn cmd-panel-btn-add">+ Adicionar item</a>`;
+  }
+
+  const PAGAVEIS = ['aberta','aguardando_pagamento','pagamento_parcial','agendado','atrasada','em_pagamento'];
+  if (PAGAVEIS.includes(c._status_display)) {
+    html += `<button class="cmd-panel-btn cmd-panel-btn-pay" onclick="abrirModalFechar('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">💰 Quitar comanda</button>`;
+  }
+  html += `<button class="cmd-panel-btn cmd-panel-btn-cancel" onclick="cancelarComanda('${c.cid}','${c.nome.replace(/'/g,"\\'")}')">🗑 Cancelar comanda</button>`;
+  html += btnVoltar;
+
+  btns.innerHTML = html;
 }
 
 function fecharPainel() {
@@ -762,35 +1332,209 @@ function fecharPainel() {
 }
 
 /* ── Modal nova comanda ── */
-function abrirModalNova() {
-  document.getElementById('modal-nova').classList.add('open');
-  document.querySelector('#modal-nova input[name="nome"]').focus();
+function novaTipo(tipo) {
+  const avulso = document.getElementById('form-nova-avulso');
+  const fiado  = document.getElementById('form-nova-fiado');
+  const lblA   = document.getElementById('lbl-avulso');
+  const lblF   = document.getElementById('lbl-fiado');
+  if (tipo === 'fiado') {
+    avulso.style.display = 'none';
+    fiado.style.display  = 'block';
+    lblF.style.borderColor = 'var(--accent)';
+    lblA.style.borderColor = 'var(--border)';
+    document.getElementById('fiado-busca').focus();
+  } else {
+    fiado.style.display  = 'none';
+    avulso.style.display = 'block';
+    lblA.style.borderColor = 'var(--accent)';
+    lblF.style.borderColor = 'var(--border)';
+    avulso.querySelector('input[name="nome"]').focus();
+  }
 }
+
+function abrirModalNova() {
+  const modal = document.getElementById('modal-nova');
+  modal.classList.add('open');
+  // reset para avulso
+  document.querySelector('input[name="_tipo_ui"][value="avulso"]').checked = true;
+  novaTipo('avulso');
+  // limpar fiado
+  document.getElementById('fiado-busca').value = '';
+  document.getElementById('fiado-cliente-id').value = '';
+  document.getElementById('fiado-sugestoes').style.display = 'none';
+  document.getElementById('fiado-painel').style.display = 'none';
+  document.getElementById('fiado-btn-abrir').disabled = true;
+  document.getElementById('fiado-btn-abrir').style.opacity = '.45';
+}
+
 function fecharModalNova() {
   document.getElementById('modal-nova').classList.remove('open');
 }
-document.getElementById('modal-nova').addEventListener('click', function(e){
-  if (e.target === this) fecharModalNova();
-});
+document.getElementById('modal-nova').addEventListener('click', function(e){ if (e.target === this) fecharModalNova(); });
 
-/* ── Modal fechar comanda ── */
+/* ── Autocomplete busca de clientes (fiado) ── */
+(function(){
+  const input    = document.getElementById('fiado-busca');
+  const lista    = document.getElementById('fiado-sugestoes');
+  const btnAbrir = document.getElementById('fiado-btn-abrir');
+  const inputId  = document.getElementById('fiado-cliente-id');
+
+  function fmt(v) { return v != null ? 'R$ ' + Number(v).toFixed(2).replace('.', ',') : '—'; }
+
+  function selecionarCliente(c) {
+    input.value = c.nome;
+    inputId.value = c.id;
+    lista.style.display = 'none';
+    btnAbrir.disabled = false;
+    btnAbrir.style.opacity = '1';
+    // buscar saldo atualizado
+    fetch('/clientes/' + c.id + '/info')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('fiado-painel-nome').textContent = d.nome || '—';
+        document.getElementById('fiado-p-tel').textContent   = d.telefone || '—';
+        document.getElementById('fiado-p-limite').textContent = fmt(d.limite_credito);
+        document.getElementById('fiado-p-saldo').textContent  = fmt(d.saldo_utilizado);
+        document.getElementById('fiado-p-disp').textContent   = fmt(d.credito_disponivel);
+        document.getElementById('fiado-p-venc').textContent   = d.proximo_vencimento || '—';
+        document.getElementById('fiado-painel').style.display = 'block';
+      });
+  }
+
+  let debounce;
+  input.addEventListener('input', function() {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (!q) { lista.style.display = 'none'; return; }
+    debounce = setTimeout(() => {
+      fetch('/clientes/buscar?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+          lista.innerHTML = '';
+          if (!data.length) { lista.style.display = 'none'; return; }
+          data.forEach(c => {
+            const li = document.createElement('li');
+            li.style.cssText = 'padding:8px 12px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);font-size:13px;';
+            li.innerHTML = '<strong>' + c.nome + '</strong>' + (c.telefone ? ' <span style="color:var(--text-muted);font-size:11px;">· ' + c.telefone + '</span>' : '');
+            li.addEventListener('mousedown', e => { e.preventDefault(); selecionarCliente(c); });
+            li.addEventListener('mouseover', function(){ this.style.background='var(--accent-dim)'; });
+            li.addEventListener('mouseout',  function(){ this.style.background=''; });
+            lista.appendChild(li);
+          });
+          lista.style.display = 'block';
+        });
+    }, 250);
+  });
+  input.addEventListener('blur', () => setTimeout(() => { lista.style.display = 'none'; }, 200));
+  input.addEventListener('focus', function(){ if (input.value.trim()) input.dispatchEvent(new Event('input')); });
+})();
+
+/* ── Modal cadastrar cliente ── */
+function abrirModalCliente() {
+  document.getElementById('modal-cliente').classList.add('open');
+  document.getElementById('cli-nome').focus();
+  document.getElementById('cli-erro').style.display = 'none';
+}
+function fecharModalCliente() {
+  document.getElementById('modal-cliente').classList.remove('open');
+}
+document.getElementById('modal-cliente').addEventListener('click', function(e){ if (e.target === this) fecharModalCliente(); });
+
+function salvarCliente() {
+  const nome  = (document.getElementById('cli-nome').value || '').trim();
+  const tel   = (document.getElementById('cli-tel').value  || '').trim();
+  const erro  = document.getElementById('cli-erro');
+  if (!nome) { erro.textContent = 'Nome obrigatório.'; erro.style.display='block'; return; }
+  if (!tel)  { erro.textContent = 'Telefone obrigatório.'; erro.style.display='block'; return; }
+  erro.style.display = 'none';
+
+  const btn = document.getElementById('cli-btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+
+  const fd = new FormData();
+  fd.append('nome',               nome);
+  fd.append('apelido',            document.getElementById('cli-apelido').value || '');
+  fd.append('telefone',           tel);
+  fd.append('cpf',                document.getElementById('cli-cpf').value || '');
+  fd.append('rg',                 document.getElementById('cli-rg').value  || '');
+  fd.append('endereco',           document.getElementById('cli-end').value || '');
+  fd.append('observacoes',        document.getElementById('cli-obs').value || '');
+  fd.append('limite_credito',     document.getElementById('cli-limite').value || '0');
+  fd.append('dia_vencimento',     document.getElementById('cli-dia').value  || '');
+  fd.append('proximo_vencimento', document.getElementById('cli-venc').value || '');
+
+  fetch('/clientes/novo', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Salvar Cliente';
+      if (data.erro) { erro.textContent = data.erro; erro.style.display='block'; return; }
+      // limpar form
+      ['cli-nome','cli-apelido','cli-tel','cli-cpf','cli-rg','cli-end','cli-obs','cli-limite','cli-dia','cli-venc']
+        .forEach(id => { document.getElementById(id).value = ''; });
+      fecharModalCliente();
+      // selecionar o cliente recém-criado no modal de fiado
+      document.getElementById('fiado-busca').value = data.nome;
+      document.getElementById('fiado-cliente-id').value = data.id;
+      document.getElementById('fiado-btn-abrir').disabled = false;
+      document.getElementById('fiado-btn-abrir').style.opacity = '1';
+      fetch('/clientes/' + data.id + '/info')
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById('fiado-painel-nome').textContent = d.nome || '—';
+          document.getElementById('fiado-p-tel').textContent   = d.telefone || '—';
+          document.getElementById('fiado-p-limite').textContent = 'R$ ' + Number(d.limite_credito||0).toFixed(2).replace('.',',');
+          document.getElementById('fiado-p-saldo').textContent  = 'R$ 0,00';
+          document.getElementById('fiado-p-disp').textContent   = 'R$ ' + Number(d.limite_credito||0).toFixed(2).replace('.',',');
+          document.getElementById('fiado-p-venc').textContent   = d.proximo_vencimento || '—';
+          document.getElementById('fiado-painel').style.display = 'block';
+        });
+    })
+    .catch(() => {
+      btn.disabled = false; btn.textContent = 'Salvar Cliente';
+      erro.textContent = 'Erro de conexão. Tente novamente.';
+      erro.style.display = 'block';
+    });
+}
+
+/* ── Modal fechar comanda (quitar direto) ── */
 function abrirModalFechar(cid, nome) {
   document.getElementById('form-fechar').action = '/comandas/' + cid + '/fechar';
-  document.getElementById('modal-fechar-sub').textContent = 'Selecione a forma de pagamento para fechar a comanda de ' + nome + '.';
-  document.querySelectorAll('.pay-opt').forEach(el => el.classList.remove('selected'));
-  document.querySelector('.pay-opt').classList.add('selected');
-  document.querySelector('.pay-opt input').checked = true;
+  document.getElementById('modal-fechar-sub').textContent = 'Quitar a comanda de ' + nome + '.';
+  document.querySelectorAll('#modal-fechar .pay-opt').forEach(el => el.classList.remove('selected'));
+  document.querySelector('#modal-fechar .pay-opt').classList.add('selected');
+  document.querySelector('#modal-fechar .pay-opt input').checked = true;
   document.getElementById('modal-fechar').classList.add('open');
 }
-function fecharModalFechar() {
-  document.getElementById('modal-fechar').classList.remove('open');
-}
-document.getElementById('modal-fechar').addEventListener('click', function(e){
-  if (e.target === this) fecharModalFechar();
-});
+function fecharModalFechar() { document.getElementById('modal-fechar').classList.remove('open'); }
+document.getElementById('modal-fechar').addEventListener('click', function(e){ if (e.target === this) fecharModalFechar(); });
 
+/* ── Modal pagar parcial ── */
+function abrirModalPagar(cid) {
+  const c = TODAS_CMDS.find(x => x.cid === cid);
+  if (!c) return;
+  document.getElementById('form-pagar').action = '/comandas/' + cid + '/pagar';
+  document.getElementById('modal-pagar-saldo').textContent = fmtBRL(c.saldo);
+  document.getElementById('pagar-valor').max = c.saldo;
+  document.getElementById('pagar-valor').value = '';
+  document.querySelectorAll('#modal-pagar .pay-opt').forEach(el => el.classList.remove('selected'));
+  document.querySelector('#modal-pagar .pay-opt').classList.add('selected');
+  document.querySelector('#modal-pagar .pay-opt input').checked = true;
+  document.getElementById('modal-pagar').classList.add('open');
+}
+function fecharModalPagar() { document.getElementById('modal-pagar').classList.remove('open'); }
+document.getElementById('modal-pagar').addEventListener('click', function(e){ if (e.target === this) fecharModalPagar(); });
+
+/* ── Modal agendar ── */
+function agendarPagamento(cid) {
+  document.getElementById('form-agendar').action = '/comandas/' + cid + '/agendar';
+  document.getElementById('modal-agendar').classList.add('open');
+}
+function fecharModalAgendar() { document.getElementById('modal-agendar').classList.remove('open'); }
+document.getElementById('modal-agendar').addEventListener('click', function(e){ if (e.target === this) fecharModalAgendar(); });
+
+/* ── Selecionar forma pagamento ── */
 function selecionarPag(el, val) {
-  document.querySelectorAll('.pay-opt').forEach(o => {
+  el.closest('.pay-opts').querySelectorAll('.pay-opt').forEach(o => {
     o.classList.remove('selected');
     o.querySelector('input').checked = false;
   });
@@ -798,14 +1542,30 @@ function selecionarPag(el, val) {
   el.querySelector('input').checked = true;
 }
 
+function selecionarPagM(el, val) { selecionarPag(el, val); }
+
+function selPagOpt(el, val) { selecionarPag(el, val); }
+
 /* ── Cancelar comanda ── */
 function cancelarComanda(cid, nome) {
-  if (!confirm('Cancelar a comanda "' + nome + '"? Os produtos voltarão ao estoque.')) return;
-  const f = document.createElement('form');
-  f.method = 'post';
-  f.action = '/comandas/' + cid + '/remover';
-  document.body.appendChild(f);
-  f.submit();
+  showConfirm('Cancelar comanda', 'Cancelar "' + nome + '"? Os produtos voltarão ao estoque.', function(){
+    const f = document.createElement('form');
+    f.method = 'post';
+    f.action = '/comandas/' + cid + '/remover';
+    document.body.appendChild(f);
+    f.submit();
+  });
+}
+
+/* ── Reverter comanda ── */
+function reverterComanda(cid, statusAnterior) {
+  showConfirm('Reverter status', 'Isso vai voltar a comanda para: ' + statusAnterior + '.', function(){
+    const f = document.createElement('form');
+    f.method = 'post';
+    f.action = '/comandas/' + cid + '/reverter';
+    document.body.appendChild(f);
+    f.submit();
+  }, 'warn');
 }
 
 /* ── Init ── */

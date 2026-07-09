@@ -66,6 +66,24 @@ tr:nth-child(even) { background:var(--table-even); }
 .bp-vis-val{color:var(--text);font-weight:500}
 .bp-vis-close{margin-top:16px;width:100%;padding:8px;border-radius:8px;
   background:var(--btn-bg);color:var(--accent);border:none;cursor:pointer;font-weight:bold}
+/* PAGINAÇÃO */
+.bp-pag-bar{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px;
+  background:var(--card-bg);border-radius:0 0 10px 10px;}
+.bp-exibir{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--text-muted)}
+.bp-exibir select{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:6px;font-size:.85rem;cursor:pointer}
+.bp-pages{display:flex;gap:4px;align-items:center}
+.bp-pages button{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600}
+.bp-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+.bp-pages button:hover:not(.ativo){border-color:var(--accent);color:var(--accent)}
+.bp-pages .ellipsis{color:var(--text-muted);padding:0 4px;line-height:34px}
+.margem-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.mb-alta {background:#0d2e1a;color:#4ade80}
+.mb-media{background:#2a2000;color:#facc15}
+.mb-baixa{background:var(--accent-dim);color:var(--accent)}
+.mb-neg  {background:#2a0f0f;color:#f87171}
 </style>
 
 <!-- Dropdown menu -->
@@ -89,6 +107,7 @@ tr:nth-child(even) { background:var(--table-even); }
   <div class="bp-vis-modal">
     <div class="bp-vis-title">VISUALIZAR PACOTE</div>
     <div class="bp-vis-row"><span class="bp-vis-label">Nome</span><span class="bp-vis-val" id="bpv-nome">—</span></div>
+    <div class="bp-vis-row"><span class="bp-vis-label">Código</span><span class="bp-vis-val" id="bpv-codigo" style="font-family:monospace;letter-spacing:1px;">—</span></div>
     <div class="bp-vis-row"><span class="bp-vis-label">Categoria</span><span class="bp-vis-val" id="bpv-cat">—</span></div>
     <div class="bp-vis-row"><span class="bp-vis-label">Tipo</span><span class="bp-vis-val" id="bpv-tipo">—</span></div>
     <div class="bp-vis-row"><span class="bp-vis-label">Unidade</span><span class="bp-vis-val" id="bpv-unit">—</span></div>
@@ -105,19 +124,55 @@ tr:nth-child(even) { background:var(--table-even); }
   <h2>PACOTES</h2>
 
   <div class="top">
-    <span style="color:var(--text-muted); font-size:13px;">{{ produtos|length }} produto(s) cadastrado(s)</span>
+    <span style="color:var(--text-muted); font-size:13px;">{{ produtos|length }} produto(s)</span>
     <a class="btn" href="/bar/produtos/novo">+ Novo Pacote</a>
   </div>
+
+  <form id="formBusca" method="get" action="{{ url_for('bar_produtos') }}"
+    style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <div style="position:relative;">
+      <input id="buscaPacote" type="text" name="q"
+        placeholder="Pesquisar produto..."
+        value="{{ q or '' }}" autocomplete="off"
+        style="padding:7px 12px; border-radius:8px; border:1px solid var(--accent);
+               background:var(--card-bg); color:var(--text); font-size:14px; width:220px;">
+      <ul id="sugestoesPacote" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:999;
+        margin:2px 0 0; padding:0; list-style:none; background:var(--card-bg);
+        border:1px solid var(--accent); border-radius:8px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.4); max-height:200px; overflow-y:auto;"></ul>
+    </div>
+    <input type="text" name="codigo" placeholder="Pesquisar código... (ex: P-A4K9P)"
+      value="{{ codigo or '' }}" autocomplete="off" maxlength="7"
+      style="padding:7px 12px; border-radius:8px; border:1px solid var(--accent);
+             background:var(--card-bg); color:var(--text); font-size:13px; width:200px;
+             text-transform:uppercase; font-family:monospace; letter-spacing:1px;">
+    <button type="submit" class="btn">Pesquisar</button>
+    <select name="cat" onchange="this.form.submit()"
+      style="padding:7px 12px; border-radius:8px; border:1px solid var(--accent);
+             background:var(--card-bg); color:var(--text); font-size:14px;">
+      <option value="">Todas as categorias</option>
+      {% for c in categorias %}
+        <option value="{{ c }}" {% if cat == c %}selected{% endif %}>{{ c|capitalize }}</option>
+      {% endfor %}
+    </select>
+    {% if q or cat or codigo %}
+    <a href="{{ url_for('bar_produtos') }}"
+      style="padding:7px 12px; border-radius:8px; background:#3a1a1a;
+             color:#f87171; font-size:13px; text-decoration:none;">✕ Limpar</a>
+    {% endif %}
+  </form>
 
   {% if produtos %}
   <table>
     <thead>
       <tr>
         <th>Nome</th>
+        <th>Código</th>
         <th>Categoria</th>
         <th>Tipo</th>
         <th>Unidade</th>
         <th>Preço Venda</th>
+        {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}<th style="text-align:center">Margem</th>{% endif %}
         <th>Estoque</th>
         <th>Ações</th>
       </tr>
@@ -125,12 +180,28 @@ tr:nth-child(even) { background:var(--table-even); }
     <tbody>
       {% for p in produtos %}
       {% set qtd = stock.get(p.id, 0) %}
-      <tr>
+      <tr class="bp-row">
         <td style="text-align:left; font-weight:bold;">{{ p.name }}</td>
+        <td style="font-family:monospace;letter-spacing:1px;">{{ p.codigo or '—' }}</td>
         <td><span class="badge badge-{{ p.category }}">{{ p.category }}</span></td>
         <td><span class="badge badge-{{ p.type }}">{{ p.type }}</span></td>
         <td>{{ p.unit }}</td>
         <td>R$ {{ "%.2f"|format(p.sale_price) }}</td>
+        {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
+        {% set custo = costs.get(p.id, 0) %}
+        {% set preco = p.sale_price or 0 %}
+        <td style="text-align:center">
+          {% if custo > 0 and preco > 0 %}
+            {% set margem = ((preco - custo) / preco * 100) %}
+            {% if margem >= 40 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
+            {% elif margem >= 20 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
+            {% elif margem >= 0 %}<span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
+            {% else %}<span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>{% endif %}
+          {% else %}
+            <span style="color:var(--text-muted)">—</span>
+          {% endif %}
+        </td>
+        {% endif %}
         <td>
           {% if p.type == 'composite' %}
             <span style="color:var(--text-muted); font-size:12px;">—</span>
@@ -146,6 +217,7 @@ tr:nth-child(even) { background:var(--table-even); }
           <button class="act-btn" type="button"
             data-id="{{ p.id }}"
             data-nome="{{ p.name }}"
+            data-codigo="{{ p.codigo or '—' }}"
             data-cat="{{ p.category }}"
             data-tipo="{{ p.type }}"
             data-unit="{{ p.unit }}"
@@ -159,6 +231,19 @@ tr:nth-child(even) { background:var(--table-even); }
       {% endfor %}
     </tbody>
   </table>
+  <div class="bp-pag-bar">
+    <div class="bp-exibir">
+      Exibir
+      <select id="bpSelPorPag" onchange="bpRenderPag()">
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+      registros
+    </div>
+    <div class="bp-pages" id="bpPaginacao"></div>
+  </div>
   {% else %}
   <div style="text-align:center; padding:40px; color:var(--text-muted);">
     Nenhum produto cadastrado. <a href="/bar/produtos/novo" style="color:var(--accent);">Cadastre o primeiro.</a>
@@ -178,6 +263,7 @@ tr:nth-child(even) { background:var(--table-even); }
     document.getElementById('bp-acao-visualizar').onclick = function(e){
       e.preventDefault(); fecharMenu();
       document.getElementById('bpv-nome').textContent  = btn.dataset.nome;
+      document.getElementById('bpv-codigo').textContent = btn.dataset.codigo;
       document.getElementById('bpv-cat').textContent   = btn.dataset.cat;
       document.getElementById('bpv-tipo').textContent  = btn.dataset.tipo;
       document.getElementById('bpv-unit').textContent  = btn.dataset.unit;
@@ -187,10 +273,11 @@ tr:nth-child(even) { background:var(--table-even); }
     };
     document.getElementById('bp-acao-excluir').onclick = function(){
       fecharMenu();
-      if (!confirm('Excluir o pacote "' + btn.dataset.nome + '"?')) return;
-      const f = document.getElementById('bp-form-excluir');
-      f.action = btn.dataset.deletar;
-      f.submit();
+      showConfirm('Excluir pacote', 'Excluir o pacote "' + btn.dataset.nome + '"? Esta ação não pode ser desfeita.', function(){
+        const f = document.getElementById('bp-form-excluir');
+        f.action = btn.dataset.deletar;
+        f.submit();
+      }); return;
     };
     const r = btn.getBoundingClientRect();
     dropdown.style.top  = (r.bottom + 4) + 'px';
@@ -205,6 +292,91 @@ tr:nth-child(even) { background:var(--table-even); }
   });
   window.addEventListener('scroll', fecharMenu);
   window.addEventListener('resize', fecharMenu);
+})();
+</script>
+<script>
+(function(){
+  const todasLinhas = Array.from(document.querySelectorAll('.bp-row'));
+  let paginaAtual = 1;
+
+  window.bpRenderPag = function(){
+    const porPag = parseInt(document.getElementById('bpSelPorPag').value) || 10;
+    const total = todasLinhas.length;
+    const totalPags = Math.max(1, Math.ceil(total / porPag));
+    if(paginaAtual > totalPags) paginaAtual = totalPags;
+    const ini = (paginaAtual-1)*porPag;
+    const fim = ini + porPag;
+    todasLinhas.forEach((tr,i) => tr.style.display = (i>=ini && i<fim) ? '' : 'none');
+
+    const cont = document.getElementById('bpPaginacao');
+    if(!cont) return;
+    cont.innerHTML = '';
+
+    function mkBtn(label, pg, ativo){
+      const b = document.createElement('button');
+      b.textContent = label;
+      if(ativo) b.classList.add('ativo');
+      b.onclick = () => { paginaAtual=pg; bpRenderPag(); };
+      return b;
+    }
+
+    const prev = document.createElement('button');
+    prev.innerHTML = '&#8249;';
+    prev.disabled = paginaAtual===1;
+    prev.onclick = ()=>{ if(paginaAtual>1){ paginaAtual--; bpRenderPag(); } };
+    cont.appendChild(prev);
+
+    const visible = new Set([1, totalPags]);
+    for(let i=Math.max(1,paginaAtual-1); i<=Math.min(totalPags,paginaAtual+1); i++) visible.add(i);
+    let prevP=0;
+    Array.from({length:totalPags},(_,i)=>i+1).forEach(p=>{
+      if(!visible.has(p)) return;
+      if(prevP && p-prevP>1){ const el=document.createElement('span'); el.textContent='...'; el.className='ellipsis'; cont.appendChild(el); }
+      cont.appendChild(mkBtn(p, p, p===paginaAtual));
+      prevP=p;
+    });
+
+    const next = document.createElement('button');
+    next.innerHTML = '&#8250;';
+    next.disabled = paginaAtual===totalPags;
+    next.onclick = ()=>{ if(paginaAtual<totalPags){ paginaAtual++; bpRenderPag(); } };
+    cont.appendChild(next);
+  };
+
+  if(todasLinhas.length) bpRenderPag();
+})();
+</script>
+<script type="application/json" id="data-nomes-pacotes">{{ nomes_sugestoes | tojson }}</script>
+<script>
+(function(){
+  const input = document.getElementById('buscaPacote');
+  const lista  = document.getElementById('sugestoesPacote');
+  const form   = document.getElementById('formBusca');
+  if (!input) return;
+  const nomes = JSON.parse(document.getElementById('data-nomes-pacotes').textContent);
+  function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+  function mostrarSugestoes(){
+    const termo = normaliza(input.value);
+    lista.innerHTML = '';
+    if (!termo){ lista.style.display='none'; return; }
+    const matches = nomes.filter(n => normaliza(n).includes(termo)).slice(0,8);
+    if (!matches.length){ lista.style.display='none'; return; }
+    matches.forEach(nome => {
+      const li = document.createElement('li');
+      li.textContent = nome;
+      li.style.cssText = 'padding:8px 12px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);font-size:14px;';
+      li.addEventListener('mousedown', function(e){
+        e.preventDefault(); input.value = nome; lista.style.display='none'; form.submit();
+      });
+      li.addEventListener('mouseover',  function(){ this.style.background='var(--accent-dim)'; this.style.color='var(--accent)'; });
+      li.addEventListener('mouseout',   function(){ this.style.background=''; this.style.color='var(--text)'; });
+      lista.appendChild(li);
+    });
+    lista.style.display = 'block';
+  }
+  input.addEventListener('input', mostrarSugestoes);
+  input.addEventListener('focus', mostrarSugestoes);
+  input.addEventListener('blur',  function(){ setTimeout(()=>{ lista.style.display='none'; }, 150); });
 })();
 </script>
 {% endblock %}

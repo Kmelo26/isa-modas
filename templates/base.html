@@ -372,7 +372,7 @@ form select:focus {
     <!-- Navegação -->
     <div class="sidebar-nav">
 
-        {% if tipo == "admin" or ("vendas" in permissoes) %}
+        {% if tipo == "admin" or ("criar_vendas" in permissoes) %}
         <a href="{{ url_for('cadastrar_venda_lote') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -381,7 +381,7 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" or ("vendas" in permissoes) %}
+        {% if tipo == "admin" or ("ver_vendas" in permissoes) %}
         <a href="{{ url_for('vendas') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -390,7 +390,7 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" or ("vendas" in permissoes) %}
+        {% if tipo == "admin" or ("ver_vendas" in permissoes) %}
         <a href="{{ url_for('comandas') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -400,7 +400,7 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" or ("estoque" in permissoes) %}
+        {% if tipo == "admin" or ("ver_estoque" in permissoes) %}
         <a href="{{ url_for('estoque') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
@@ -409,7 +409,7 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" or ("financeiro" in permissoes) %}
+        {% if tipo == "admin" or ("ver_financeiro" in permissoes) %}
         <a href="{{ url_for('financeiro') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
@@ -418,12 +418,21 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" %}
+        {% if tipo == "admin" or ("ver_historico_caixa" in permissoes) %}
+        <a href="{{ url_for('caixa_historico_novo') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            <span class="nav-label">Caixa</span>
+        </a>
+        {% endif %}
+
+        {% if tipo == "admin" or ("alterar_permissoes" in permissoes) %}
         <a href="{{ url_for('permissoes') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
-            <span class="nav-label">Admin</span>
+            <span class="nav-label">Usuários e Permissões</span>
         </a>
         {% endif %}
 
@@ -458,11 +467,208 @@ form select:focus {
             <span class="profile-name">
                 {{ usuario if usuario is defined else session.get("usuario", "") }}
             </span>
+            {% set cargo_atual = session.get("cargo", "") %}
+            {% if cargo_atual and cargo_atual != "funcionario" %}
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:10px;
+              {% if cargo_atual == 'admin' %}background:#1a1020;color:#a080e0;border:1px solid #3a2060;
+              {% elif cargo_atual == 'gerente' %}background:#0f1a2a;color:#60a0e0;border:1px solid #1a3060;
+              {% elif cargo_atual == 'vendedor' %}background:#0f1e10;color:#60b870;border:1px solid #1a4020;
+              {% elif cargo_atual == 'caixa' %}background:#1e1808;color:#d0a030;border:1px solid #403010;
+              {% endif %}">{{ cargo_atual }}</span>
+            {% endif %}
         </div>
     </div>
 
     {% block conteudo %}{% endblock %}
 </div>
+
+<!-- ── SISTEMA DE NOTIFICAÇÃO E CONFIRMAÇÃO GLOBAL ── -->
+<style>
+#g-notif{position:fixed;top:22px;right:22px;z-index:99999;min-width:300px;max-width:400px;
+  background:#1c1c1c;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.7);
+  display:flex;align-items:flex-start;gap:12px;padding:14px 16px;pointer-events:auto;
+  animation:g-notif-in .25s cubic-bezier(.22,1,.36,1) both;}
+#g-notif.g-hidden{display:none;}
+#g-notif.g-error {border:1px solid #7f1d1d;}
+#g-notif.g-warn  {border:1px solid #92400e;}
+#g-notif.g-info  {border:1px solid #1e3a5f;}
+#g-notif.g-ok    {border:1px solid #14532d;}
+.g-notif-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.g-notif-body{flex:1;min-width:0;}
+.g-notif-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.g-notif-msg  {font-size:12px;color:var(--text-muted);line-height:1.45;}
+.g-notif-close{background:none;border:none;color:var(--text-muted);font-size:16px;
+  cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:1px;}
+.g-notif-close:hover{color:var(--text);}
+@keyframes g-notif-in{from{opacity:0;transform:translateX(28px);}to{opacity:1;transform:none;}}
+
+#g-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(3px);
+  z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;}
+#g-confirm-overlay.g-hidden{display:none;}
+#g-confirm-box{background:#1c1c1c;border:1px solid #2e2e2e;border-radius:14px;
+  width:100%;max-width:380px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,.8);
+  animation:g-notif-in .22s cubic-bezier(.22,1,.36,1) both;}
+#g-confirm-icon{font-size:28px;margin-bottom:10px;}
+#g-confirm-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;}
+#g-confirm-msg{font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:20px;white-space:pre-line;}
+.g-confirm-btns{display:flex;gap:8px;justify-content:flex-end;}
+#g-confirm-cancel{padding:8px 18px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;}
+#g-confirm-cancel:hover{border-color:var(--text-muted);}
+#g-confirm-ok{padding:8px 18px;border-radius:8px;border:none;
+  font-size:13px;font-weight:700;cursor:pointer;}
+#g-confirm-ok.g-btn-danger{background:#7f1d1d;color:#fca5a5;}
+#g-confirm-ok.g-btn-danger:hover{background:#991b1b;}
+#g-confirm-ok.g-btn-warn  {background:#78350f;color:#fde68a;}
+#g-confirm-ok.g-btn-primary{background:var(--accent);color:#000;}
+
+#g-pin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(3px);
+  z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;}
+#g-pin-overlay.g-hidden{display:none;}
+#g-pin-box{background:#1c1c1c;border:1px solid #2e2e2e;border-radius:14px;
+  width:100%;max-width:380px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,.8);
+  animation:g-notif-in .22s cubic-bezier(.22,1,.36,1) both;}
+#g-pin-icon{font-size:28px;margin-bottom:10px;}
+#g-pin-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;}
+#g-pin-msg{font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:16px;}
+.g-pin-field{margin-bottom:12px;}
+.g-pin-field label{display:block;font-size:11px;font-weight:700;color:var(--accent);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.g-pin-field input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--input-bg,#242424);color:var(--text);font-size:14px;}
+.g-pin-field input:focus{outline:none;border-color:var(--accent);}
+#g-pin-erro{font-size:12px;color:#f87171;margin:-4px 0 12px;display:none;}
+.g-pin-btns{display:flex;gap:8px;justify-content:flex-end;}
+#g-pin-cancel{padding:8px 18px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;}
+#g-pin-cancel:hover{border-color:var(--text-muted);}
+#g-pin-ok{padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#000;
+  font-size:13px;font-weight:700;cursor:pointer;}
+</style>
+
+<div id="g-notif" class="g-hidden g-error">
+  <span class="g-notif-icon" id="g-notif-icon">🚫</span>
+  <div class="g-notif-body">
+    <div class="g-notif-title" id="g-notif-title"></div>
+    <div class="g-notif-msg"   id="g-notif-msg"></div>
+  </div>
+  <button class="g-notif-close" onclick="hideNotif()">✕</button>
+</div>
+
+<div id="g-confirm-overlay" class="g-hidden">
+  <div id="g-confirm-box">
+    <div id="g-confirm-icon">⚠️</div>
+    <div id="g-confirm-title"></div>
+    <div id="g-confirm-msg"></div>
+    <div class="g-confirm-btns">
+      <button id="g-confirm-cancel" onclick="hideConfirm()">Cancelar</button>
+      <button id="g-confirm-ok" class="g-btn-danger" onclick="_gConfirmRun()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="g-pin-overlay" class="g-hidden">
+  <div id="g-pin-box">
+    <div id="g-pin-icon">🔒</div>
+    <div id="g-pin-title">Autorização necessária</div>
+    <div id="g-pin-msg"></div>
+    <div id="g-pin-erro"></div>
+    <div class="g-pin-field">
+      <label>Usuário autorizador</label>
+      <input type="text" id="g-pin-usuario" autocomplete="off" placeholder="login de quem vai autorizar">
+    </div>
+    <div class="g-pin-field">
+      <label>PIN</label>
+      <input type="password" id="g-pin-valor" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••">
+    </div>
+    <div class="g-pin-btns">
+      <button id="g-pin-cancel" onclick="hidePinPrompt()">Cancelar</button>
+      <button id="g-pin-ok" onclick="_gPinRun()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── NOTIFICAÇÃO GLOBAL ── */
+let _gNotifTimer = null;
+const _gNotifIcons = {error:'🚫', warn:'⚠️', info:'ℹ️', ok:'✅'};
+function showNotif(titulo, msg, tipo) {
+  tipo = tipo || 'error';
+  const el = document.getElementById('g-notif');
+  document.getElementById('g-notif-title').textContent = titulo;
+  document.getElementById('g-notif-msg').textContent   = msg || '';
+  document.getElementById('g-notif-icon').textContent  = _gNotifIcons[tipo] || '🚫';
+  el.className = 'g-' + tipo;
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  if (_gNotifTimer) clearTimeout(_gNotifTimer);
+  _gNotifTimer = setTimeout(hideNotif, 4500);
+}
+function hideNotif() {
+  document.getElementById('g-notif').classList.add('g-hidden');
+}
+
+/* ── CONFIRMAÇÃO GLOBAL ── */
+let _gConfirmCb = null;
+function showConfirm(titulo, msg, onConfirm, tipo) {
+  tipo = tipo || 'danger';
+  const icons = {danger:'🗑️', warn:'⚠️', primary:'✅'};
+  document.getElementById('g-confirm-icon').textContent  = icons[tipo] || '⚠️';
+  document.getElementById('g-confirm-title').textContent = titulo;
+  document.getElementById('g-confirm-msg').textContent   = msg;
+  document.getElementById('g-confirm-ok').className      = 'g-btn-' + tipo;
+  _gConfirmCb = onConfirm;
+  document.getElementById('g-confirm-overlay').classList.remove('g-hidden');
+}
+function hideConfirm() {
+  document.getElementById('g-confirm-overlay').classList.add('g-hidden');
+  _gConfirmCb = null;
+}
+function _gConfirmRun() {
+  const cb = _gConfirmCb;
+  hideConfirm();
+  if (cb) cb();
+}
+document.getElementById('g-confirm-overlay').addEventListener('click', function(e){
+  if (e.target === this) hideConfirm();
+});
+
+/* ── PIN DE AUTORIZAÇÃO GLOBAL ──
+   Uso: showPinPrompt('Título', 'mensagem', function(usuario, pin){ ... }) */
+let _gPinCb = null;
+function showPinPrompt(titulo, msg, onConfirm) {
+  document.getElementById('g-pin-title').textContent = titulo || 'Autorização necessária';
+  document.getElementById('g-pin-msg').textContent = msg || '';
+  document.getElementById('g-pin-usuario').value = '';
+  document.getElementById('g-pin-valor').value = '';
+  document.getElementById('g-pin-erro').style.display = 'none';
+  _gPinCb = onConfirm;
+  document.getElementById('g-pin-overlay').classList.remove('g-hidden');
+  setTimeout(() => document.getElementById('g-pin-usuario').focus(), 50);
+}
+function hidePinPrompt() {
+  document.getElementById('g-pin-overlay').classList.add('g-hidden');
+  _gPinCb = null;
+}
+function _gPinRun() {
+  const usuario = document.getElementById('g-pin-usuario').value.trim();
+  const pin = document.getElementById('g-pin-valor').value.trim();
+  if (!usuario || !pin) {
+    const el = document.getElementById('g-pin-erro');
+    el.textContent = 'Informe o usuário autorizador e o PIN.';
+    el.style.display = 'block';
+    return;
+  }
+  const cb = _gPinCb;
+  hidePinPrompt();
+  if (cb) cb(usuario, pin);
+}
+document.getElementById('g-pin-overlay').addEventListener('click', function(e){
+  if (e.target === this) hidePinPrompt();
+});
+document.getElementById('g-pin-valor').addEventListener('keydown', function(e){
+  if (e.key === 'Enter') { e.preventDefault(); _gPinRun(); }
+});
+</script>
 
 <script>
 (function(){
@@ -481,6 +687,14 @@ form select:focus {
     });
 })();
 </script>
+
+{% if erro_autorizacao %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  showNotif('Autorização negada', {{ erro_autorizacao | tojson }});
+});
+</script>
+{% endif %}
 
 </body>
 </html>
