@@ -508,6 +508,7 @@
             <span class="pv-res-label">Subtotal</span>
             <span class="pv-res-val" id="res-sub">R$ 0,00</span>
           </div>
+          {% if tipo == "admin" or "aplicar_desconto" in permissoes %}
           <div class="pv-res-row" style="flex-direction:column; align-items:flex-start; gap:0;">
             <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
               <span class="pv-res-label">Desconto</span>
@@ -522,6 +523,7 @@
               </select>
             </div>
           </div>
+          {% endif %}
           <div class="pv-res-total">
             <span class="pv-res-total-label">Total</span>
             <span class="pv-res-total-val" id="res-total">R$ 0,00</span>
@@ -738,8 +740,10 @@ function rem(btn, val){
 
 /* ── TOTAIS SIDEBAR ── */
 function atualizarTotais(){
-  const dv = parseFloat(document.getElementById('desc-val').value)||0;
-  const dt = document.getElementById('desc-tipo').value;
+  const descValEl = document.getElementById('desc-val');
+  const descTipoEl = document.getElementById('desc-tipo');
+  const dv = descValEl ? (parseFloat(descValEl.value)||0) : 0;
+  const dt = descTipoEl ? descTipoEl.value : 'R$';
   let desc = dt==='R$' ? Math.min(dv,subtotal) : subtotal*(Math.min(dv,100)/100);
   const total = Math.max(subtotal-desc, 0);
   const qtd = [...document.querySelectorAll('input[name="quantidade[]"]')].reduce((s,e)=>s+parseInt(e.value||0),0);
@@ -880,6 +884,7 @@ function confirmarPagamento(){
   document.getElementById('h-cartao').value   = fmt2(totais.cartao);
   document.getElementById('h-troco').value    = fmt2(troco);
 
+  aplicarDescontoAosItens();
   fecharModal();
   document.getElementById('form-venda').submit();
 }
@@ -895,14 +900,31 @@ function limparVenda(){
     document.getElementById('sel-nome').value = '';
     document.getElementById('preco-input').value = '';
     document.getElementById('qtd').value = '1';
-    document.getElementById('desc-val').value = '0';
-    document.getElementById('desc-inline').classList.remove('show');
-    document.getElementById('btn-desconto').classList.remove('ativo');
+    if (document.getElementById('desc-val')) document.getElementById('desc-val').value = '0';
+    if (document.getElementById('desc-inline')) document.getElementById('desc-inline').classList.remove('show');
+    if (document.getElementById('btn-desconto')) document.getElementById('btn-desconto').classList.remove('ativo');
     atualizarTotais();
   });
 }
 
 /* ── DESCONTO ── */
+// Distribui o desconto do carrinho proporcionalmente no preco_venda[] de cada
+// item antes de enviar — sem isso o servidor nunca via o desconto de verdade,
+// só o total exibido na tela (que o servidor não lê).
+function aplicarDescontoAosItens(){
+  const descValEl = document.getElementById('desc-val');
+  const descTipoEl = document.getElementById('desc-tipo');
+  if (!descValEl || !descTipoEl) return;
+  const dv = parseFloat(descValEl.value)||0;
+  const dt = descTipoEl.value;
+  if (dv<=0 || subtotal<=0) return;
+  const descTotal = dt==='R$' ? Math.min(dv,subtotal) : subtotal*(Math.min(dv,100)/100);
+  const fator = Math.max(0, (subtotal - descTotal) / subtotal);
+  document.querySelectorAll('input[name="preco_venda[]"]').forEach(inp => {
+    inp.value = fmt2(parseFloat(inp.value) * fator);
+  });
+}
+
 function toggleDesconto(){
   const inline = document.getElementById('desc-inline');
   const btn    = document.getElementById('btn-desconto');

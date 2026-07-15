@@ -106,6 +106,13 @@
 .mb-baixa   { background:var(--accent-dim); color:var(--accent); }
 .mb-neg     { background:#2a0f0f; color:#f87171; }
 
+/* status da venda */
+.status-badge { display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.status-pendente  { background:#2a2000; color:#facc15; }
+.status-parcial   { background:#2a1a06; color:#fb923c; }
+.status-quitada   { background:#0d2e1a; color:#4ade80; }
+.status-cancelada { background:#2a0f0f; color:#f87171; }
+
 /* data/hora */
 .date-cell { display:flex; flex-direction:column; gap:1px; }
 .date-main { font-weight:600; font-size:13px; }
@@ -113,6 +120,21 @@
 
 /* total */
 .total-cell { font-weight:700; color:var(--text); }
+
+/* ── VENDA AGRUPADA (carrinho/comanda) ── */
+.v-subtable { width:100%; border-collapse:collapse; }
+.v-subtable td { padding:8px 12px; border-bottom:1px solid var(--border); font-size:12.5px; }
+.v-subtable tr:last-child td { border-bottom:none; }
+.v-qtd-itens { font-weight:600; color:var(--text); }
+.v-btn-cancelar-grupo { padding:5px 10px; border-radius:7px; font-size:12px; font-weight:600;
+  cursor:pointer; border:1px solid var(--border); background:var(--card-bg);
+  transition:background 0.15s, color 0.15s; color:#f87171; border-color:#5a1f1f33; }
+.v-btn-cancelar-grupo:hover { background:#2a0f0f; border-color:#5a1f1f; }
+.v-btn-cancelar-grupo:disabled { opacity:0.4; cursor:not-allowed; }
+.v-btn-cancelar-grupo:disabled:hover { background:var(--card-bg); border-color:var(--border); }
+.v-itens-toolbar { display:flex; justify-content:space-between; align-items:center;
+  padding:9px 12px; border-bottom:1px solid var(--border); }
+.v-itens-toolbar-label { font-size:12px; color:var(--text-muted); font-weight:600; }
 
 /* ── GEAR MENU ── */
 .gear-btn { background:var(--card-bg); border:1px solid var(--border); border-radius:7px;
@@ -130,6 +152,15 @@
 #acoes-dropdown a:hover { background:var(--accent-dim); color:var(--accent); }
 #acoes-dropdown a.excluir { color:#f87171; }
 #acoes-dropdown a.excluir:hover { background:#2a0f0f; }
+#acoes-dropdown-grupo { display:none; position:fixed; background:var(--card-bg);
+  border:1px solid var(--border); border-radius:10px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.5); min-width:165px; z-index:9999; overflow:hidden; }
+#acoes-dropdown-grupo.aberto { display:block; }
+#acoes-dropdown-grupo a { display:flex; align-items:center; gap:8px; padding:10px 14px;
+  font-size:13px; text-decoration:none; color:var(--text);
+  transition:background 0.12s; border-bottom:1px solid var(--border); white-space:nowrap; }
+#acoes-dropdown-grupo a:last-child { border-bottom:none; }
+#acoes-dropdown-grupo a:hover { background:var(--accent-dim); color:var(--accent); }
 
 /* ── FOOTER PAGINAÇÃO ── */
 .v-footer { display:flex; justify-content:space-between; align-items:center;
@@ -155,6 +186,8 @@
 .vis-modal { background:var(--card-bg); border:1px solid var(--border); border-radius:14px;
   width:100%; max-width:780px; box-shadow:0 24px 64px rgba(0,0,0,0.6);
   animation:vis-in 0.25s cubic-bezier(0.22,1,0.36,1) both; margin:auto; }
+.vis-modal-larga { max-width:1100px; }
+.v-subtable-scroll { overflow-x:auto; }
 @keyframes vis-in { from{opacity:0;transform:translateY(16px) scale(0.97);}to{opacity:1;transform:none;} }
 .vis-header { display:flex; justify-content:space-between; align-items:center;
   padding:18px 22px 14px; border-bottom:1px solid var(--border); }
@@ -215,9 +248,31 @@
   </a>
 </div>
 
+<!-- Dropdown único de ações da venda (grupo), fora da tabela -->
+<div id="acoes-dropdown-grupo">
+  {% if tipo == "admin" or "visualizar_venda" in permissoes %}
+  <a id="acao-ver-grupo" href="#">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Visualizar venda
+  </a>
+  {% endif %}
+  {% if tipo == "admin" or "editar_vendas" in permissoes %}
+  <a id="acao-editar-grupo" href="#">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Editar venda
+  </a>
+  {% endif %}
+</div>
+
 <form id="form-excluir-venda" method="post" style="display:none;">
   <input type="hidden" name="autorizador_usuario" id="excluir-autorizador-usuario">
   <input type="hidden" name="autorizador_pin" id="excluir-autorizador-pin">
+</form>
+
+<form id="form-cancelar-grupo" method="post" action="/vendas/cancelar_grupo" style="display:none;">
+  <input type="hidden" name="grupo_key" id="cancelar-grupo-key">
+  <input type="hidden" name="autorizador_usuario" id="cancelar-grupo-autorizador-usuario">
+  <input type="hidden" name="autorizador_pin" id="cancelar-grupo-autorizador-pin">
 </form>
 
 <!-- Modal Visualizar Venda -->
@@ -290,6 +345,184 @@
   </div>
 </div>
 
+<!-- Modal Visualizar Venda (grupo/carrinho/comanda) -->
+<div class="vis-overlay" id="visg-overlay" onclick="if(event.target===this)fecharVisualizarGrupo()">
+  <div class="vis-modal">
+    <div class="vis-header">
+      <span class="vis-titulo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:6px;vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        VISUALIZAR VENDA
+      </span>
+      <button class="vis-close" onclick="fecharVisualizarGrupo()">✕</button>
+    </div>
+    <div class="vis-body">
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">1. Dados da Venda</div>
+        <div class="vis-grid vis-grid-3">
+          <div class="vis-field"><label>Venda</label><div class="vis-val destaque" id="vvg-id">—</div></div>
+          <div class="vis-field"><label>Data</label><div class="vis-val" id="vvg-data">—</div></div>
+          <div class="vis-field"><label>Hora</label><div class="vis-val" id="vvg-hora">—</div></div>
+        </div>
+        <div class="vis-grid vis-grid-3" style="margin-top:12px;">
+          <div class="vis-field"><label>Forma(s) de Pagamento</label><div class="vis-val" id="vvg-pgto">—</div></div>
+          <div class="vis-field"><label>Qtd. de Itens</label><div class="vis-val" id="vvg-qtd-itens">—</div></div>
+          <div class="vis-field"><label>Status</label><div class="vis-val" id="vvg-status">—</div></div>
+        </div>
+        <div class="vis-field" style="margin-top:12px;" id="vvg-origem-wrap">
+          <label>Origem</label><div class="vis-val" id="vvg-origem">—</div>
+        </div>
+        {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}
+        <div class="vis-grid vis-grid-2" style="margin-top:12px;">
+          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vvg-total">—</div></div>
+          <div class="vis-field"><label>Margem</label><div class="vis-val" id="vvg-margem">—</div></div>
+        </div>
+        {% else %}
+        <div class="vis-grid vis-grid-2" style="margin-top:12px;">
+          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vvg-total">—</div></div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="vis-secao">
+        <div class="vis-secao-titulo">2. Itens da Venda</div>
+        <table class="vis-lote-table">
+          <thead><tr><th>Produto</th><th style="text-align:right;">Qtd</th><th style="text-align:right;">Preço Unit.</th><th style="text-align:right;">Subtotal</th></tr></thead>
+          <tbody id="vvg-itens-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="vis-footer">
+      <span></span>
+      <button class="vis-btn-fechar" onclick="fecharVisualizarGrupo()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modais "Editar Venda" (um por venda da página atual) -->
+{% for g in vendas %}
+  {% set gi = loop.index %}
+  <div class="vis-overlay" id="editg-overlay-{{ gi }}" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="vis-modal vis-modal-larga">
+      <div class="vis-header">
+        <span class="vis-titulo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:6px;vertical-align:middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          EDITAR VENDA — {{ g.id_display }}
+        </span>
+        <button class="vis-close" onclick="this.closest('.vis-overlay').classList.remove('open')">✕</button>
+      </div>
+      <div class="vis-body" style="padding:0;">
+        <div class="v-itens-toolbar" style="padding:12px 18px;">
+          <span class="v-itens-toolbar-label">Itens desta venda</span>
+          {% if tipo == "admin" or "cancelar_vendas" in permissoes %}
+          <button class="v-btn-cancelar-grupo"
+            {% if not g.pode_cancelar_inteira %}disabled title="Comanda ainda em aberto/parcial — cancele ou remova itens pela tela de Comandas"{% endif %}
+            onclick="cancelarGrupo('{{ g.grupo_key }}')">Cancelar venda inteira</button>
+          {% endif %}
+        </div>
+        <div class="v-subtable-scroll">
+        <table class="v-subtable">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cód. Produto</th>
+              <th>Produto</th>
+              <th>Status</th>
+              <th>Data / Hora</th>
+              <th>Pagamento</th>
+              <th style="text-align:right;">Qtd</th>
+              <th style="text-align:right;">Preço Unit.</th>
+              <th style="text-align:right;">Total</th>
+              {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}<th style="text-align:center;">Margem</th>{% endif %}
+              <th style="text-align:center;">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in g.itens %}
+              {% set custo  = v.valor_investido if v.valor_investido else 0 %}
+              {% set margem = ((v.valor_venda - custo) / v.valor_venda * 100) if v.valor_venda and v.valor_venda > 0 else 0 %}
+              {% set is_bar = v.produto_tipo == 'bar' %}
+              {% set pgto   = (v.forma_pagamento or '')|lower %}
+              <tr>
+                <td style="font-family:monospace;font-weight:700;color:var(--accent);letter-spacing:1px;">{{ v.codigo or '—' }}</td>
+                <td style="font-family:monospace;color:var(--text-muted);letter-spacing:1px;">{{ v.codigo_produto or '—' }}</td>
+                <td>
+                  <div class="prod-cell">
+                    <span class="prod-icon">{% if is_bar %}🍹{% else %}🛒{% endif %}</span>
+                    <div>
+                      <div class="prod-nome">{{ v.nome }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  {% set status_v = v.status or 'quitada' %}
+                  {% if status_v == 'pendente' %}
+                    <span class="status-badge status-pendente">🟡 Pendente</span>
+                  {% elif status_v == 'parcial' %}
+                    <span class="status-badge status-parcial">🟠 Parcialmente Paga</span>
+                  {% elif status_v == 'cancelada' %}
+                    <span class="status-badge status-cancelada">🔴 Cancelada</span>
+                  {% else %}
+                    <span class="status-badge status-quitada">🟢 Quitada</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="date-cell">
+                    <span class="date-main">{{ v.data|br_date }}</span>
+                    {% if v.hora %}<span class="date-hora">{{ v.hora }}</span>{% endif %}
+                  </div>
+                </td>
+                <td>
+                  <div class="pgto-cell">
+                    {% if 'pix' in pgto %}
+                      <span class="pgto-icon">⚡</span> Pix
+                    {% elif 'cart' in pgto %}
+                      <span class="pgto-icon">💳</span> Cartão
+                    {% elif 'dinheiro' in pgto %}
+                      <span class="pgto-icon">💵</span> Dinheiro
+                    {% else %}
+                      {{ v.forma_pagamento or '—' }}
+                    {% endif %}
+                  </div>
+                </td>
+                <td style="text-align:right;">{{ v.quantidade }}</td>
+                <td style="text-align:right;">R$ {{ "%.2f"|format(v.valor_venda) }}</td>
+                <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
+                {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
+                <td style="text-align:center;">
+                  {% if margem >= 40 %}
+                    <span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
+                  {% elif margem >= 20 %}
+                    <span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
+                  {% elif margem >= 0 %}
+                    <span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
+                  {% else %}
+                    <span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>
+                  {% endif %}
+                </td>
+                {% endif %}
+                <td style="text-align:center;">
+                  <button class="gear-btn"
+                    onclick="abrirMenu(this,'{{ v.uid }}','/vendas/editar/{{ v.uid }}','/vendas/excluir/{{ v.uid }}')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                    ▾
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <div class="vis-footer">
+        <span></span>
+        <button class="vis-btn-fechar" onclick="this.closest('.vis-overlay').classList.remove('open')">Fechar</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
 <div class="v-wrap">
 
   <!-- HEADER -->
@@ -310,7 +543,7 @@
       </a>
       {% endif %}
       {% if tipo == "admin" or "exportar_financeiro" in permissoes %}
-      <a class="btn-export" href="/vendas/exportar?busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">
+      <a class="btn-export" href="/vendas/exportar?busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exportar CSV
       </a>
@@ -396,9 +629,9 @@
       </div>
       <div>
         <label>Código</label>
-        <input type="text" name="codigo" placeholder="Ex: V-A4K9P"
-          value="{{ busca_codigo or '' }}" autocomplete="off" maxlength="7"
-          style="width:140px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;">
+        <input type="text" name="codigo" placeholder="Ex: V178389 ou CMD-DB1E771A"
+          value="{{ busca_codigo or '' }}" autocomplete="off" maxlength="24"
+          style="width:180px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;">
       </div>
       <div>
         <label>Data inicial</label>
@@ -415,6 +648,15 @@
           <option value="pix" {% if forma_pagamento_raw == 'pix' %}selected{% endif %}>⚡ Pix</option>
           <option value="cartao" {% if forma_pagamento_raw == 'cartao' %}selected{% endif %}>💳 Cartão</option>
           <option value="dinheiro" {% if forma_pagamento_raw == 'dinheiro' %}selected{% endif %}>💵 Dinheiro</option>
+        </select>
+      </div>
+      <div>
+        <label>Status</label>
+        <select name="status">
+          <option value="">Todos</option>
+          <option value="pendente" {% if status_raw == 'pendente' %}selected{% endif %}>🟡 Pendente</option>
+          <option value="parcial" {% if status_raw == 'parcial' %}selected{% endif %}>🟠 Parcialmente Paga</option>
+          <option value="quitada" {% if status_raw == 'quitada' %}selected{% endif %}>🟢 Quitada</option>
         </select>
       </div>
       {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
@@ -441,9 +683,9 @@
       {% set q_ini = data_ini_raw or '' %}
       {% set q_fim = data_fim_raw or '' %}
       {% set hoje_str = '' %}
-      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
-      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
-      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
+      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
+      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
+      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
     </div>
     <div class="v-sort-wrap">
       <label>Ordenar:</label>
@@ -462,77 +704,67 @@
   <!-- TABELA -->
   {% if vendas and vendas|length > 0 %}
   <div class="v-table-wrap">
+    {% set tem_margem = tipo == "admin" or "ver_margem_lucro" in permissoes %}
     <table class="v-table">
       <thead>
         <tr>
-          <th>Código</th>
-          <th>Cód. Produto</th>
-          <th>Produto</th>
+          <th>Venda</th>
           <th>Data / Hora</th>
+          <th style="text-align:right;">Itens</th>
           <th>Pagamento</th>
-          <th style="text-align:right;">Qtd</th>
-          <th style="text-align:right;">Preço Unit.</th>
           <th style="text-align:right;">Total</th>
-          {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}<th style="text-align:center;">Margem</th>{% endif %}
+          {% if tem_margem %}<th style="text-align:center;">Margem</th>{% endif %}
+          <th style="text-align:center;">Status</th>
           <th style="text-align:center;">Ações</th>
         </tr>
       </thead>
       <tbody>
-        {% for v in vendas %}
-          {% set custo  = v.valor_investido if v.valor_investido else 0 %}
-          {% set margem = ((v.valor_venda - custo) / v.valor_venda * 100) if v.valor_venda and v.valor_venda > 0 else 0 %}
-          {% set is_bar = v.produto_tipo == 'bar' %}
-          {% set pgto   = (v.forma_pagamento or '')|lower %}
-          <tr>
-            <td style="font-family:monospace;font-weight:700;color:var(--accent);letter-spacing:1px;">{{ v.codigo or '—' }}</td>
-            <td style="font-family:monospace;color:var(--text-muted);letter-spacing:1px;">{{ v.codigo_produto or '—' }}</td>
+        {% for g in vendas %}
+          {% set gi = loop.index %}
+          {% set margem_g = g.margem or 0 %}
+          <tr class="v-group-row">
             <td>
-              <div class="prod-cell">
-                <span class="prod-icon">{% if is_bar %}🍹{% else %}🛒{% endif %}</span>
-                <div>
-                  <div class="prod-nome">{{ v.nome }}</div>
-                  {% if v.comanda_id %}<div class="prod-origem">📋 {{ v.comanda_nome or 'Comanda' }}</div>{% endif %}
-                </div>
-              </div>
+              <span style="font-family:monospace;font-weight:700;color:var(--accent);letter-spacing:1px;">{{ g.id_display }}</span>
+              {% if g.comanda_id %}<div class="prod-origem">📋 {{ g.comanda_nome or 'Comanda' }}</div>{% endif %}
             </td>
             <td>
               <div class="date-cell">
-                <span class="date-main">{{ v.data|br_date }}</span>
-                {% if v.hora %}<span class="date-hora">{{ v.hora }}</span>{% endif %}
+                <span class="date-main">{{ g.data|br_date }}</span>
+                {% if g.hora %}<span class="date-hora">{{ g.hora }}</span>{% endif %}
               </div>
             </td>
+            <td style="text-align:right;" class="v-qtd-itens">{{ g.qtd_itens }}</td>
             <td>
-              <div class="pgto-cell">
-                {% if 'pix' in pgto %}
-                  <span class="pgto-icon">⚡</span> Pix
-                {% elif 'cart' in pgto %}
-                  <span class="pgto-icon">💳</span> Cartão
-                {% elif 'dinheiro' in pgto %}
-                  <span class="pgto-icon">💵</span> Dinheiro
-                {% else %}
-                  {{ v.forma_pagamento or '—' }}
-                {% endif %}
-              </div>
+              <div class="pgto-cell">{{ g.formas_pagamento|join(' + ') if g.formas_pagamento else '—' }}</div>
             </td>
-            <td style="text-align:right;">{{ v.quantidade }}</td>
-            <td style="text-align:right;">R$ {{ "%.2f"|format(v.valor_venda) }}</td>
-            <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
-            {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
+            <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(g.valor_total) }}</td>
+            {% if tem_margem %}
             <td style="text-align:center;">
-              {% if margem >= 40 %}
-                <span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
-              {% elif margem >= 20 %}
-                <span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
-              {% elif margem >= 0 %}
-                <span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
+              {% if margem_g >= 40 %}
+                <span class="margem-badge mb-alta">{{ "%.0f"|format(margem_g) }}%</span>
+              {% elif margem_g >= 20 %}
+                <span class="margem-badge mb-media">{{ "%.0f"|format(margem_g) }}%</span>
+              {% elif margem_g >= 0 %}
+                <span class="margem-badge mb-baixa">{{ "%.0f"|format(margem_g) }}%</span>
               {% else %}
-                <span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>
+                <span class="margem-badge mb-neg">{{ "%.0f"|format(margem_g) }}%</span>
               {% endif %}
             </td>
             {% endif %}
             <td style="text-align:center;">
-              <button class="gear-btn"
-                onclick="abrirMenu(this,'{{ v.uid }}','/vendas/editar/{{ v.uid }}','/vendas/excluir/{{ v.uid }}')">
+              {% if g.status == 'pendente' %}
+                <span class="status-badge status-pendente">🟡 Pendente</span>
+              {% elif g.status == 'parcial' %}
+                <span class="status-badge status-parcial">🟠 Parcialmente Paga</span>
+              {% elif g.status == 'cancelada' %}
+                <span class="status-badge status-cancelada">🔴 Cancelada</span>
+              {% else %}
+                <span class="status-badge status-quitada">🟢 Quitada</span>
+              {% endif %}
+            </td>
+            <td style="text-align:center;">
+              <button class="gear-btn gear-btn-grupo"
+                onclick="abrirMenuGrupo(this,{{ gi }},'{{ g.grupo_key }}')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="3"/>
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -553,7 +785,7 @@
       {% if total_paginas and total_paginas > 1 %}
       <div class="v-pag-btns">
         {% if pagina > 1 %}
-          <a class="pag-btn" href="/vendas?pagina={{ pagina-1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">←</a>
+          <a class="pag-btn" href="/vendas?pagina={{ pagina-1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">←</a>
         {% else %}
           <span class="pag-btn disabled">←</span>
         {% endif %}
@@ -562,12 +794,12 @@
           {% if p == pagina %}
             <span class="pag-btn current">{{ p }}</span>
           {% else %}
-            <a class="pag-btn" href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">{{ p }}</a>
+            <a class="pag-btn" href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">{{ p }}</a>
           {% endif %}
         {% endfor %}
 
         {% if pagina < total_paginas %}
-          <a class="pag-btn" href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">→</a>
+          <a class="pag-btn" href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">→</a>
         {% else %}
           <span class="pag-btn disabled">→</span>
         {% endif %}
@@ -583,14 +815,42 @@
 </div>
 
 <script type="application/json" id="data-nomes-vendas">{{ nomes_sugestoes | tojson }}</script>
-<script type="application/json" id="data-vendas-map">{{ vendas | tojson }}</script>
+<script type="application/json" id="data-vendas-map">{{ vendas | map(attribute='itens') | sum(start=[]) | tojson }}</script>
+<script type="application/json" id="data-grupos-map">{{ vendas | tojson }}</script>
 <script>
 const TEM_PERM_CANCELAR = {{ 'true' if tipo == "admin" or "cancelar_vendas" in permissoes else 'false' }};
 const VENDAS_MAP = {};
 JSON.parse(document.getElementById('data-vendas-map').textContent).forEach(v => { VENDAS_MAP[v.uid] = v; });
+const GRUPOS_MAP = {};
+JSON.parse(document.getElementById('data-grupos-map').textContent).forEach(g => { GRUPOS_MAP[g.grupo_key] = g; });
 
 function fmtR(n){ return 'R$ ' + (+(Math.round(n+'e2')+'e-2')).toFixed(2); }
 function fmtData(s){ if(!s) return '—'; const p=s.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:s; }
+
+// ── "Editar venda": abre o modal de edição da venda ──
+window.abrirEditarGrupo = function(gi) {
+  const el = document.getElementById('editg-overlay-' + gi);
+  if (el) el.classList.add('open');
+};
+
+// ── Cancelar venda inteira (grupo) ──
+window.cancelarGrupo = function(grupoKey) {
+  const form = document.getElementById('form-cancelar-grupo');
+  document.getElementById('cancelar-grupo-key').value = grupoKey;
+  if (TEM_PERM_CANCELAR) {
+    showConfirm('Cancelar venda inteira', 'Cancelar todos os itens desta venda? O estoque será reposto e todos os itens irão para "Vendas Canceladas".\n\nVocê tem permissão para esta ação — nenhum PIN necessário.', function(){
+      document.getElementById('cancelar-grupo-autorizador-usuario').value = '';
+      document.getElementById('cancelar-grupo-autorizador-pin').value = '';
+      form.submit();
+    });
+  } else {
+    showPinPrompt('Autorização necessária', 'Você não tem permissão para cancelar vendas. Informe o usuário e o PIN de alguém autorizado.', function(usuarioAut, pin){
+      document.getElementById('cancelar-grupo-autorizador-usuario').value = usuarioAut;
+      document.getElementById('cancelar-grupo-autorizador-pin').value = pin;
+      form.submit();
+    });
+  }
+};
 
 // ── Sort ──
 function aplicarSort(val) {
@@ -629,9 +889,15 @@ function preencherVisualizar(v) {
   document.getElementById('vv-pgto').textContent  = v.forma_pagamento || '—';
   document.getElementById('vv-hora').textContent  = v.hora || '—';
   document.getElementById('vv-usuario').textContent = v.usuario || '—';
-  document.getElementById('vv-status').innerHTML  = v.excluida
-    ? '<span class="tipo-badge-v" style="background:rgba(248,113,113,.15);color:#f87171;">CANCELADA</span>'
-    : '<span class="tipo-badge-v" style="background:rgba(74,222,128,.15);color:#4ade80;">ATIVA</span>';
+  const STATUS_LABEL_V = {
+    pendente:  '<span class="status-badge status-pendente">🟡 Pendente</span>',
+    parcial:   '<span class="status-badge status-parcial">🟠 Parcialmente Paga</span>',
+    quitada:   '<span class="status-badge status-quitada">🟢 Quitada</span>',
+    cancelada: '<span class="status-badge status-cancelada">🔴 Cancelada</span>',
+  };
+  document.getElementById('vv-status').innerHTML = v.excluida
+    ? STATUS_LABEL_V.cancelada
+    : (STATUS_LABEL_V[v.status] || STATUS_LABEL_V.quitada);
   document.getElementById('vv-origem').textContent = v.comanda_id
     ? '📋 Comanda: ' + (v.comanda_nome || 'Comanda')
     : '🛒 Venda direta (balcão)';
@@ -667,6 +933,45 @@ window.abrirVisualizar = function(uid) {
 };
 window.fecharVisualizar = function() {
   document.getElementById('vis-overlay').classList.remove('open');
+};
+
+// ── Visualizar venda (grupo) ──
+const FORMA_LABEL_G = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', fiado: 'Fiado' };
+function preencherVisualizarGrupo(g) {
+  if (!g) return;
+  document.getElementById('vvg-id').textContent = g.id_display || '—';
+  document.getElementById('vvg-data').textContent = fmtData(g.data);
+  document.getElementById('vvg-hora').textContent = g.hora || '—';
+  document.getElementById('vvg-pgto').textContent = (g.formas_pagamento || []).map(f => FORMA_LABEL_G[f] || f).join(' + ') || '—';
+  document.getElementById('vvg-qtd-itens').textContent = g.qtd_itens + (g.qtd_itens === 1 ? ' item' : ' itens');
+  const STATUS_LABEL_G = {
+    pendente:  '<span class="status-badge status-pendente">🟡 Pendente</span>',
+    parcial:   '<span class="status-badge status-parcial">🟠 Parcialmente Paga</span>',
+    quitada:   '<span class="status-badge status-quitada">🟢 Quitada</span>',
+    cancelada: '<span class="status-badge status-cancelada">🔴 Cancelada</span>',
+  };
+  document.getElementById('vvg-status').innerHTML = STATUS_LABEL_G[g.status] || STATUS_LABEL_G.quitada;
+  document.getElementById('vvg-origem').textContent = g.comanda_id
+    ? '📋 Comanda: ' + (g.comanda_nome || 'Comanda')
+    : '🛒 Venda direta (balcão)';
+  document.getElementById('vvg-total').textContent = fmtR(g.valor_total || 0);
+  const elMargem = document.getElementById('vvg-margem');
+  if (elMargem) elMargem.textContent = (g.margem || 0).toFixed(1) + '%';
+
+  const tbody = document.getElementById('vvg-itens-body');
+  tbody.innerHTML = (g.itens || []).map(v => {
+    const qtd = parseFloat(v.quantidade) || 0;
+    const preco = parseFloat(v.valor_venda) || 0;
+    return `<tr><td>${v.nome || '—'}</td><td style="text-align:right;">${qtd}</td><td style="text-align:right;">${fmtR(preco)}</td><td style="text-align:right;">${fmtR(preco*qtd)}</td></tr>`;
+  }).join('');
+
+  document.getElementById('visg-overlay').classList.add('open');
+}
+window.abrirVisualizarGrupo = function(grupoKey) {
+  preencherVisualizarGrupo(GRUPOS_MAP[grupoKey]);
+};
+window.fecharVisualizarGrupo = function() {
+  document.getElementById('visg-overlay').classList.remove('open');
 };
 
 // ── Gear dropdown ──
@@ -718,6 +1023,34 @@ window.fecharVisualizar = function() {
   });
   window.addEventListener('scroll', fecharMenu);
   window.addEventListener('resize', fecharMenu);
+})();
+
+// ── Gear dropdown (venda/grupo) ──
+(function(){
+  const dropdown = document.getElementById('acoes-dropdown-grupo');
+  let btnAtivo = null;
+
+  window.abrirMenuGrupo = function(btn, gi, grupoKey) {
+    if (btnAtivo === btn && dropdown.classList.contains('aberto')) { fecharMenuGrupo(); return; }
+    const elVer = document.getElementById('acao-ver-grupo');
+    if (elVer) elVer.onclick = function(e) { e.preventDefault(); fecharMenuGrupo(); abrirVisualizarGrupo(grupoKey); };
+    const elEditar = document.getElementById('acao-editar-grupo');
+    if (elEditar) elEditar.onclick = function(e) { e.preventDefault(); fecharMenuGrupo(); abrirEditarGrupo(gi); };
+    const rect = btn.getBoundingClientRect();
+    const menuW = 165;
+    let left = rect.right - menuW;
+    if (left < 8) left = 8;
+    dropdown.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+    dropdown.style.left = left + 'px';
+    dropdown.classList.add('aberto');
+    btnAtivo = btn;
+  };
+  function fecharMenuGrupo() { dropdown.classList.remove('aberto'); btnAtivo = null; }
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.gear-btn-grupo') && !e.target.closest('#acoes-dropdown-grupo')) fecharMenuGrupo();
+  });
+  window.addEventListener('scroll', fecharMenuGrupo);
+  window.addEventListener('resize', fecharMenuGrupo);
 })();
 
 // ── Payment bar widths ──

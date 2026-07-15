@@ -204,12 +204,14 @@
         <div class="cp-field">
           <label>Custo médio (unitário)</label>
           <input type="number" step="0.01" name="valor_investido" id="custo" min="0"
+            {% if not (tipo == "admin" or "alterar_custo_produto" in permissoes) %}readonly title="Você não tem permissão para alterar o custo do produto."{% endif %}
             value="{{ '%.2f'|format(produto.get('valor_investido',0)|float) }}" placeholder="R$ 0,00">
           <span class="cp-hint">Custo médio atual por unidade</span>
         </div>
         <div class="cp-field">
           <label>Preço de venda (unitário) <span class="req">*</span></label>
           <input type="number" step="0.01" name="valor_venda" id="venda" min="0.01" required
+            {% if not (tipo == "admin" or "alterar_preco_venda" in permissoes) %}readonly title="Você não tem permissão para alterar o preço de venda."{% endif %}
             value="{{ '%.2f'|format(produto.get('valor_venda',0)|float) }}" placeholder="R$ 0,00">
           <span class="cp-hint">Valor cobrado por unidade ao cliente</span>
         </div>

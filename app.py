@@ -95,14 +95,13 @@ PERMISSOES_TODAS = [
     "ver_estoque", "visualizar_produto", "editar_estoque", "cadastrar_produto", "editar_produto", "excluir_produto",
     # Dados Sensíveis do Estoque
     "ver_valor_estoque", "ver_margem_estoque", "ver_custo_produtos",
-    "ver_qtd_estoque", "ver_produtos_sem_lucro",
     # Financeiro
-    "ver_financeiro", "abrir_fechar_caixa", "lancar_entrada_saida", "editar_lancamentos",
+    "ver_financeiro", "abrir_fechar_caixa",
     # Informações Financeiras
-    "ver_caixa", "ver_historico_caixa", "ver_lucro_liquido", "ver_despesas", "ver_metas", "exportar_financeiro",
+    "ver_caixa", "ver_historico_caixa", "ver_lucro_liquido", "ver_despesas", "exportar_financeiro",
     # Críticas
     "excluir_vendas", "alterar_preco_venda", "alterar_custo_produto",
-    "cancelar_sem_permissao", "gerenciar_usuarios", "alterar_permissoes",
+    "gerenciar_usuarios", "alterar_permissoes",
     "ver_vendas_canceladas",
 ]
 
@@ -117,8 +116,8 @@ CARGO_PERMISSOES_PADRAO = {
         "aplicar_desconto", "ver_valor_comandas",
         "ver_margem_lucro", "ver_lucro_venda", "ver_faturamento_diario", "ver_qtd_vendas", "ver_ticket_medio",
         "ver_estoque", "visualizar_produto", "editar_estoque", "cadastrar_produto", "editar_produto",
-        "ver_valor_estoque", "ver_margem_estoque", "ver_custo_produtos", "ver_qtd_estoque",
-        "ver_financeiro", "abrir_fechar_caixa", "lancar_entrada_saida",
+        "ver_valor_estoque", "ver_margem_estoque", "ver_custo_produtos",
+        "ver_financeiro", "abrir_fechar_caixa",
         "ver_caixa", "ver_historico_caixa", "ver_lucro_liquido", "ver_despesas", "exportar_financeiro",
     ],
     "caixa": [
@@ -128,7 +127,6 @@ CARGO_PERMISSOES_PADRAO = {
     ],
     "estoquista": [
         "ver_estoque", "visualizar_produto", "editar_estoque", "cadastrar_produto", "editar_produto",
-        "ver_qtd_estoque",
     ],
 }
 
@@ -222,7 +220,7 @@ def atualizar_campos_derivados_estoque(produto):
     # qtd == 0: mantém o último valor_investido; só atualiza ao entrar novo lote
 
 
-def entrada_estoque_lote(produto, data, qtd, custo_unit):
+def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario=""):
     qtd = to_int(qtd, 0)
     custo_unit = to_float(custo_unit, 0)
     if qtd <= 0:
@@ -234,7 +232,8 @@ def entrada_estoque_lote(produto, data, qtd, custo_unit):
     produto["lotes"].append({
         "data": normalizar_data_str(data),
         "qtd": qtd,
-        "custo_unit": custo_unit
+        "custo_unit": custo_unit,
+        "criado_por": usuario,
     })
     atualizar_campos_derivados_estoque(produto)
 
@@ -419,6 +418,26 @@ def montar_previa_caixa_por_dia(dia):
     }
 
 
+# ================== MAPA DE TELAS (monitoramento) ==================
+ENDPOINT_PARA_TELA = {
+    "vendas": "🛒 Vendas", "cadastrar_venda_lote": "🛒 Vendas", "cadastrar_venda": "🛒 Vendas",
+    "ver_venda": "🛒 Vendas", "editar_venda": "🛒 Vendas", "vendas_canceladas": "🛒 Vendas",
+    "comandas": "📋 Comandas", "comanda_detalhe": "📋 Comandas",
+    "estoque": "📦 Estoque", "estoque_novo": "📦 Estoque", "estoque_produto": "📦 Estoque",
+    "editar_produto": "📦 Estoque", "editar_produto_alias": "📦 Estoque",
+    "bar_produtos": "📦 Estoque (Bar)", "bar_produto_novo": "📦 Estoque (Bar)", "bar_produto_editar": "📦 Estoque (Bar)",
+    "caixa_abrir": "💰 Caixa", "caixa_turno": "💰 Caixa", "caixa_fechar": "💰 Caixa",
+    "caixa_movimentacao": "💰 Caixa", "caixa_historico_novo": "💰 Caixa", "caixa_historico": "💰 Caixa",
+    "caixa_detalhe": "💰 Caixa", "caixa_relatorio": "💰 Caixa", "fechar_caixa": "💰 Caixa",
+    "financeiro": "📈 Financeiro",
+    "permissoes": "⚙ Administração", "usuarios_online": "⚙ Administração", "logs": "⚙ Administração",
+}
+
+
+def _tela_atual_da_request() -> str:
+    return ENDPOINT_PARA_TELA.get(request.endpoint or "", "")
+
+
 # ================== ATUALIZA SESSÃO ==================
 @app.before_request
 def atualizar_permissoes_da_sessao():
@@ -464,7 +483,7 @@ def atualizar_permissoes_da_sessao():
 
     if token:
         try:
-            db.atualizar_atividade_sessao(token, now_brt().strftime("%Y-%m-%d %H:%M:%S"))
+            db.atualizar_atividade_sessao(token, now_brt().strftime("%Y-%m-%d %H:%M:%S"), tela=_tela_atual_da_request())
         except Exception:
             pass
 
@@ -508,7 +527,7 @@ def login():
                 session["permissoes"] = perms
 
             quando = f"{hoje} {hora}:00"
-            session["_token"] = db.criar_sessao(usuario, quando)
+            session["_token"] = db.criar_sessao(usuario, quando, user_agent=request.headers.get("User-Agent", ""))
             db.update_user_ultimo_login(usuario, quando)
             db.registrar_log(usuario, "login", "Login realizado", hoje, hora)
 
@@ -526,7 +545,7 @@ def logout():
     token = session.get("_token")
     if token:
         try:
-            db.encerrar_sessao(token, usuario)
+            db.encerrar_sessao(token, usuario, quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
         except Exception:
             pass
     if usuario:
@@ -536,6 +555,27 @@ def logout():
 
 
 # ================== VENDAS ==================
+def _grupo_key(v):
+    """Chave de agrupamento de uma linha de venda em 'uma venda' (carrinho ou
+    comanda): comanda_id > id_venda (carrinho) > uid isolado como fallback."""
+    if v.get("comanda_id"):
+        return "cmd:" + str(v["comanda_id"])
+    if v.get("id_venda"):
+        return "iv:" + str(v["id_venda"])
+    return "uid:" + str(v.get("uid"))
+
+
+def _id_display(v):
+    """Identificador de venda exibido pra usuário (mesmo pra toda linha do
+    mesmo carrinho/comanda): CMD-XXXXXXXX pra comanda, id_venda pra balcão."""
+    comanda_id = v.get("comanda_id")
+    if comanda_id:
+        return "CMD-" + str(comanda_id)[:8].upper()
+    if v.get("id_venda"):
+        return str(v["id_venda"])
+    return str(v.get("uid", ""))[:8]
+
+
 @app.route("/")
 @app.route("/vendas")
 def vendas():
@@ -550,6 +590,7 @@ def vendas():
     busca_produto_raw = request.args.get("busca_produto", "").strip()
     codigo_raw = request.args.get("codigo", "").strip().upper()
     forma_pagamento_raw = request.args.get("forma_pagamento", "").strip()
+    status_raw = request.args.get("status", "").strip()
     margem_min_raw = request.args.get("margem_min", "").strip()
     margem_max_raw = request.args.get("margem_max", "").strip()
     ordenar_raw = request.args.get("ordenar", "data_desc").strip()
@@ -593,7 +634,7 @@ def vendas():
         nome = str(v.get("nome", "")).lower()
         if busca_produto and busca_produto not in nome:
             ok = False
-        if codigo_raw and str(v.get("codigo", "")).upper() != codigo_raw:
+        if codigo_raw and codigo_raw not in _id_display(v).upper():
             ok = False
         d = parse_date_yyyy_mm_dd(v.get("data", ""))
         if data_ini and d and d < data_ini:
@@ -604,6 +645,8 @@ def vendas():
             pgto = str(v.get("forma_pagamento", "")).lower()
             if forma_pagamento_raw.lower() not in pgto:
                 ok = False
+        if status_raw and (v.get("status") or "quitada") != status_raw:
+            ok = False
         if margem_min_raw:
             try:
                 if margem_calc(v) < float(margem_min_raw):
@@ -619,30 +662,73 @@ def vendas():
         if ok:
             vendas_filtradas.append(v)
 
-    def chave_data(v):
-        d = parse_date_yyyy_mm_dd(v.get("data", ""))
-        return d or datetime.min.date()
+    # ── Agrupa as linhas filtradas em "vendas" (1 carrinho ou 1 comanda = 1 venda) ──
+    grupos_map = defaultdict(list)
+    for v in vendas_filtradas:
+        grupos_map[_grupo_key(v)].append(v)
+
+    def _montar_grupo(chave, itens_grupo):
+        itens_ordenados = sorted(itens_grupo, key=lambda v: (v.get("data") or "", v.get("hora") or ""))
+        primeiro = itens_ordenados[0]
+        valor_total = sum(float(v.get("valor_venda") or 0) * float(v.get("quantidade") or 1) for v in itens_grupo)
+        custo_total = sum(float(v.get("valor_investido") or 0) * float(v.get("quantidade") or 1) for v in itens_grupo)
+        margem_grupo = ((valor_total - custo_total) / valor_total * 100) if valor_total > 0 else 0.0
+
+        formas = []
+        for v in itens_grupo:
+            f = normalizar_pagamento(v.get("forma_pagamento", "")) if v.get("forma_pagamento") else None
+            if f and f not in formas:
+                formas.append(f)
+
+        statuses = set((v.get("status") or "quitada") for v in itens_grupo)
+        if "pendente" in statuses:
+            status_grupo = "pendente"
+        elif "parcial" in statuses:
+            status_grupo = "parcial"
+        elif statuses == {"cancelada"}:
+            status_grupo = "cancelada"
+        else:
+            status_grupo = "quitada"
+
+        comanda_id = primeiro.get("comanda_id")
+        id_display = _id_display(primeiro)
+
+        return {
+            "grupo_key": chave,
+            "id_display": id_display,
+            "comanda_id": comanda_id,
+            "comanda_nome": primeiro.get("comanda_nome"),
+            "data": primeiro.get("data"),
+            "hora": primeiro.get("hora"),
+            "qtd_itens": len(itens_grupo),
+            "qtd_unidades": sum(int(float(v.get("quantidade") or 1)) for v in itens_grupo),
+            "valor_total": round(valor_total, 2),
+            "margem": round(margem_grupo, 2),
+            "formas_pagamento": formas,
+            "status": status_grupo,
+            "pode_cancelar_inteira": status_grupo in ("quitada", "cancelada"),
+            "itens": itens_ordenados,
+        }
+
+    vendas_agrupadas = [_montar_grupo(k, itens) for k, itens in grupos_map.items()]
 
     if ordenar_raw == "margem_asc":
-        vendas_filtradas.sort(key=margem_calc)
+        vendas_agrupadas.sort(key=lambda g: g["margem"])
     elif ordenar_raw == "margem_desc":
-        vendas_filtradas.sort(key=margem_calc, reverse=True)
+        vendas_agrupadas.sort(key=lambda g: g["margem"], reverse=True)
     elif ordenar_raw == "valor_desc":
-        vendas_filtradas.sort(
-            key=lambda v: float(v.get("valor_venda") or 0) * float(v.get("quantidade") or 1),
-            reverse=True
-        )
+        vendas_agrupadas.sort(key=lambda g: g["valor_total"], reverse=True)
     elif ordenar_raw == "nome_asc":
-        vendas_filtradas.sort(key=lambda v: str(v.get("nome", "")).lower())
+        vendas_agrupadas.sort(key=lambda g: str(g["itens"][0].get("nome", "")).lower())
     else:
-        vendas_filtradas.sort(key=chave_data, reverse=True)
+        vendas_agrupadas.sort(key=lambda g: (g["data"] or "", g["hora"] or ""), reverse=True)
 
-    # stats calculados sobre lista filtrada completa
+    # stats calculados sobre as linhas filtradas (dinheiro não muda com o agrupamento)
     total_vendido = sum(
         float(v.get("valor_venda") or 0) * float(v.get("quantidade") or 1)
         for v in vendas_filtradas
     )
-    num_vendas = len(vendas_filtradas)
+    num_vendas = len(vendas_agrupadas)  # "venda" agora é carrinho/comanda, não item
     itens_vendidos = sum(int(float(v.get("quantidade") or 1)) for v in vendas_filtradas)
     ticket_medio = (total_vendido / num_vendas) if num_vendas else 0.0
 
@@ -669,7 +755,7 @@ def vendas():
         pagina = 1
 
     por_pagina = 20
-    total_registros = len(vendas_filtradas)
+    total_registros = len(vendas_agrupadas)
     total_paginas = (total_registros + por_pagina - 1) // por_pagina
 
     if total_paginas >= 1 and pagina > total_paginas:
@@ -677,8 +763,8 @@ def vendas():
 
     inicio = (pagina - 1) * por_pagina
     fim = inicio + por_pagina
-    vendas_pagina = vendas_filtradas[inicio:fim]
-    inicio_reg = inicio + 1 if vendas_filtradas else 0
+    vendas_pagina = vendas_agrupadas[inicio:fim]
+    inicio_reg = inicio + 1 if vendas_agrupadas else 0
     fim_reg = min(fim, total_registros)
 
     nomes_sugestoes = sorted(set(
@@ -697,6 +783,7 @@ def vendas():
         busca_produto=busca_produto_raw,
         busca_codigo=codigo_raw,
         forma_pagamento_raw=forma_pagamento_raw,
+        status_raw=status_raw,
         margem_min_raw=margem_min_raw,
         margem_max_raw=margem_max_raw,
         ordenar_raw=ordenar_raw,
@@ -764,7 +851,7 @@ def vendas_exportar():
         nome = str(v.get("nome", "")).lower()
         if busca_produto and busca_produto not in nome:
             ok = False
-        if codigo_raw and str(v.get("codigo", "")).upper() != codigo_raw:
+        if codigo_raw and codigo_raw not in _id_display(v).upper():
             ok = False
         d = parse_date_yyyy_mm_dd(v.get("data", ""))
         if data_ini and d and d < data_ini:
@@ -925,6 +1012,52 @@ def editar_venda(uid):
 
 
 # ================== CANCELAR VENDA (arquiva em Vendas Canceladas) ==================
+def _cancelar_venda_individual(uid: str, usuario: str):
+    """Cancela uma única linha de venda: devolve estoque, ajusta o caixa e marca
+    cancelada. Reaproveitado tanto pra cancelar 1 item quanto por 'cancelar
+    venda inteira' (que chama isto pra cada item do grupo)."""
+    venda = db.get_sale(uid)
+    if not venda or venda.get("excluida"):
+        return None
+
+    pid = str(venda.get("produto_pid", "")).strip()
+    produto = db.get_product(pid)
+    consumo_lotes = venda.get("consumo_lotes", [])
+
+    if produto and consumo_lotes:
+        devolver_fifo(produto, consumo_lotes)
+        db.update_product(produto)
+
+    # Atualiza o caixa se a venda pertencia a uma sessão
+    caixa_id = str(venda.get("caixa_id") or "").strip()
+    if caixa_id:
+        caixa = db.get_caixa_sessao(caixa_id)
+        if caixa:
+            caixa["vendas_uids"] = [u for u in (caixa.get("vendas_uids") or []) if u != uid]
+            valor = to_float(venda.get("valor_venda", 0))
+            forma = normalizar_pagamento(venda.get("forma_pagamento", ""))
+            campo_map = {
+                "dinheiro": "total_dinheiro",
+                "pix":      "total_pix",
+                "credito":  "total_cartao_cred",
+                "debito":   "total_cartao_deb",
+                "fiado":    "total_fiado",
+            }
+            campo = campo_map.get(forma)
+            if campo:
+                caixa[campo] = max(0.0, to_float(caixa.get(campo, 0)) - valor)
+            caixa["total_vendas"] = max(0.0, to_float(caixa.get("total_vendas", 0)) - valor)
+            caixa["qtd_vendas"]   = max(0, int(caixa.get("qtd_vendas", 0)) - 1)
+            db.update_caixa(caixa)
+
+    db.cancelar_sale(uid, usuario, now_brt().strftime("%Y-%m-%d %H:%M"))
+    db.registrar_log(
+        usuario, "venda_cancelada", f"Cancelou venda: {venda.get('nome', '')} ({venda.get('codigo') or uid[:8]})",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return venda
+
+
 @app.route("/vendas/excluir/<uid>", methods=["GET", "POST"])
 def excluir_venda(uid):
     if not usuario_logado():
@@ -938,40 +1071,45 @@ def excluir_venda(uid):
     if redir:
         return redir
 
-    venda = db.get_sale(uid)
+    _cancelar_venda_individual(uid, session.get("usuario", ""))
+    return redirect(url_for("vendas"))
 
-    if venda and not venda.get("excluida"):
-        pid = str(venda.get("produto_pid", "")).strip()
-        produto = db.get_product(pid)
-        consumo_lotes = venda.get("consumo_lotes", [])
 
-        if produto and consumo_lotes:
-            devolver_fifo(produto, consumo_lotes)
-            db.update_product(produto)
+@app.route("/vendas/cancelar_grupo", methods=["POST"])
+def cancelar_venda_grupo():
+    """Cancela todos os itens de uma 'venda agrupada' (carrinho de balcão ou
+    comanda já quitada) de uma vez só, reaproveitando _cancelar_venda_individual
+    item a item. Comandas ainda em aberto/parcial não são canceláveis por aqui
+    — o botão já vem desabilitado no front pra esses casos."""
+    if not usuario_logado():
+        return redirect(url_for("login"))
 
-        # Atualiza o caixa se a venda pertencia a uma sessão
-        caixa_id = str(venda.get("caixa_id") or "").strip()
-        if caixa_id:
-            caixa = db.get_caixa_sessao(caixa_id)
-            if caixa:
-                caixa["vendas_uids"] = [u for u in (caixa.get("vendas_uids") or []) if u != uid]
-                valor = to_float(venda.get("valor_venda", 0))
-                forma = normalizar_pagamento(venda.get("forma_pagamento", ""))
-                campo_map = {
-                    "dinheiro": "total_dinheiro",
-                    "pix":      "total_pix",
-                    "credito":  "total_cartao_cred",
-                    "debito":   "total_cartao_deb",
-                    "fiado":    "total_fiado",
-                }
-                campo = campo_map.get(forma)
-                if campo:
-                    caixa[campo] = max(0.0, to_float(caixa.get(campo, 0)) - valor)
-                caixa["total_vendas"] = max(0.0, to_float(caixa.get("total_vendas", 0)) - valor)
-                caixa["qtd_vendas"]   = max(0, int(caixa.get("qtd_vendas", 0)) - 1)
-                db.update_caixa(caixa)
+    grupo_key = (request.form.get("grupo_key") or "").strip()
+    if not grupo_key:
+        return redirect(url_for("vendas"))
 
-        db.cancelar_sale(uid, session.get("usuario", ""), now_brt().strftime("%Y-%m-%d %H:%M"))
+    redir = autorizar_acao("cancelar_vendas")
+    if redir:
+        return redir
+
+    usuario = session.get("usuario", "")
+
+    if grupo_key.startswith("cmd:"):
+        comanda_id = grupo_key[4:]
+        comanda = db.get_command(comanda_id)
+        if comanda and comanda.get("status") == "quitada":
+            for item in comanda.get("itens", []):
+                sale_uid = item.get("sale_uid")
+                if sale_uid:
+                    _cancelar_venda_individual(sale_uid, usuario)
+    elif grupo_key.startswith("iv:"):
+        id_venda_alvo = grupo_key[3:]
+        todas = db.get_all_sales()
+        uids = [v["uid"] for v in todas if v.get("id_venda") == id_venda_alvo]
+        for uid in uids:
+            _cancelar_venda_individual(uid, usuario)
+    elif grupo_key.startswith("uid:"):
+        _cancelar_venda_individual(grupo_key[4:], usuario)
 
     return redirect(url_for("vendas"))
 
@@ -1229,8 +1367,13 @@ def estoque_novo():
                 existente["valor_venda"] = valor_venda
                 existente.update(extras)
                 try:
-                    entrada_estoque_lote(existente, data_entrada, quantidade, valor_investido)
+                    entrada_estoque_lote(existente, data_entrada, quantidade, valor_investido, usuario=session.get("usuario", ""))
                     db.update_product(existente)
+                    db.registrar_log(
+                        session.get("usuario", ""), "estoque_alterado",
+                        f"Alterou estoque: {nome} (+{quantidade})",
+                        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+                    )
                 except ValueError as e:
                     erro = str(e)
             else:
@@ -1240,15 +1383,20 @@ def estoque_novo():
                     "nome": nome,
                     "valor_venda": valor_venda,
                     "lotes": [],
+                    "criado_por": session.get("usuario", ""),
                     **extras,
                 }
                 try:
-                    entrada_estoque_lote(novo, data_entrada, quantidade, valor_investido)
+                    entrada_estoque_lote(novo, data_entrada, quantidade, valor_investido, usuario=session.get("usuario", ""))
                 except ValueError as e:
                     erro = str(e)
 
                 if not erro:
                     db.insert_product(novo)
+                    db.registrar_log(
+                        session.get("usuario", ""), "produto_criado", f"Cadastrou produto: {nome}",
+                        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+                    )
 
             if not erro:
                 return redirect(url_for("estoque"))
@@ -1285,10 +1433,14 @@ def editar_produto(pid):
         if redir:
             return redir
 
-        nome            = (request.form.get("nome") or "").strip()
-        data            = (request.form.get("data") or "").strip()
-        valor_venda     = to_float(request.form.get("valor_venda"), 0.0)
-        valor_investido = to_float(request.form.get("valor_investido"), 0.0)
+        pode_preco = session.get("tipo") == "admin" or tem_permissao("alterar_preco_venda")
+        pode_custo = session.get("tipo") == "admin" or tem_permissao("alterar_custo_produto")
+
+        nome              = (request.form.get("nome") or "").strip()
+        data              = (request.form.get("data") or "").strip()
+        valor_venda_atual = to_float(produto.get("valor_venda"), 0.0)
+        valor_venda       = to_float(request.form.get("valor_venda"), valor_venda_atual) if pode_preco else valor_venda_atual
+        valor_investido   = to_float(request.form.get("valor_investido"), 0.0)
 
         if not nome:
             erro = "Informe o nome do produto."
@@ -1298,7 +1450,7 @@ def editar_produto(pid):
             produto["nome"]        = nome
             produto["data"]        = data
             produto["valor_venda"] = valor_venda
-            if valor_investido > 0:
+            if pode_custo and valor_investido > 0:
                 produto["valor_investido"] = valor_investido
             produto["quantidade"] = estoque_qtd_total(produto)
             produto["categoria"]          = request.form.get("categoria") or None
@@ -1313,6 +1465,10 @@ def editar_produto(pid):
             produto["unidades_por_caixa"] = to_int(request.form.get("unidades_por_caixa"), None) if request.form.get("unidades_por_caixa") else None
             produto["observacoes"]        = request.form.get("observacoes") or None
             db.update_product(produto)
+            db.registrar_log(
+                session.get("usuario", ""), "produto_editado", f"Editou produto: {nome}",
+                now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+            )
             return redirect(url_for("estoque"))
 
     return render_template(
@@ -1392,6 +1548,7 @@ def estoque_produto(pid):
                 "custo_unit":     custo_unit,
                 "forma_entrada":  forma_entrada,
                 "qtd_informada":  qtd_informada,
+                "criado_por":     session.get("usuario", ""),
             }
             if unid_por_caixa:
                 lote["unidades_por_caixa"] = unid_por_caixa
@@ -1534,7 +1691,7 @@ def cadastrar_venda():
     if not pids or not quantidades or len(pids) != len(quantidades):
         erro = "Adicione pelo menos 1 item na venda."
     else:
-        id_venda = f"V{int(time.time())}"
+        id_venda = f"V{int(time.time())}{uuid.uuid4().hex[:4]}"
         itens = []
 
         for pid, qtd_raw in zip(pids, quantidades):
@@ -1654,22 +1811,37 @@ def cadastrar_venda_lote():
         qtds   = request.form.getlist("quantidade[]")
         tipos  = request.form.getlist("produto_tipo[]")
         vpcs   = request.form.getlist("vender_por_conteudo[]")
+        precos = request.form.getlist("preco_venda[]")
 
-        # garante que tipos e vpcs têm o mesmo tamanho que pids
+        # garante que tipos, vpcs e precos têm o mesmo tamanho que pids
         while len(tipos) < len(pids):
             tipos.append("estoque")
         while len(vpcs) < len(pids):
             vpcs.append("0")
+        while len(precos) < len(pids):
+            precos.append("")
+
+        # desconto/preço manual só vale se o usuário tiver a permissão — sem
+        # ela, o preço submetido é ignorado e usamos sempre o preço de catálogo.
+        pode_descontar = session.get("tipo") == "admin" or tem_permissao("aplicar_desconto")
+
+        def _preco_final(preco_catalogo, preco_raw):
+            if not pode_descontar:
+                return preco_catalogo
+            preco_submetido = to_float(preco_raw, 0)
+            if 0 < preco_submetido <= preco_catalogo:
+                return preco_submetido
+            return preco_catalogo
 
         if not pids or not qtds or len(pids) != len(qtds):
             if not erro:
                 erro = "Adicione pelo menos 1 item na venda."
         elif not erro:
-            id_venda = f"V{int(time.time())}"
+            id_venda = f"V{int(time.time())}{uuid.uuid4().hex[:4]}"
             novas_vendas = []
             produtos_modificados = []
 
-            for pid, qtd_raw, tipo, vpc_flag in zip(pids, qtds, tipos, vpcs):
+            for pid, qtd_raw, tipo, vpc_flag, preco_raw in zip(pids, qtds, tipos, vpcs, precos):
                 pid = (pid or "").strip()
                 qtd = to_int(qtd_raw, 0)
                 vpc = vpc_flag == "1"
@@ -1687,6 +1859,7 @@ def cadastrar_venda_lote():
                         erro = str(e)
                         break
                     custo_unit = round(custo_total / qtd, 4) if qtd else 0.0
+                    preco_catalogo = to_float(bar_prod.get("sale_price", 0))
                     novas_vendas.append({
                         "uid": uuid.uuid4().hex,
                         "id_venda": id_venda,
@@ -1694,7 +1867,7 @@ def cadastrar_venda_lote():
                         "produto_pid": pid,
                         "produto_tipo": "bar",
                         "nome": bar_prod["name"],
-                        "valor_venda": to_float(bar_prod.get("sale_price", 0)),
+                        "valor_venda": _preco_final(preco_catalogo, preco_raw),
                         "valor_investido": custo_unit,
                         "quantidade": qtd,
                         "forma_pagamento": forma_pagamento,
@@ -1720,7 +1893,8 @@ def cadastrar_venda_lote():
                         erro = str(e)
                         break
                     custo_unit = round(custo_total / qtd, 4) if qtd else 0.0
-                    preco_unit = to_float(produto.get("valor_venda", 0)) / cv if (vpc and cv > 1) else to_float(produto.get("valor_venda", 0))
+                    preco_catalogo = to_float(produto.get("valor_venda", 0)) / cv if (vpc and cv > 1) else to_float(produto.get("valor_venda", 0))
+                    preco_unit = _preco_final(preco_catalogo, preco_raw)
                     novas_vendas.append({
                         "uid": uuid.uuid4().hex,
                         "id_venda": id_venda,
@@ -1751,6 +1925,13 @@ def cadastrar_venda_lote():
                 except RuntimeError as e:
                     erro = str(e)
                 else:
+                    total_venda = sum(to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 0)) for v in novas_vendas)
+                    desc = novas_vendas[0]["nome"] if len(novas_vendas) == 1 else f"{len(novas_vendas)} itens"
+                    db.registrar_log(
+                        session.get("usuario", ""), "venda_criada",
+                        f"Criou venda: {desc} (R$ {total_venda:.2f})",
+                        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+                    )
                     return redirect(url_for("cadastrar_venda_lote") + "?sucesso=1")
 
     hoje = now_brt().strftime("%Y-%m-%d")
@@ -1857,9 +2038,14 @@ def comanda_nova():
         "hora_abertura": now_brt().strftime("%H:%M"),
         "status": "aberta",
         "itens": [],
-        "pagamentos": []
+        "pagamentos": [],
+        "criado_por": session.get("usuario", ""),
     }
     db.insert_command(nova)
+    db.registrar_log(
+        session.get("usuario", ""), "comanda_criada", f"Criou comanda: {nome}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
     return redirect(url_for("comandas"))
 
 
@@ -1904,6 +2090,8 @@ def cliente_info(cid):
 def cliente_novo():
     if not usuario_logado():
         return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return jsonify({"erro": "não autorizado"}), 403
     nome = (request.form.get("nome") or "").strip()
     if not nome:
         return jsonify({"erro": "Nome obrigatório"}), 400
@@ -1925,6 +2113,10 @@ def cliente_novo():
         db.insert_cliente(novo)
     except RuntimeError as e:
         return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "cliente_criado", f"Criou cliente: {nome}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
     return jsonify(novo)
 
 
@@ -2008,8 +2200,28 @@ def comanda_adicionar(cid):
                     components_consumo.append({"pid": comp_pid, "consumo": log})
 
                 custo_unit = round(total_cost / qtd, 4) if qtd else 0.0
+                hoje_item = now_brt().strftime("%Y-%m-%d")
+                hora_item = now_brt().strftime("%H:%M")
+                sale_uid = uuid.uuid4().hex
+                db.insert_sale({
+                    "uid": sale_uid,
+                    "comanda_id": comanda["cid"],
+                    "comanda_nome": comanda["nome"],
+                    "data": hoje_item,
+                    "hora": hora_item,
+                    "produto_pid": pid,
+                    "produto_tipo": "bar",
+                    "nome": bar_prod["name"],
+                    "valor_venda": to_float(bar_prod.get("sale_price", 0)),
+                    "valor_investido": custo_unit,
+                    "quantidade": qtd,
+                    "status": "pendente",
+                    "consumo_lotes": all_logs,
+                    "usuario": session.get("usuario", ""),
+                })
                 comanda["itens"].append({
                     "item_id": uuid.uuid4().hex,
+                    "sale_uid": sale_uid,
                     "produto_pid": pid,
                     "produto_tipo": "bar",
                     "nome": bar_prod["name"],
@@ -2018,8 +2230,8 @@ def comanda_adicionar(cid):
                     "valor_investido": custo_unit,
                     "consumo_lotes": all_logs,
                     "bar_consumo_components": components_consumo,
-                    "data": now_brt().strftime("%Y-%m-%d"),
-                    "hora": now_brt().strftime("%H:%M")
+                    "data": hoje_item,
+                    "hora": hora_item
                 })
                 db.update_command(comanda)
             except (ValueError, RuntimeError) as e:
@@ -2044,8 +2256,28 @@ def comanda_adicionar(cid):
                     preco_unit = to_float(produto.get("valor_venda", 0))
                     db.update_product(produto)
 
+                hoje_item = now_brt().strftime("%Y-%m-%d")
+                hora_item = now_brt().strftime("%H:%M")
+                sale_uid = uuid.uuid4().hex
+                db.insert_sale({
+                    "uid": sale_uid,
+                    "comanda_id": comanda["cid"],
+                    "comanda_nome": comanda["nome"],
+                    "data": hoje_item,
+                    "hora": hora_item,
+                    "produto_pid": produto.get("pid"),
+                    "produto_tipo": "estoque",
+                    "nome": produto.get("nome", ""),
+                    "valor_venda": round(preco_unit, 4),
+                    "valor_investido": round(custo_unit_medio, 4),
+                    "quantidade": qtd,
+                    "status": "pendente",
+                    "consumo_lotes": consumo,
+                    "usuario": session.get("usuario", ""),
+                })
                 comanda["itens"].append({
                     "item_id": uuid.uuid4().hex,
+                    "sale_uid": sale_uid,
                     "produto_pid": produto.get("pid"),
                     "produto_tipo": "estoque",
                     "vender_por_conteudo": vender_por_conteudo and cv > 1,
@@ -2054,8 +2286,8 @@ def comanda_adicionar(cid):
                     "valor_venda": round(preco_unit, 4),
                     "valor_investido": round(custo_unit_medio, 4),
                     "consumo_lotes": consumo,
-                    "data": now_brt().strftime("%Y-%m-%d"),
-                    "hora": now_brt().strftime("%H:%M")
+                    "data": hoje_item,
+                    "hora": hora_item
                 })
 
                 db.update_command(comanda)
@@ -2115,6 +2347,8 @@ def comanda_remover_item(cid, item_id):
 
             comanda["itens"] = [i for i in comanda["itens"] if str(i.get("item_id")) != str(item_id)]
             db.update_command(comanda)
+            if item.get("sale_uid"):
+                db.cancelar_sale(item["sale_uid"], session.get("usuario", ""), now_brt().strftime("%Y-%m-%d %H:%M"))
         except RuntimeError as e:
             session["erro_comanda"] = f"Não foi possível remover o item: {e}"
 
@@ -2149,6 +2383,9 @@ def comanda_remover(cid):
                     db.update_product(produto)
 
         db.delete_command(cid)
+        for item in comanda.get("itens", []):
+            if item.get("sale_uid"):
+                db.cancelar_sale(item["sale_uid"], session.get("usuario", ""), now_brt().strftime("%Y-%m-%d %H:%M"))
     except RuntimeError as e:
         session["erro_comanda"] = f"Não foi possível cancelar a comanda: {e}"
         return redirect(url_for("comanda_detalhe", cid=cid))
@@ -2168,6 +2405,28 @@ def _registrar_historico(comanda: dict, status_anterior: str):
     comanda["historico"] = hist
 
 
+# Mapa comanda.status -> sales.status — toda venda ligada a uma comanda
+# reflete o status da comanda (pendente/parcial/quitada), nunca o valor total
+# de uma vez só antes de ser efetivamente recebido.
+STATUS_COMANDA_PARA_VENDA = {
+    "aberta": "pendente",
+    "aguardando_pagamento": "pendente",
+    "agendado": "pendente",
+    "atrasada": "pendente",
+    "em_pagamento": "pendente",
+    "pagamento_parcial": "parcial",
+    "quitada": "quitada",
+}
+
+
+def _sincronizar_status_vendas_comanda(comanda: dict):
+    novo_status = STATUS_COMANDA_PARA_VENDA.get(comanda.get("status"), "pendente")
+    try:
+        db.update_sales_status_by_comanda(comanda["cid"], novo_status)
+    except RuntimeError:
+        pass
+
+
 @app.route("/comandas/<cid>/aguardar", methods=["POST"])
 def comanda_aguardar(cid):
     if not usuario_logado():
@@ -2181,6 +2440,7 @@ def comanda_aguardar(cid):
         comanda["status"] = "aguardando_pagamento"
         _registrar_historico(comanda, status_anterior)
         db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
 
     return redirect(url_for("comandas"))
 
@@ -2188,35 +2448,6 @@ def comanda_aguardar(cid):
 @app.route("/comandas/<cid>/em_pagamento", methods=["POST"])
 def comanda_em_pagamento(cid):
     return comanda_aguardar(cid)
-
-
-def _criar_sales_comanda(comanda, forma_pagamento):
-    hoje = now_brt().strftime("%Y-%m-%d")
-    id_venda = f"V{int(time.time())}"
-    try:
-        caixa = db.get_caixa_aberto()
-    except Exception:
-        caixa = None
-    caixa_id_atual = caixa["id"] if caixa else None
-    for item in comanda["itens"]:
-        db.insert_sale({
-            "uid": uuid.uuid4().hex,
-            "id_venda": id_venda,
-            "comanda_id": comanda["cid"],
-            "comanda_nome": comanda["nome"],
-            "data": hoje,
-            "produto_pid": item.get("produto_pid"),
-            "produto_tipo": item.get("produto_tipo", "estoque"),
-            "nome": item.get("nome", ""),
-            "valor_venda": to_float(item.get("valor_venda", 0)),
-            "valor_investido": to_float(item.get("valor_investido", 0)),
-            "quantidade": to_int(item.get("quantidade", 0)),
-            "forma_pagamento": forma_pagamento,
-            "consumo_lotes": item.get("consumo_lotes", []),
-            "caixa_id": caixa_id_atual,
-            "hora": now_brt().strftime("%H:%M"),
-            "usuario": session.get("usuario", ""),
-        })
 
 
 @app.route("/comandas/<cid>/pagar", methods=["POST"])
@@ -2269,17 +2500,14 @@ def comanda_pagar(cid):
         "data": hoje,
         "hora": hora,
         "usuario": usuario,
-        "obs": obs
+        "obs": obs,
+        "caixa_id": caixa_pagar.get("id"),
     })
     comanda["pagamentos"] = pagamentos
 
     pago_total = round(pago_antes + valor, 2)
     status_anterior = comanda.get("status", "aberta")
     if pago_total >= total - 0.005:
-        try:
-            _criar_sales_comanda(comanda, forma)
-        except RuntimeError:
-            pass
         comanda["status"] = "quitada"
         comanda["data_quitada"] = hoje
     else:
@@ -2288,6 +2516,9 @@ def comanda_pagar(cid):
     _registrar_historico(comanda, status_anterior)
     try:
         db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
+        desc = f"Quitou comanda: {comanda.get('nome', '')}" if comanda["status"] == "quitada" else f"Registrou pagamento na comanda {comanda.get('nome', '')} (R$ {valor:.2f})"
+        db.registrar_log(usuario, "pagamento_comanda", desc, hoje, hora)
     except RuntimeError:
         pass
     return redirect(url_for("comandas"))
@@ -2317,6 +2548,7 @@ def comanda_agendar(cid):
     comanda["observacao"] = observacao
     _registrar_historico(comanda, status_anterior)
     db.update_command(comanda)
+    _sincronizar_status_vendas_comanda(comanda)
     return redirect(url_for("comandas"))
 
 
@@ -2364,20 +2596,18 @@ def comanda_fechar(cid):
             "data": hoje,
             "hora": hora,
             "usuario": usuario,
-            "obs": ""
+            "obs": "",
+            "caixa_id": caixa_fechar.get("id"),
         })
         comanda["pagamentos"] = pagamentos
 
     status_anterior = comanda.get("status", "aberta")
-    try:
-        _criar_sales_comanda(comanda, forma_pagamento)
-    except RuntimeError:
-        pass
     comanda["status"] = "quitada"
     comanda["data_quitada"] = hoje
     _registrar_historico(comanda, status_anterior)
     try:
         db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
     except RuntimeError:
         pass
     return redirect(url_for("comandas"))
@@ -2410,6 +2640,7 @@ def comanda_reverter(cid):
 
     try:
         db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
     except RuntimeError:
         pass
     return redirect(url_for("comandas"))
@@ -2435,7 +2666,10 @@ def _auth_caixa_ver():
 
 
 def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None) -> dict:
-    """Soma as vendas do caixa por forma de pagamento."""
+    """Soma as vendas diretas do caixa por forma de pagamento, mais os
+    pagamentos de comanda feitos enquanto esse caixa estava aberto (cada
+    pagamento de comanda já carrega o caixa_id de quando foi registrado,
+    então isso funciona igual pra caixa aberto ou já fechado)."""
     if vendas_ids is not None:
         vendas = db.get_sales_by_uids(vendas_ids) if vendas_ids else []
     else:
@@ -2448,6 +2682,14 @@ def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None) -> dic
         totais[forma] = totais.get(forma, 0.0) + valor
         totais["total"] += valor
         totais["qtd"] += 1
+
+    for p in db.get_pagamentos_comanda_por_caixa(caixa_id):
+        valor = to_float(p.get("valor", 0))
+        forma = normalizar_pagamento(p.get("forma", ""))
+        totais[forma] = totais.get(forma, 0.0) + valor
+        totais["total"] += valor
+        totais["qtd"] += 1
+
     return totais
 
 
@@ -2475,6 +2717,11 @@ def caixa_abrir():
             }
             try:
                 db.insert_caixa(novo)
+                db.registrar_log(
+                    session.get("usuario", ""), "caixa_aberto",
+                    f"Abriu caixa (valor inicial: R$ {valor:.2f})",
+                    now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+                )
                 return redirect(url_for("caixa_turno"))
             except RuntimeError as e:
                 erro = str(e)
@@ -2498,15 +2745,8 @@ def caixa_turno():
     total_suprimentos = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "suprimento")
     total_despesas   = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "despesa")
 
-    # vendas abertas vinculadas ao caixa
-    rows = db.get_sales_open_by_caixa(caixa["id"])
-    totais = {"dinheiro": 0.0, "pix": 0.0, "credito": 0.0, "debito": 0.0, "fiado": 0.0, "total": 0.0, "qtd": 0}
-    for v in rows:
-        valor = to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 1))
-        forma = normalizar_pagamento(v.get("forma_pagamento", ""))
-        totais[forma] = totais.get(forma, 0.0) + valor
-        totais["total"] += valor
-        totais["qtd"] += 1
+    # vendas diretas + pagamentos de comanda vinculados a este caixa
+    totais = _calcular_totais_caixa(caixa["id"])
 
     dinheiro_esperado = round(
         to_float(caixa["valor_abertura"]) + totais["dinheiro"]
@@ -2570,7 +2810,7 @@ def caixa_fechar():
     total_suprimentos = round(sum(to_float(m["valor"]) for m in movs if m["tipo"] == "suprimento"), 2)
     total_despesas    = round(sum(to_float(m["valor"]) for m in movs if m["tipo"] == "despesa"), 2)
 
-    # vendas abertas deste caixa
+    # vendas diretas abertas deste caixa
     rows = db.get_sales_open_by_caixa(caixa["id"])
     totais = {"dinheiro": 0.0, "pix": 0.0, "credito": 0.0, "debito": 0.0, "fiado": 0.0, "total": 0.0, "qtd": 0}
     uids = []
@@ -2581,6 +2821,14 @@ def caixa_fechar():
         totais["total"] += valor
         totais["qtd"] += 1
         uids.append(v["uid"])
+
+    # + pagamentos de comanda registrados enquanto este caixa estava aberto
+    for p in db.get_pagamentos_comanda_por_caixa(caixa["id"]):
+        valor = to_float(p.get("valor", 0))
+        forma = normalizar_pagamento(p.get("forma", ""))
+        totais[forma] = totais.get(forma, 0.0) + valor
+        totais["total"] += valor
+        totais["qtd"] += 1
 
     dinheiro_esperado = round(
         to_float(caixa["valor_abertura"]) + totais["dinheiro"]
@@ -2631,6 +2879,11 @@ def caixa_fechar():
             db.update_caixa(caixa)
             if uids:
                 db.mark_sales_fechado(uids, agora.strftime("%Y-%m-%d"), fechado_em)
+            db.registrar_log(
+                session.get("usuario", ""), "caixa_fechado",
+                f"Fechou caixa (total vendas: R$ {totais['total']:.2f})",
+                agora.strftime("%Y-%m-%d"), agora.strftime("%H:%M"),
+            )
         except RuntimeError:
             pass
 
@@ -2655,8 +2908,11 @@ def caixa_historico_novo():
 
     hoje = today_brt().isoformat()
     sessoes = db.get_all_caixas()
+    pode_ver_despesas = session.get("tipo") == "admin" or tem_permissao("ver_despesas")
 
     for s in sessoes:
+        if not pode_ver_despesas:
+            s["total_despesas"] = 0
         s["data_str"] = str(s.get("data_abertura") or "")[:10]
 
         if s.get("hora_abertura") and s.get("hora_fechamento"):
@@ -2946,7 +3202,7 @@ def financeiro():
     data_de = parse_date_input(data_ini_raw)
     data_ate = parse_date_input(data_fim_raw)
 
-    vendas = db.get_all_sales()
+    vendas = db.get_all_sales()  # já exclui canceladas (excluida=False)
 
     vendas_filtradas = []
     for v in vendas:
@@ -2966,33 +3222,71 @@ def financeiro():
         reverse=True
     )
 
+    # Fração paga de cada comanda parcial (pago / total), pra reconhecer
+    # recebido/lucro na proporção certa — nunca o valor cheio antes de entrar
+    # de fato no caixa. Comandas quitadas/pendentes não precisam da fração
+    # (100% e 0% respectivamente, já cobertos pelo status da venda).
+    fracao_paga_comanda = {}
+    for c in db.get_all_commands():
+        if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
+            continue
+        total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
+        pago_c = sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
+        fracao_paga_comanda[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
+
     total_vendido = 0.0
     total_investido = 0.0
+    valor_recebido = 0.0
+    lucro_total = 0.0
+    lucro_realizado = 0.0
 
-    for v in vendas_filtradas:
-        qtd = to_int(v.get("quantidade", 0))
-        venda_unit = to_float(v.get("valor_venda", 0))
-        inv_unit = to_float(v.get("valor_investido", 0))
-        total_vendido += venda_unit * qtd
-        total_investido += inv_unit * qtd
-
-    lucro_total = round(total_vendido - total_investido, 2)
-
-    # Top produtos por lucro
     produto_stats = defaultdict(lambda: {"qtd": 0, "lucro": 0.0})
+
     for v in vendas_filtradas:
-        nome = v.get("nome", "").strip() or "Sem nome"
         qtd = to_int(v.get("quantidade", 0))
-        lucro_unit = to_float(v.get("valor_venda", 0)) - to_float(v.get("valor_investido", 0))
+        valor_linha = to_float(v.get("valor_venda", 0)) * qtd
+        custo_linha = to_float(v.get("valor_investido", 0)) * qtd
+        lucro_linha = valor_linha - custo_linha
+        total_vendido += valor_linha
+        total_investido += custo_linha
+        lucro_total += lucro_linha
+
+        status_v = v.get("status") or "quitada"
+        if status_v == "quitada":
+            fracao = 1.0
+        elif status_v == "parcial":
+            fracao = fracao_paga_comanda.get(v.get("comanda_id"), 0.0)
+        else:  # pendente
+            fracao = 0.0
+
+        recebido_linha = valor_linha * fracao
+        lucro_realizado_linha = lucro_linha * fracao
+        valor_recebido += recebido_linha
+        lucro_realizado += lucro_realizado_linha
+
+        nome = v.get("nome", "").strip() or "Sem nome"
         produto_stats[nome]["qtd"] += qtd
-        produto_stats[nome]["lucro"] += lucro_unit * qtd
+        produto_stats[nome]["lucro"] += lucro_realizado_linha
+
+    total_vendido = round(total_vendido, 2)
+    total_investido = round(total_investido, 2)
+    lucro_total = round(lucro_total, 2)
+    valor_recebido = round(valor_recebido, 2)
+    lucro_realizado = round(lucro_realizado, 2)
+    total_a_receber = round(total_vendido - valor_recebido, 2)
+    lucro_pendente = round(lucro_total - lucro_realizado, 2)
+
+    # Top produtos por lucro já efetivamente realizado (não conta lucro sobre
+    # venda ainda não recebida no ranking).
     top_produtos = sorted(
         [{"nome": k, "quantidade": v["qtd"], "lucro": round(v["lucro"], 2)}
          for k, v in produto_stats.items()],
         key=lambda x: x["lucro"], reverse=True
     )[:5]
 
-    # Pagamentos por forma
+    # Pagamentos por forma — vendas diretas (sempre quitadas na hora) contam
+    # pelo valor da venda; vendas de comanda contam pelo pagamento individual
+    # de fato registrado no período (cada pagamento no seu próprio dia/forma).
     LABEL_FORMA_PAGAMENTO = {
         "pix": "Pix",
         "dinheiro": "Dinheiro",
@@ -3002,69 +3296,44 @@ def financeiro():
     }
     pag_totais = defaultdict(float)
     for v in vendas_filtradas:
+        if v.get("comanda_id"):
+            continue
         forma = normalizar_pagamento(v.get("forma_pagamento", ""))
         pag_totais[forma] += to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 0))
+    for c in db.get_all_commands():
+        if not isinstance(c, dict):
+            continue
+        for p in c.get("pagamentos", []):
+            d = parse_date_input(p.get("data", ""))
+            if not d or (data_de and d < data_de) or (data_ate and d > data_ate):
+                continue
+            forma = normalizar_pagamento(p.get("forma", ""))
+            pag_totais[forma] += to_float(p.get("valor", 0))
     pagamentos = []
     for forma, total in sorted(pag_totais.items(), key=lambda x: x[1], reverse=True):
-        pct = round(total / total_vendido * 100) if total_vendido > 0 else 0
+        pct = round(total / valor_recebido * 100) if valor_recebido > 0 else 0
         pagamentos.append({"forma": LABEL_FORMA_PAGAMENTO.get(forma, forma.capitalize()), "total": round(total, 2), "pct": pct})
 
-    # A receber — saldo pendente de comandas não quitadas, no mesmo período
-    def total_comanda(c):
-        return sum(
-            to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
-            for i in c.get("itens", [])
-        )
-
-    def valor_pago_comanda(c):
-        return sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
-
-    def investido_comanda(c):
-        return sum(
-            to_float(i.get("valor_investido", 0)) * to_int(i.get("quantidade", 0))
-            for i in c.get("itens", [])
-        )
-
-    total_a_receber = 0.0
-    num_comandas_pendentes = 0
-    total_vendido_pendente = 0.0
-    total_investido_pendente = 0.0
-    lucro_pendente_reconhecido = 0.0
-    total_pago_pendente = 0.0
+    # Contagem de comandas por status, no mesmo período (por data de abertura)
+    num_comandas_abertas = 0
+    num_comandas_parciais = 0
+    num_comandas_quitadas = 0
+    STATUS_ABERTA = ("aberta", "aguardando_pagamento", "agendado", "atrasada", "em_pagamento")
     for c in db.get_all_commands():
-        if not isinstance(c, dict) or c.get("status") == "quitada":
+        if not isinstance(c, dict):
             continue
         d = parse_date_input(c.get("data_abertura", ""))
-        if not d:
+        if not d or (data_de and d < data_de) or (data_ate and d > data_ate):
             continue
-        if data_de and d < data_de:
-            continue
-        if data_ate and d > data_ate:
-            continue
-        total_c = total_comanda(c)
-        investido_c = investido_comanda(c)
-        pago_c = valor_pago_comanda(c)
-        total_a_receber += max(round(total_c - pago_c, 2), 0)
-        num_comandas_pendentes += 1
-        total_vendido_pendente += total_c
-        total_investido_pendente += investido_c
-        total_pago_pendente += pago_c
-        # Lucro só é reconhecido na proporção do que já foi pago — não faz
-        # sentido contar margem sobre um valor que ainda não entrou no caixa.
-        if total_c > 0:
-            pago_efetivo = min(pago_c, total_c)
-            investido_reconhecido = investido_c * (pago_efetivo / total_c)
-            lucro_pendente_reconhecido += pago_efetivo - investido_reconhecido
-    total_a_receber = round(total_a_receber, 2)
+        if c.get("status") in STATUS_ABERTA:
+            num_comandas_abertas += 1
+        elif c.get("status") == "pagamento_parcial":
+            num_comandas_parciais += 1
+        elif c.get("status") == "quitada":
+            num_comandas_quitadas += 1
 
-    total_vendido_geral = round(total_vendido + total_vendido_pendente, 2)
-    total_investido_geral = round(total_investido + total_investido_pendente, 2)
-    lucro_total_geral = round(lucro_total + lucro_pendente_reconhecido, 2)
-    num_vendas_geral = len(vendas_filtradas) + num_comandas_pendentes
-    # Toda linha de "sales" já representa dinheiro efetivamente recebido
-    # (não existe venda "fiado" na tabela sales — ver _criar_sales_comanda),
-    # então total_vendido + pagamentos já feitos em comandas pendentes = recebido real.
-    valor_recebido = round(total_vendido + total_pago_pendente, 2)
+    # "venda" agora é 1 carrinho/comanda, não 1 linha de produto
+    num_vendas_geral = len(set(_grupo_key(v) for v in vendas_filtradas))
 
     # Datas formatadas para exibição
     def fmt_br(s):
@@ -3081,15 +3350,16 @@ def financeiro():
     return render_template(
         "financeiro.html",
         vendas=vendas_filtradas,
-        total_vendido=round(total_vendido, 2),
-        total_investido=round(total_investido, 2),
+        total_vendido=total_vendido,
+        total_investido=total_investido,
         lucro_total=lucro_total,
-        total_vendido_geral=total_vendido_geral,
-        total_investido_geral=total_investido_geral,
-        lucro_total_geral=lucro_total_geral,
+        lucro_realizado=lucro_realizado,
+        lucro_pendente=lucro_pendente,
         num_vendas_geral=num_vendas_geral,
         total_a_receber=total_a_receber,
-        num_comandas_pendentes=num_comandas_pendentes,
+        num_comandas_abertas=num_comandas_abertas,
+        num_comandas_parciais=num_comandas_parciais,
+        num_comandas_quitadas=num_comandas_quitadas,
         valor_recebido=valor_recebido,
         num_vendas=len(vendas_filtradas),
         data_ini_raw=data_ini_raw,
@@ -3099,6 +3369,7 @@ def financeiro():
         top_produtos=top_produtos,
         pagamentos=pagamentos,
         nomes_sugestoes=nomes_sugestoes,
+        hoje_raw=today_brt().strftime("%Y-%m-%d"),
         usuario=session.get("usuario", ""),
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
@@ -3107,9 +3378,11 @@ def financeiro():
 
 # ================== BAR ==================
 
-def bar_auth():
+def bar_auth(permissao=None):
     if not usuario_logado():
         return redirect(url_for("login"))
+    if permissao and session.get("tipo") != "admin" and not tem_permissao(permissao):
+        return redirect(url_for("vendas"))
     return None
 
 
@@ -3198,7 +3471,7 @@ def bar_calc_drink_cost(product_id: str, quantity: float) -> tuple[float, list]:
 
 @app.route("/bar/produtos")
 def bar_produtos():
-    redir = bar_auth()
+    redir = bar_auth("ver_estoque")
     if redir: return redir
 
     import unicodedata
@@ -3239,7 +3512,7 @@ def bar_produtos():
 
 @app.route("/bar/produtos/novo", methods=["GET", "POST"])
 def bar_produto_novo():
-    redir = bar_auth()
+    redir = bar_auth("cadastrar_produto")
     if redir: return redir
 
     erro = ""
@@ -3277,7 +3550,7 @@ def bar_produto_novo():
 
 @app.route("/bar/produtos/<pid>/editar", methods=["GET", "POST"])
 def bar_produto_editar(pid):
-    redir = bar_auth()
+    redir = bar_auth("editar_produto")
     if redir: return redir
 
     produto = db.bar_get_product(pid)
@@ -3317,7 +3590,7 @@ def bar_produto_editar(pid):
 
 @app.route("/bar/produtos/<pid>/deletar", methods=["POST"])
 def bar_produto_deletar(pid):
-    redir = bar_auth()
+    redir = bar_auth("excluir_produto")
     if redir: return redir
     db.bar_delete_product(pid)
     return redirect(url_for("bar_produtos"))
@@ -3327,7 +3600,7 @@ def bar_produto_deletar(pid):
 
 @app.route("/bar/produtos/<pid>/lotes", methods=["GET", "POST"])
 def bar_lotes(pid):
-    redir = bar_auth()
+    redir = bar_auth("editar_produto")
     if redir: return redir
 
     produto = db.bar_get_product(pid)
@@ -3394,7 +3667,7 @@ def permissoes():
                 ativo_atual = usuarios[usuario_alvo].get("ativo", True)
                 db.set_user_ativo(usuario_alvo, not ativo_atual)
                 if ativo_atual:
-                    db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""))
+                    db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
                 _log("usuario_bloqueado" if ativo_atual else "usuario_ativado",
                      f"Usuário {'bloqueado' if ativo_atual else 'ativado'}: {usuario_alvo}", usuario_alvo)
             return redirect(url_for("permissoes") + "?salvo=1")
@@ -3407,7 +3680,7 @@ def permissoes():
                 arquivado_atual = usuarios[usuario_alvo].get("arquivado", False)
                 db.set_user_arquivado(usuario_alvo, not arquivado_atual)
                 if not arquivado_atual:
-                    db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""))
+                    db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
                 _log("usuario_arquivado" if not arquivado_atual else "usuario_desarquivado",
                      f"Usuário {'arquivado' if not arquivado_atual else 'desarquivado'}: {usuario_alvo}", usuario_alvo)
             return redirect(url_for("permissoes") + "?salvo=1")
@@ -3445,7 +3718,7 @@ def permissoes():
             nova_senha = request.form.get("nova_senha") or ""
             if usuario_alvo in usuarios and nova_senha:
                 db.update_user_senha(usuario_alvo, db.hash_senha(nova_senha))
-                db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""))
+                db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
                 _log("senha_alterada", f"Senha redefinida para: {usuario_alvo}", usuario_alvo)
             return redirect(url_for("permissoes") + "?salvo=1")
 
@@ -3460,7 +3733,7 @@ def permissoes():
         if acao == "encerrar_sessoes":
             usuario_alvo = (request.form.get("usuario_alvo") or "").strip()
             if usuario_alvo in usuarios:
-                db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""))
+                db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
                 _log("sessao_encerrada", f"Sessões encerradas para: {usuario_alvo}", usuario_alvo)
             return redirect(url_for("permissoes") + "?salvo=1")
 
@@ -3496,7 +3769,62 @@ def permissoes():
     )
 
 
-# ================== USUÁRIOS ONLINE ==================
+# ================== USUÁRIOS ONLINE (painel de monitoramento) ==================
+ICONE_EVENTO = {
+    "login": "🔓", "logout": "🚪", "venda_criada": "🛒", "venda_cancelada": "❌",
+    "produto_criado": "📦", "produto_editado": "✏️", "estoque_alterado": "📦",
+    "caixa_aberto": "💰", "caixa_fechado": "💰", "comanda_criada": "📋",
+    "pagamento_comanda": "💳", "cliente_criado": "🧑", "autorizacao_pin": "🔑",
+    "sessao_encerrada": "🚪",
+}
+
+
+def _parse_user_agent(ua: str) -> str:
+    ua = ua or ""
+    if "Edg/" in ua:
+        navegador = "Edge"
+    elif "Chrome/" in ua and "Chromium" not in ua:
+        navegador = "Chrome"
+    elif "Firefox/" in ua:
+        navegador = "Firefox"
+    elif "Safari/" in ua and "Chrome/" not in ua:
+        navegador = "Safari"
+    else:
+        navegador = "Navegador"
+
+    if "Windows" in ua:
+        so = "Windows"
+    elif "Mac OS" in ua or "Macintosh" in ua:
+        so = "macOS"
+    elif "Android" in ua:
+        so = "Android"
+    elif "iPhone" in ua or "iPad" in ua:
+        so = "iOS"
+    elif "Linux" in ua:
+        so = "Linux"
+    else:
+        so = ""
+
+    return f"{navegador} no {so}" if so else navegador
+
+
+def _parse_dt(s):
+    if not s:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M"):
+        try:
+            return datetime.strptime(s, fmt)
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
+def _fmt_tempo(minutos: float) -> str:
+    minutos = max(0, int(round(minutos)))
+    h, m = divmod(minutos, 60)
+    return f"{h}h{m:02d}min" if h else f"{m}min"
+
+
 @app.route("/usuarios/online")
 def usuarios_online():
     if not usuario_logado():
@@ -3505,32 +3833,113 @@ def usuarios_online():
         return redirect(url_for("vendas"))
 
     usuarios = db.get_all_users()
-    sessoes = db.listar_sessoes_ativas()
+    hoje = now_brt().strftime("%Y-%m-%d")
+    agora = now_brt().replace(tzinfo=None)
 
-    agora = now_brt()
+    sessoes_hoje = db.listar_sessoes_do_dia_todos(hoje)
+    sessoes_por_usuario = defaultdict(list)
+    for s in sessoes_hoje:
+        sessoes_por_usuario[s["username"]].append(s)
+
+    logs_hoje = db.get_logs(data_ini=hoje, data_fim=hoje)
+    logs_por_usuario = defaultdict(list)
+    for l in logs_hoje:
+        logs_por_usuario[l["usuario"]].append(l)
+
     linhas = []
-    for s in sessoes:
-        u = usuarios.get(s["username"], {})
-        try:
-            ultima = datetime.strptime(s["ultima_atividade"], "%Y-%m-%d %H:%M:%S")
-            minutos = (agora.replace(tzinfo=None) - ultima).total_seconds() / 60
-            online = minutos <= 5
-        except Exception:
-            online = False
-        linhas.append({
+    tempos_trabalhados = []
+    contagem_status = {"em_expediente": 0, "ausente": 0, "em_pausa": 0, "encerrado": 0, "bloqueado": 0}
+
+    for username, info in usuarios.items():
+        if info.get("arquivado"):
+            continue
+
+        sessoes_usr = sorted(sessoes_por_usuario.get(username, []), key=lambda s: s.get("criado_em") or "")
+        ativas = [s for s in sessoes_usr if s.get("ativa")]
+
+        inicio_dt = _parse_dt(sessoes_usr[0]["criado_em"]) if sessoes_usr else None
+        if ativas:
+            fim_dt = None
+            ultima_atividade_dt = max((_parse_dt(s.get("ultima_atividade")) for s in ativas if _parse_dt(s.get("ultima_atividade"))), default=None)
+        else:
+            encerradas_em = [_parse_dt(s.get("encerrada_em")) or _parse_dt(s.get("ultima_atividade")) for s in sessoes_usr]
+            encerradas_em = [d for d in encerradas_em if d]
+            fim_dt = max(encerradas_em) if encerradas_em else None
+            ultima_atividade_dt = fim_dt
+
+        if not info.get("ativo", True):
+            status = "bloqueado"
+        elif ativas:
+            minutos_inativo = (agora - ultima_atividade_dt).total_seconds() / 60 if ultima_atividade_dt else 999
+            status = "em_expediente" if minutos_inativo <= 5 else "ausente"
+        else:
+            status = "encerrado"
+        contagem_status[status] += 1
+
+        tempo_min = None
+        if inicio_dt:
+            fim_calc = fim_dt or (agora if ativas else None)
+            if fim_calc:
+                tempo_min = (fim_calc - inicio_dt).total_seconds() / 60
+                tempos_trabalhados.append(tempo_min)
+
+        logs_usr = sorted(logs_por_usuario.get(username, []), key=lambda l: l.get("hora", ""), reverse=True)
+        ultima_acao = None
+        if logs_usr:
+            l0 = logs_usr[0]
+            ultima_acao = {"icone": ICONE_EVENTO.get(l0["tipo_evento"], "•"), "descricao": l0["descricao"], "hora": l0["hora"]}
+
+        sessoes_detalhe = [{
             "token": s["token"],
-            "username": s["username"],
-            "nome": u.get("nome") or s["username"],
-            "cargo": u.get("cargo") or "funcionario",
-            "online": online,
-            "ultima_atividade": s["ultima_atividade"],
-            "criado_em": s["criado_em"],
+            "dispositivo": _parse_user_agent(s.get("user_agent")),
+            "ultima_atividade": s.get("ultima_atividade"),
+        } for s in ativas]
+
+        resumo_dia = {
+            "vendas": sum(1 for l in logs_usr if l["tipo_evento"] == "venda_criada"),
+            "cancelamentos": sum(1 for l in logs_usr if l["tipo_evento"] == "venda_cancelada"),
+            "produtos_criados": sum(1 for l in logs_usr if l["tipo_evento"] == "produto_criado"),
+            "produtos_editados": sum(1 for l in logs_usr if l["tipo_evento"] == "produto_editado"),
+            "autorizacoes_pin": sum(1 for l in logs_usr if l["tipo_evento"] == "autorizacao_pin"),
+            "caixas_fechados": sum(1 for l in logs_usr if l["tipo_evento"] == "caixa_fechado"),
+        }
+
+        linhas.append({
+            "username": username,
+            "nome": info.get("nome") or username,
+            "cargo": info.get("cargo") or "funcionario",
+            "status": status,
+            "inicio_expediente": inicio_dt.strftime("%H:%M") if inicio_dt else "—",
+            "fim_expediente": fim_dt.strftime("%H:%M") if fim_dt else "—",
+            "tempo_trabalhando": _fmt_tempo(tempo_min) if tempo_min is not None else "—",
+            "ultima_atividade": ultima_atividade_dt.strftime("%Y-%m-%d %H:%M:%S") if ultima_atividade_dt else "",
+            "tela_atual": (ativas[-1].get("tela_atual") or "—") if ativas else "—",
+            "ultima_acao": ultima_acao,
+            "sessoes": sessoes_detalhe,
+            "resumo_dia": resumo_dia,
+            "permissoes": info.get("permissoes") or [],
+            "ultimo_login": info.get("ultimo_login") or "—",
         })
-    linhas.sort(key=lambda x: (not x["online"], x["username"]))
+
+    linhas.sort(key=lambda x: (["bloqueado", "em_expediente", "ausente", "em_pausa", "encerrado"].index(x["status"]), x["username"]))
+
+    tempo_medio = _fmt_tempo(sum(tempos_trabalhados) / len(tempos_trabalhados)) if tempos_trabalhados else "—"
+
+    dashboard = {
+        "cadastrados": len(linhas),
+        "em_expediente": contagem_status["em_expediente"],
+        "em_pausa": contagem_status["em_pausa"],
+        "encerrado": contagem_status["encerrado"],
+        "ausente": contagem_status["ausente"],
+        "bloqueado": contagem_status["bloqueado"],
+        "tempo_medio": tempo_medio,
+    }
 
     return render_template(
         "usuarios_online.html",
         linhas=linhas,
+        dashboard=dashboard,
+        cargos=CARGOS,
         usuario=session.get("usuario", ""),
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
@@ -3544,9 +3953,24 @@ def usuarios_online_encerrar(token):
     if session.get("tipo") != "admin":
         return redirect(url_for("vendas"))
 
-    db.encerrar_sessao(token, session.get("usuario", ""))
+    db.encerrar_sessao(token, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
     db.registrar_log(
         session.get("usuario", ""), "sessao_encerrada", f"Sessão encerrada manualmente (token {token[:8]}…)",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return redirect(url_for("usuarios_online"))
+
+
+@app.route("/usuarios/online/encerrar_todas/<username>", methods=["POST"])
+def usuarios_online_encerrar_todas(username):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin":
+        return redirect(url_for("vendas"))
+
+    db.encerrar_sessoes_usuario(username, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
+    db.registrar_log(
+        session.get("usuario", ""), "sessao_encerrada", f"Todas as sessões de {username} foram encerradas manualmente",
         now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
     )
     return redirect(url_for("usuarios_online"))

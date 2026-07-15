@@ -229,6 +229,7 @@
         <div class="lp-dado"><label>Fornecedor</label><div class="val">{{ produto.get('fornecedor') or '—' }}</div></div>
         <div class="lp-dado"><label>Validade</label><div class="val">{{ produto.get('validade')|br_date if produto.get('validade') else '—' }}</div></div>
         <div class="lp-dado"><label>Observações</label><div class="val">{{ produto.get('observacoes') or '—' }}</div></div>
+        <div class="lp-dado"><label>Cadastrado por</label><div class="val">{{ produto.get('criado_por') or '—' }}</div></div>
       </div>
       <div style="margin-top:14px;">
         <a href="{{ url_for('editar_produto', pid=produto.pid) }}"
@@ -425,7 +426,7 @@
             <th>Data</th><th>Tipo entrada</th><th>Qtd. informada</th>
             <th>Unid. por caixa</th><th>Total unidades</th>
             <th>Custo unitário</th><th>Custo total</th>
-            <th>Fornecedor</th><th>Validade</th><th></th>
+            <th>Fornecedor</th><th>Validade</th><th>Usuário</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -442,6 +443,7 @@
             <td>R$ {{ "%.2f"|format(l.qtd * l.custo_unit) }}</td>
             <td>{{ l.get('fornecedor') or '—' }}</td>
             <td>{{ l.get('validade')|br_date if l.get('validade') else '—' }}</td>
+            <td>{{ l.get('criado_por') or '—' }}</td>
             <td>
               <div class="btr">
                 <button class="btn-icon" title="Editar"
@@ -463,7 +465,7 @@
             </td>
           </tr>
           <tr id="he-{{ loop.index0 }}" style="display:none;">
-            <td colspan="10">
+            <td colspan="11">
               <form method="POST" action="{{ url_for('editar_lote', pid=produto.pid, idx=loop.index0) }}"
                     style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:4px 0;">
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Data</label>

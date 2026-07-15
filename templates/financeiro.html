@@ -197,59 +197,9 @@
         </svg>
       </div>
       <div class="kpi-info">
-        <div class="kpi-label">Total Vendido</div>
-        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido_geral)|replace(".", ",") }}</div>
-        <div class="kpi-sub">valor bruto</div>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
-    <div class="kpi">
-      <div class="kpi-icon laranja">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-      </div>
-      <div class="kpi-info">
-        <div class="kpi-label">Total Investido</div>
-        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_investido_geral)|replace(".", ",") }}</div>
-        <div class="kpi-sub">custo dos produtos</div>
-      </div>
-    </div>
-
-    <div class="kpi">
-      <div class="kpi-icon roxo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-      </div>
-      <div class="kpi-info">
-        <div class="kpi-label">Lucro</div>
-        <div class="kpi-valor fin-val fin-oculto {% if lucro_total_geral >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
-          R$ {{ "%.2f"|format(lucro_total_geral)|replace(".", ",") }}
-        </div>
-        <div class="kpi-sub">lucro líquido</div>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
-    <div class="kpi">
-      <div class="kpi-icon amarelo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2"/>
-          <line x1="1" y1="10" x2="23" y2="10"/>
-        </svg>
-      </div>
-      <div class="kpi-info">
-        <div class="kpi-label">A Receber</div>
-        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_a_receber)|replace(".", ",") }}</div>
-        <div class="kpi-sub">{{ num_comandas_pendentes }} comanda{{ "s" if num_comandas_pendentes != 1 else "" }} em aberto</div>
+        <div class="kpi-label">Vendas Totais</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido)|replace(".", ",") }}</div>
+        <div class="kpi-sub">tudo que foi vendido (inclusive não recebido)</div>
       </div>
     </div>
     {% endif %}
@@ -264,11 +214,102 @@
       <div class="kpi-info">
         <div class="kpi-label">Valor Recebido</div>
         <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(valor_recebido)|replace(".", ",") }}</div>
-        <div class="kpi-sub">recebido no período</div>
+        <div class="kpi-sub">dinheiro que já entrou de fato</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+    <div class="kpi">
+      <div class="kpi-icon amarelo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Valor a Receber</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_a_receber)|replace(".", ",") }}</div>
+        <div class="kpi-sub">vendido menos recebido</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
+    <div class="kpi">
+      <div class="kpi-icon roxo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Lucro Realizado</div>
+        <div class="kpi-valor fin-val fin-oculto {% if lucro_realizado >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
+          R$ {{ "%.2f"|format(lucro_realizado)|replace(".", ",") }}
+        </div>
+        <div class="kpi-sub">só sobre o que já foi recebido</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-icon laranja">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Lucro Pendente</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(lucro_pendente)|replace(".", ",") }}</div>
+        <div class="kpi-sub">proporcional ao que ainda falta receber</div>
       </div>
     </div>
     {% endif %}
   </div>
+
+  {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
+  <div class="fin-kpis" style="margin-top:12px;">
+    <div class="kpi">
+      <div class="kpi-icon amarelo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Comandas Abertas</div>
+        <div class="kpi-valor">{{ num_comandas_abertas }}</div>
+        <div class="kpi-sub">sem nenhum pagamento ainda</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon laranja">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Comandas Parciais</div>
+        <div class="kpi-valor">{{ num_comandas_parciais }}</div>
+        <div class="kpi-sub">pagamento parcial em aberto</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon verde">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Comandas Quitadas</div>
+        <div class="kpi-valor">{{ num_comandas_quitadas }}</div>
+        <div class="kpi-sub">totalmente pagas no período</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- MIDDLE: TOP PRODUTOS + PAGAMENTOS -->
   <div class="fin-mid">
@@ -448,8 +489,19 @@
 })();
 
 // ── FILTROS RÁPIDOS ──
+// "Hoje" vem do servidor (fuso BRT), nunca do relógio/fuso do navegador do
+// usuário — um computador com o fuso errado não pode mais bagunçar o filtro.
+const HOJE_SERVIDOR = "{{ hoje_raw }}";
+function hoje(){
+  const [y, m, d] = HOJE_SERVIDOR.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
 function fmtISO(d){ return d.toISOString().slice(0,10); }
-function hoje(){ return new Date(); }
+function somarDias(d, n){
+  const novo = new Date(d.getTime());
+  novo.setUTCDate(novo.getUTCDate() + n);
+  return novo;
+}
 
 function setFiltro(tipo){
   const h = hoje();
@@ -457,13 +509,11 @@ function setFiltro(tipo){
   if(tipo==="hoje"){
     ini = fim = fmtISO(h);
   } else if(tipo==="ontem"){
-    const o = new Date(h); o.setDate(o.getDate()-1);
-    ini = fim = fmtISO(o);
+    ini = fim = fmtISO(somarDias(h, -1));
   } else if(tipo==="7dias"){
-    const s = new Date(h); s.setDate(s.getDate()-6);
-    ini = fmtISO(s); fim = fmtISO(h);
+    ini = fmtISO(somarDias(h, -6)); fim = fmtISO(h);
   } else if(tipo==="mes"){
-    ini = fmtISO(new Date(h.getFullYear(), h.getMonth(), 1));
+    ini = fmtISO(new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), 1)));
     fim = fmtISO(h);
   }
   document.getElementById("inpIni").value = ini;
@@ -491,9 +541,9 @@ function aplicarCustom(){
   const ini = document.getElementById("inpIni").value;
   const fim = document.getElementById("inpFim").value;
   const h = fmtISO(hoje());
-  const ontem = fmtISO(new Date(hoje().setDate(hoje().getDate()-1)));
-  const s7 = fmtISO(new Date(new Date().setDate(new Date().getDate()-6)));
-  const mesIni = fmtISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const ontem = fmtISO(somarDias(hoje(), -1));
+  const s7 = fmtISO(somarDias(hoje(), -6));
+  const mesIni = fmtISO(new Date(Date.UTC(hoje().getUTCFullYear(), hoje().getUTCMonth(), 1)));
   if(ini===h && fim===h) document.getElementById("btn-hoje").classList.add("ativo");
   else if(ini===ontem && fim===ontem) document.getElementById("btn-ontem").classList.add("ativo");
   else if(ini===s7 && fim===h) document.getElementById("btn-7dias").classList.add("ativo");

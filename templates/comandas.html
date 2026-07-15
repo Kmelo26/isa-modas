@@ -874,6 +874,7 @@
    "data_abertura":{{ (c.data_abertura or "")|tojson }},"hora_abertura":{{ (c.hora_abertura or "")|tojson }},
    "itens":{{ c.itens|tojson }},"total":{{ total.v|round(2) }},
    "valor_pago":{{ pago.v|round(2) }},"saldo":{{ [total.v - pago.v, 0]|max|round(2) }},
+   "criado_por":{{ (c.criado_por or "")|tojson }},
    "pagamentos":{{ c.pagamentos|tojson }}}
   {%- if not loop.last %},{% endif %}
 {% endfor %}]
@@ -942,7 +943,9 @@ function fmtBRL(v) {
 
 function tempoAberta(dataStr, horaStr) {
   if (!dataStr || !horaStr) return '';
-  const dt = new Date(dataStr + 'T' + horaStr + ':00');
+  // Horário de Brasília explícito ("-03:00") — sem isso, o navegador interpreta
+  // no seu próprio fuso, o que dá conta errada se a máquina não estiver em BRT.
+  const dt = new Date(dataStr + 'T' + horaStr + ':00-03:00');
   const diff = Math.floor((Date.now() - dt.getTime()) / 60000);
   if (diff < 60) return 'Aberta há ' + diff + 'm';
   const h = Math.floor(diff / 60), m = diff % 60;
@@ -1031,7 +1034,7 @@ function renderTabela() {
       const tr = document.createElement('tr');
       if (c.cid === cidSelecionado) tr.classList.add('selected');
 
-      const subText = tempoAberta(c.data_abertura, c.hora_abertura);
+      const subText = tempoAberta(c.data_abertura, c.hora_abertura) + (c.criado_por ? ' · por ' + c.criado_por : '');
       const mesaTag = c.mesa ? '<div class="cmd-mesa-tag">' + c.mesa + '</div>' : '';
       const saldoClass = c.saldo <= 0 ? 'saldo-ok' : (c._status_display === 'atrasada' ? 'saldo-venc' : 'saldo-warn');
       const saldoText = c.saldo > 0 ? fmtBRL(c.saldo) : '—';
@@ -1116,7 +1119,8 @@ function abrirPainel(cid) {
   document.getElementById('panel-badge').innerHTML    = badgeHTML(c._status_display);
   document.getElementById('panel-mesa').textContent   = c.mesa || '';
   document.getElementById('panel-meta').textContent   =
-    'Aberta em ' + fmtData(c.data_abertura) + ' às ' + (c.hora_abertura || '');
+    'Aberta em ' + fmtData(c.data_abertura) + ' às ' + (c.hora_abertura || '')
+    + (c.criado_por ? ' · Responsável: ' + c.criado_por : '');
 
   /* Financial row */
   const pct = c.total > 0 ? Math.min(100, Math.round(c.valor_pago / c.total * 100)) : 0;

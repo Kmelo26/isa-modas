@@ -50,7 +50,7 @@
     <div class="cx-card-title">Movimentações</div>
     {% if sessao.total_suprimentos %}<div class="cx-row"><span class="cx-label">Suprimentos</span><span class="cx-val" style="color:#4ade80;">+ R$ {{ "%.2f"|format(sessao.total_suprimentos) }}</span></div>{% endif %}
     {% if sessao.total_sangrias %}<div class="cx-row"><span class="cx-label">Sangrias</span><span class="cx-val" style="color:#f87171;">- R$ {{ "%.2f"|format(sessao.total_sangrias) }}</span></div>{% endif %}
-    {% if sessao.total_despesas %}<div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val" style="color:#fbbf24;">- R$ {{ "%.2f"|format(sessao.total_despesas) }}</span></div>{% endif %}
+    {% if sessao.total_despesas and (tipo == "admin" or "ver_despesas" in permissoes) %}<div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val" style="color:#fbbf24;">- R$ {{ "%.2f"|format(sessao.total_despesas) }}</span></div>{% endif %}
     {% if movs %}
     <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">
       {% for m in movs %}

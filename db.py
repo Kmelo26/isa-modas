@@ -129,7 +129,7 @@ def update_user_ultimo_login(username: str, quando: str):
 
 # ==================== SESSIONS ====================
 
-def criar_sessao(username: str, quando: str) -> str:
+def criar_sessao(username: str, quando: str, user_agent: str = "") -> str:
     token = secrets.token_hex(32)
     _sb().table("user_sessions").insert({
         "token": token,
@@ -137,6 +137,8 @@ def criar_sessao(username: str, quando: str) -> str:
         "criado_em": quando,
         "ultima_atividade": quando,
         "ativa": True,
+        "user_agent": user_agent,
+        "tela_atual": "",
     }).execute()
     return token
 
@@ -150,30 +152,60 @@ def sessao_ativa(token: str) -> bool:
     return bool(r.data.get("ativa"))
 
 
-def atualizar_atividade_sessao(token: str, quando: str):
+def atualizar_atividade_sessao(token: str, quando: str, tela: str | None = None):
     if not token:
         return
-    _sb().table("user_sessions").update({"ultima_atividade": quando}).eq("token", token).execute()
+    dados = {"ultima_atividade": quando}
+    if tela is not None:
+        dados["tela_atual"] = tela
+    _sb().table("user_sessions").update(dados).eq("token", token).execute()
 
 
-def encerrar_sessao(token: str, encerrada_por: str | None = None):
+def encerrar_sessao(token: str, encerrada_por: str | None = None, quando: str | None = None):
     if not token:
         return
     _sb().table("user_sessions").update({
         "ativa": False,
         "encerrada_por": encerrada_por,
+        "encerrada_em": quando,
     }).eq("token", token).execute()
 
 
-def encerrar_sessoes_usuario(username: str, encerrada_por: str | None = None):
+def encerrar_sessoes_usuario(username: str, encerrada_por: str | None = None, quando: str | None = None):
     _sb().table("user_sessions").update({
         "ativa": False,
         "encerrada_por": encerrada_por,
+        "encerrada_em": quando,
     }).eq("username", username).eq("ativa", True).execute()
 
 
 def listar_sessoes_ativas() -> list:
     return _sb().table("user_sessions").select("*").eq("ativa", True).order("ultima_atividade", desc=True).execute().data or []
+
+
+def listar_sessoes_do_dia(username: str, data: str) -> list:
+    """Todas as sessões (ativas ou não) do usuário criadas na data informada (YYYY-MM-DD)."""
+    rows = (
+        _sb().table("user_sessions").select("*")
+        .eq("username", username)
+        .gte("criado_em", f"{data} 00:00:00")
+        .lte("criado_em", f"{data} 23:59:59")
+        .order("criado_em")
+        .execute().data or []
+    )
+    return rows
+
+
+def listar_sessoes_do_dia_todos(data: str) -> list:
+    """Todas as sessões (ativas ou não) de todos os usuários criadas na data informada."""
+    rows = (
+        _sb().table("user_sessions").select("*")
+        .gte("criado_em", f"{data} 00:00:00")
+        .lte("criado_em", f"{data} 23:59:59")
+        .order("criado_em")
+        .execute().data or []
+    )
+    return rows
 
 
 # ==================== AUDIT LOG ====================
@@ -406,6 +438,32 @@ def update_sale(sale: dict):
         raise RuntimeError(f"Erro ao atualizar venda: {e}") from e
 
 
+def update_sales_status_by_comanda(comanda_id: str, status: str):
+    """Propaga o novo status (pendente/parcial/quitada) pra todas as vendas
+    ainda ativas (não canceladas) ligadas a uma comanda."""
+    try:
+        _sb().table("sales").update({"status": status}) \
+            .eq("comanda_id", comanda_id).eq("excluida", False).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao sincronizar status das vendas da comanda: {e}") from e
+
+
+def get_pagamentos_comanda_por_caixa(caixa_id: str) -> list:
+    """Varre todas as comandas e retorna os pagamentos (com dados da comanda
+    anexados) cujo caixa_id bate com o caixa informado — usado na conciliação
+    de caixa, já que pagamentos de comanda ficam dentro do JSON da comanda,
+    não numa tabela própria."""
+    if not caixa_id:
+        return []
+    comandas = _sb().table("commands").select("cid,nome,pagamentos").execute().data or []
+    pagamentos = []
+    for c in comandas:
+        for p in (c.get("pagamentos") or []):
+            if p.get("caixa_id") == caixa_id:
+                pagamentos.append({**p, "comanda_id": c.get("cid"), "comanda_nome": c.get("nome")})
+    return pagamentos
+
+
 def delete_sale(uid: str):
     _sb().table("sales").delete().eq("uid", uid).execute()
 
@@ -416,6 +474,7 @@ def cancelar_sale(uid: str, usuario: str, quando: str):
             "excluida": True,
             "excluida_em": quando,
             "excluida_por": usuario,
+            "status": "cancelada",
         }).eq("uid", uid).execute()
     except Exception as e:
         raise RuntimeError(f"Erro ao cancelar venda: {e}") from e

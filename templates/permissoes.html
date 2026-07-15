@@ -450,8 +450,6 @@ const CATEGORIAS = [
       { v: "ver_valor_estoque",     l: "Ver valor total do estoque" },
       { v: "ver_margem_estoque",    l: "Ver margem do estoque" },
       { v: "ver_custo_produtos",    l: "Ver custo dos produtos" },
-      { v: "ver_qtd_estoque",       l: "Ver quantidade total de produtos" },
-      { v: "ver_produtos_sem_lucro",l: "Ver produtos sem lucro" },
     ]
   },
   {
@@ -459,8 +457,6 @@ const CATEGORIAS = [
     perms: [
       { v: "ver_financeiro",       l: "Acessar financeiro" },
       { v: "abrir_fechar_caixa",   l: "Abrir / Fechar caixa" },
-      { v: "lancar_entrada_saida", l: "Lançar entrada / saída" },
-      { v: "editar_lancamentos",   l: "Editar lançamentos" },
     ]
   },
   {
@@ -470,7 +466,6 @@ const CATEGORIAS = [
       { v: "ver_caixa",           l: "Ver caixa" },
       { v: "ver_lucro_liquido",   l: "Ver lucro líquido" },
       { v: "ver_despesas",        l: "Ver despesas" },
-      { v: "ver_metas",           l: "Ver metas" },
       { v: "exportar_financeiro", l: "Exportar dados financeiros" },
     ]
   },
@@ -481,7 +476,6 @@ const CATEGORIAS = [
       { v: "ver_vendas_canceladas",    l: "Ver vendas canceladas" },
       { v: "alterar_preco_venda",      l: "Alterar preço de venda" },
       { v: "alterar_custo_produto",    l: "Alterar custo do produto" },
-      { v: "cancelar_sem_permissao",   l: "Cancelar vendas sem permissão" },
       { v: "gerenciar_usuarios",       l: "Gerenciar usuários" },
       { v: "alterar_permissoes",       l: "Alterar permissões" },
     ]
@@ -600,8 +594,13 @@ buildGroups();
 
 window.addEventListener('DOMContentLoaded', () => {
   const cards = document.querySelectorAll('.perm-user-card');
-  const first = Array.from(cards).find(c => c.dataset.tipo !== 'admin') || cards[0];
+  const params = new URLSearchParams(window.location.search);
+  const alvo = params.get('usuario');
+  const porQuery = alvo ? Array.from(cards).find(c => c.dataset.username === alvo) : null;
+  const first = porQuery || Array.from(cards).find(c => c.dataset.tipo !== 'admin') || cards[0];
   if (first) selectUser(first.dataset.username);
+  if (porQuery && params.get('acao') === 'pin') abrirTrocarPin();
+  if (porQuery && params.get('acao') === 'senha') abrirTrocarSenha();
   // open first 2 categories by default
   document.querySelectorAll('.perm-cat-header').forEach((h, i) => {
     if (i < 2) { h.classList.add('open'); h.nextElementSibling.classList.add('open'); }
