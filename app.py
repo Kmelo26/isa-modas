@@ -1515,6 +1515,7 @@ def estoque_produto(pid):
     if request.method == "POST":
         forma_entrada    = request.form.get("forma_entrada", "unidade")
         data             = (request.form.get("data") or "").strip()
+        nome_lote        = (request.form.get("nome_lote") or "").strip() or None
         fornecedor_lote  = request.form.get("fornecedor") or None
         validade_lote    = request.form.get("validade") or None
         tipo_custo       = request.form.get("tipo_custo", "unitario")
@@ -1555,6 +1556,8 @@ def estoque_produto(pid):
             if conteudo_val:
                 lote["conteudo_valor"]  = conteudo_val
                 lote["conteudo_unidade"] = conteudo_unit or "ml"
+            if nome_lote:
+                lote["nome_lote"] = nome_lote
             if fornecedor_lote:
                 lote["fornecedor"] = fornecedor_lote
             if validade_lote:
@@ -1624,12 +1627,17 @@ def editar_lote(pid, idx):
                 nova_data     = (request.form.get("data") or "").strip()
                 nova_qtd      = to_int(request.form.get("quantidade"), 0)
                 novo_custo    = to_float(request.form.get("custo_unit"), 0.0)
+                novo_nome_lote = (request.form.get("nome_lote") or "").strip()
                 if nova_qtd > 0 and novo_custo > 0:
                     for l in produto["lotes"]:
                         if l is lote_alvo:
                             l["data"]      = normalizar_data_str(nova_data)
                             l["qtd"]       = nova_qtd
                             l["custo_unit"] = novo_custo
+                            if novo_nome_lote:
+                                l["nome_lote"] = novo_nome_lote
+                            else:
+                                l.pop("nome_lote", None)
                             break
                     atualizar_campos_derivados_estoque(produto)
                     db.update_product(produto)

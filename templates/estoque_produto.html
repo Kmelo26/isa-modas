@@ -334,6 +334,12 @@
             </div>
           </div>
 
+          <!-- Nome do lote -->
+          <div class="lp-fg" style="margin-bottom:13px;">
+            <label>Nome do lote (opcional)</label>
+            <input type="text" name="nome_lote" placeholder="Ex: Mango, Absolute Zero...">
+          </div>
+
           <!-- Data + Validade + Fornecedor -->
           <div class="lp-r3">
             <div class="lp-fg">
@@ -423,7 +429,7 @@
       <table class="lp-hist-table">
         <thead>
           <tr>
-            <th>Data</th><th>Tipo entrada</th><th>Qtd. informada</th>
+            <th>Data</th><th>Nome do Lote</th><th>Tipo entrada</th><th>Qtd. informada</th>
             <th>Unid. por caixa</th><th>Total unidades</th>
             <th>Custo unitário</th><th>Custo total</th>
             <th>Fornecedor</th><th>Validade</th><th>Usuário</th><th></th>
@@ -435,6 +441,7 @@
           {% set qtd_inf = l.get('qtd_informada', l.qtd) %}
           <tr id="hr-{{ loop.index0 }}">
             <td>{{ l.data|br_date }}</td>
+            <td>{{ l.get('nome_lote') or '—' }}</td>
             <td><span class="tipo-badge tipo-{{ forma }}">{{ 'Caixa' if forma=='caixa' else 'Unidade' }}</span></td>
             <td>{{ qtd_inf }} {{ 'caixas' if forma=='caixa' else 'unidades' }}</td>
             <td>{{ l.get('unidades_por_caixa') or '—' }}</td>
@@ -451,7 +458,8 @@
                   data-data="{{ l.data }}"
                   data-qtd="{{ l.qtd }}"
                   data-custo="{{ l.custo_unit }}"
-                  onclick="abrirEdit(this.dataset.idx,this.dataset.data,this.dataset.qtd,this.dataset.custo)">
+                  data-nome="{{ l.get('nome_lote') or '' }}"
+                  onclick="abrirEdit(this.dataset.idx,this.dataset.data,this.dataset.qtd,this.dataset.custo,this.dataset.nome)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
                 <form method="POST" action="{{ url_for('remover_lote', pid=produto.pid, idx=loop.index0) }}"
@@ -465,11 +473,13 @@
             </td>
           </tr>
           <tr id="he-{{ loop.index0 }}" style="display:none;">
-            <td colspan="11">
+            <td colspan="12">
               <form method="POST" action="{{ url_for('editar_lote', pid=produto.pid, idx=loop.index0) }}"
                     style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:4px 0;">
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Data</label>
                   <input class="edit-inp" type="date" name="data" id="e-d-{{ loop.index0 }}" style="width:130px;"></div>
+                <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Nome do lote</label>
+                  <input class="edit-inp" type="text" name="nome_lote" id="e-n-{{ loop.index0 }}" style="width:130px;" placeholder="Opcional"></div>
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Quantidade</label>
                   <input class="edit-inp" type="number" name="quantidade" id="e-q-{{ loop.index0 }}" style="width:85px;" min="1"></div>
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Custo unit.</label>
@@ -815,12 +825,13 @@ function calc() {
   document.getElementById('r-novo').textContent = (QTD_ATUAL+qtdTotal)+' unidades';
 }
 
-function abrirEdit(idx,data,qtd,custo) {
+function abrirEdit(idx,data,qtd,custo,nome) {
   document.querySelectorAll('[id^="hr-"]').forEach(r=>r.classList.remove('edit-hl'));
   document.querySelectorAll('[id^="he-"]').forEach(r=>r.style.display='none');
   document.getElementById('hr-'+idx).classList.add('edit-hl');
   document.getElementById('he-'+idx).style.display='';
   document.getElementById('e-d-'+idx).value=data;
+  document.getElementById('e-n-'+idx).value=nome||'';
   document.getElementById('e-q-'+idx).value=qtd;
   document.getElementById('e-c-'+idx).value=custo;
 }
