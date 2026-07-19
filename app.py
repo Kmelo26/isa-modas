@@ -2701,6 +2701,35 @@ def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None) -> dic
     return totais
 
 
+def _comandas_abertas_no_periodo(caixa: dict) -> list:
+    """Comandas cuja abertura (data_abertura + hora_abertura) caiu dentro do
+    período em que este caixa esteve aberto — do momento da abertura do
+    caixa até agora (ou até o fechamento, se já fechado)."""
+    inicio = f"{caixa.get('data_abertura','')} {caixa.get('hora_abertura','')}"
+    if caixa.get("status") == "fechado" and caixa.get("data_fechamento"):
+        fim = f"{caixa['data_fechamento']} {caixa.get('hora_fechamento','23:59')}"
+    else:
+        fim = now_brt().strftime("%Y-%m-%d %H:%M")
+
+    resultado = []
+    for c in db.get_all_commands():
+        abertura_c = f"{c.get('data_abertura','')} {c.get('hora_abertura','')}"
+        if inicio <= abertura_c <= fim:
+            resultado.append(c)
+    resultado.sort(key=lambda c: (c.get("data_abertura", ""), c.get("hora_abertura", "")))
+    return resultado
+
+
+def _tempo_operacao_str(caixa: dict) -> str:
+    """Tempo decorrido desde a abertura do caixa até agora, formatado 'Xh Ymin'."""
+    agora = now_brt()
+    abertura_dt = datetime.strptime(
+        f"{caixa['data_abertura']} {caixa['hora_abertura']}", "%Y-%m-%d %H:%M"
+    )
+    minutos = max(0, int((agora.replace(tzinfo=None) - abertura_dt).total_seconds() // 60))
+    return f"{minutos // 60}h {minutos % 60}min"
+
+
 @app.route("/caixa/abrir", methods=["GET", "POST"])
 def caixa_abrir():
     redir = _auth_caixa()
@@ -2752,6 +2781,10 @@ def caixa_turno():
     total_sangrias   = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "sangria")
     total_suprimentos = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "suprimento")
     total_despesas   = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "despesa")
+    qtd_sangrias     = sum(1 for m in movs if m["tipo"] == "sangria")
+    qtd_suprimentos  = sum(1 for m in movs if m["tipo"] == "suprimento")
+    qtd_despesas     = sum(1 for m in movs if m["tipo"] == "despesa")
+    ultima_mov = movs[-1] if movs else None
 
     # vendas diretas + pagamentos de comanda vinculados a este caixa
     totais = _calcular_totais_caixa(caixa["id"])
@@ -2760,10 +2793,17 @@ def caixa_turno():
         to_float(caixa["valor_abertura"]) + totais["dinheiro"]
         + total_suprimentos - total_sangrias - total_despesas, 2)
 
+    comandas_periodo = _comandas_abertas_no_periodo(caixa)
+    tempo_operacao = _tempo_operacao_str(caixa)
+    hoje = now_brt().strftime("%Y-%m-%d")
+
     return render_template("caixa_turno.html",
         caixa=caixa, movs=movs, totais=totais,
         total_sangrias=total_sangrias, total_suprimentos=total_suprimentos,
         total_despesas=total_despesas, dinheiro_esperado=dinheiro_esperado,
+        qtd_sangrias=qtd_sangrias, qtd_suprimentos=qtd_suprimentos, qtd_despesas=qtd_despesas,
+        ultima_mov=ultima_mov, tempo_operacao=tempo_operacao, hoje=hoje,
+        comandas_periodo=comandas_periodo,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
 
@@ -2822,12 +2862,15 @@ def caixa_fechar():
     rows = db.get_sales_open_by_caixa(caixa["id"])
     totais = {"dinheiro": 0.0, "pix": 0.0, "credito": 0.0, "debito": 0.0, "fiado": 0.0, "total": 0.0, "qtd": 0}
     uids = []
+    produtos_vendidos = 0
     for v in rows:
-        valor = to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 1))
+        qtd_item = to_int(v.get("quantidade", 1))
+        valor = to_float(v.get("valor_venda", 0)) * qtd_item
         forma = normalizar_pagamento(v.get("forma_pagamento", ""))
         totais[forma] = totais.get(forma, 0.0) + valor
         totais["total"] += valor
         totais["qtd"] += 1
+        produtos_vendidos += qtd_item
         uids.append(v["uid"])
 
     # + pagamentos de comanda registrados enquanto este caixa estava aberto
@@ -2841,6 +2884,26 @@ def caixa_fechar():
     dinheiro_esperado = round(
         to_float(caixa["valor_abertura"]) + totais["dinheiro"]
         + total_suprimentos - total_sangrias - total_despesas, 2)
+
+    ticket_medio = round(totais["total"] / totais["qtd"], 2) if totais["qtd"] else 0.0
+
+    LABEL_FORMA_PAGAMENTO_CAIXA = {
+        "pix": "Pix", "dinheiro": "Dinheiro", "credito": "Cartão",
+        "debito": "Débito", "fiado": "Fiado",
+    }
+    pagamentos = []
+    for forma, total_forma in sorted(totais.items(), key=lambda x: x[1], reverse=True):
+        if forma in ("total", "qtd") or total_forma <= 0:
+            continue
+        pct = round(total_forma / totais["total"] * 100) if totais["total"] > 0 else 0
+        pagamentos.append({
+            "forma": LABEL_FORMA_PAGAMENTO_CAIXA.get(forma, forma.capitalize()),
+            "total": round(total_forma, 2),
+            "pct": pct,
+        })
+
+    agora = now_brt()
+    tempo_operacao = _tempo_operacao_str(caixa)
 
     if request.method == "POST":
         conf_dinheiro = to_float(request.form.get("conf_dinheiro") or "0")
@@ -2860,6 +2923,7 @@ def caixa_fechar():
             "credito":  round(conf_cartao - cartao_esperado, 2),
             "debito":   0.0,
         }
+        observacoes = (request.form.get("observacoes") or "").strip()[:200]
 
         agora = now_brt()
         caixa.update({
@@ -2880,6 +2944,7 @@ def caixa_fechar():
             "conferencia":          conferencia,
             "diferencas":           diferencas,
             "vendas_uids":          uids,
+            "observacoes":          observacoes,
         })
 
         fechado_em = agora.strftime("%Y-%m-%dT%H:%M")
@@ -2895,17 +2960,25 @@ def caixa_fechar():
         except RuntimeError:
             pass
 
+        comandas_periodo = _comandas_abertas_no_periodo(caixa)
+
         return render_template("caixa_fechado_novo.html",
             caixa=caixa, totais=totais, conferencia=conferencia,
             diferencas=diferencas, dinheiro_esperado=dinheiro_esperado,
             movs=movs, total_sangrias=total_sangrias,
             total_suprimentos=total_suprimentos, total_despesas=total_despesas,
+            observacoes=observacoes, comandas_periodo=comandas_periodo,
             tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
+
+    comandas_periodo = _comandas_abertas_no_periodo(caixa)
 
     return render_template("caixa_fechar.html",
         caixa=caixa, totais=totais, movs=movs,
         total_sangrias=total_sangrias, total_suprimentos=total_suprimentos,
         total_despesas=total_despesas, dinheiro_esperado=dinheiro_esperado,
+        produtos_vendidos=produtos_vendidos, ticket_medio=ticket_medio,
+        pagamentos=pagamentos, tempo_operacao=tempo_operacao, agora=agora,
+        comandas_periodo=comandas_periodo,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
 

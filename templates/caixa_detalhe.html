@@ -95,6 +95,14 @@
   </div>
   {% endif %}
 
+  <!-- Observações -->
+  {% if sessao.observacoes %}
+  <div class="cx-card">
+    <div class="cx-card-title">Observações</div>
+    <p style="font-size:13px;color:var(--text);white-space:pre-wrap;margin:0;">{{ sessao.observacoes }}</p>
+  </div>
+  {% endif %}
+
   <a href="{{ url_for('caixa_historico_novo') }}" class="cx-btn">← Voltar ao Histórico</a>
 </div>
 {% endblock %}

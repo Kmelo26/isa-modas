@@ -4,10 +4,13 @@
 .cx-page{max-width:900px;margin:24px auto;padding:16px;}
 .cx-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
 .cx-title{font-size:18px;font-weight:bold;color:var(--accent);}
-.cx-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.cx-status-line{font-size:12.5px;color:#4ade80;font-weight:600;margin-top:4px;}
+.cx-sub{font-size:12px;color:var(--text-muted);margin-top:4px;}
 .cx-btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
 .cx-btn-fechar{background:#7c2d12;color:#fed7aa;border:1px solid #9a3412;}
 .cx-btn-fechar:hover{background:#9a3412;}
+.cx-btn-conferir{background:var(--card-bg);color:var(--text);border:1px solid var(--border);}
+.cx-btn-conferir:hover{border-color:var(--accent);color:var(--accent);}
 .cx-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
 @media(max-width:600px){.cx-grid{grid-template-columns:1fr;}}
 .cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;}
@@ -31,24 +34,86 @@
 .cx-mov-form select,.cx-mov-form input{flex:1;min-width:120px;}
 .cx-mov-btn{padding:8px 16px;border-radius:8px;border:none;background:var(--btn-bg,#2a2a2a);color:var(--accent);font-weight:bold;font-size:13px;cursor:pointer;}
 .cx-info{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
-.cx-info-item{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:12px;color:var(--text-muted);}
+.cx-info-item{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:10px;}
+.cx-info-label{font-size:11px;color:var(--text-muted);}
 .cx-info-item strong{display:block;font-size:14px;color:var(--text);margin-top:2px;}
+.cx-info-item strong.green{color:#4ade80;}
+.cx-info-item strong.blue{color:#60a5fa;}
+.cx-info-item strong.purple{color:#a78bfa;}
+.cx-ibadge{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.cx-ibadge-blue{background:#0c2340;color:#60a5fa;}
+.cx-ibadge-green{background:#052e16;color:#4ade80;}
+.cx-ibadge-purple{background:#241a3d;color:#a78bfa;}
+.cx-ibadge-gray{background:#2a2a2a;color:var(--text-muted);}
+.cx-ultima-mov{background:var(--input-bg,#1a1a1a);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;}
+.cx-ultima-mov-top{display:flex;justify-content:space-between;color:var(--text-muted);margin-bottom:4px;}
+.cx-ultima-mov-bottom{display:flex;justify-content:space-between;font-weight:600;color:var(--text);}
+.cx-ver-hist-btn{display:block;text-align:center;margin-top:12px;padding:8px;border-radius:8px;background:var(--btn-bg,#2a2a2a);color:var(--accent);font-size:12.5px;font-weight:600;text-decoration:none;}
+.cx-ver-hist-btn:hover{opacity:.85;}
+.cx-cmd-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:bold;}
+.cx-cmd-aberta{background:#052e16;color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+.cx-cmd-parcial{background:#2a2000;color:#fbbf24;border:1px solid rgba(251,191,36,.3);}
+.cx-cmd-quitada{background:#0d2e1a;color:#86efac;border:1px solid rgba(134,239,172,.3);}
+.cx-cmd-cancelada{background:#2a0f0f;color:#f87171;border:1px solid rgba(248,113,113,.3);}
+.cx-cmd-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.cx-cmd-alert-card{background:#2a2000;border-color:#78350f;}
+.cx-cmd-alert-title{color:#fbbf24;}
+.cx-cmd-pill{background:rgba(251,191,36,.15);color:#fbbf24;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,.4);}
+.cx-ver-comandas-btn{padding:8px 14px;border-radius:8px;background:#2a2a2a;color:var(--text);font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--border);}
+.cx-ver-comandas-btn:hover{border-color:var(--accent);color:var(--accent);}
+.cx-shortcuts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+@media(max-width:700px){.cx-shortcuts{grid-template-columns:1fr 1fr;}}
+.cx-shortcut-btn{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:left;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:block;}
+.cx-shortcut-btn:hover{border-color:var(--accent);}
+.cx-shortcut-btn span{display:block;font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px;}
+.cx-footer-note{background:#0c2340;border:1px solid rgba(59,130,246,.35);color:#93c5fd;border-radius:10px;padding:12px 18px;font-size:12.5px;margin-top:20px;}
+.cx-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto;}
+.cx-modal-overlay.open{display:flex;}
+.cx-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;width:100%;max-width:480px;margin:auto;}
+.cx-modal-header{display:flex;justify-content:space-between;align-items:center;padding:18px 22px 14px;border-bottom:1px solid var(--border);font-weight:bold;color:var(--accent);}
+.cx-modal-close{background:#2a2a2a;border:none;border-radius:8px;width:28px;height:28px;color:var(--text-muted);cursor:pointer;}
+.cx-modal-body{padding:18px 22px;}
+.cx-modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
 </style>
 
 <div class="cx-page">
   <div class="cx-header">
     <div>
       <div class="cx-title">📊 Caixa Ativo</div>
-      <div class="cx-sub">Aberto em {{ caixa.data_abertura | br_date }} às {{ caixa.hora_abertura }} por {{ caixa.operador_abertura }}</div>
+      <div class="cx-status-line">🟢 Caixa aberto e operando normalmente</div>
+      <div class="cx-sub">📅 Aberto em {{ caixa.data_abertura | br_date }} às {{ caixa.hora_abertura }} por {{ caixa.operador_abertura }} &nbsp;·&nbsp; 🕐 Aberto há {{ tempo_operacao }}</div>
     </div>
-    <a href="{{ url_for('caixa_fechar') }}" class="cx-btn cx-btn-fechar">🔒 Fechar Caixa</a>
+    <div style="display:flex;gap:10px;">
+      <button type="button" class="cx-btn cx-btn-conferir" onclick="abrirConferir()">🧾 Conferir Caixa</button>
+      <a href="{{ url_for('caixa_fechar') }}" class="cx-btn cx-btn-fechar">🔒 Fechar Caixa</a>
+    </div>
   </div>
 
   <div class="cx-info">
-    <div class="cx-info-item">Valor Inicial<strong>R$ {{ "%.2f"|format(caixa.valor_abertura) }}</strong></div>
-    <div class="cx-info-item">Vendas<strong>{{ totais.qtd }}</strong></div>
-    <div class="cx-info-item">Total Vendido<strong>R$ {{ "%.2f"|format(totais.total) }}</strong></div>
-    <div class="cx-info-item">Dinheiro Esperado<strong class="green">R$ {{ "%.2f"|format(dinheiro_esperado) }}</strong></div>
+    <div class="cx-info-item">
+      <div class="cx-ibadge cx-ibadge-green">💰</div>
+      <div><div class="cx-info-label">Valor Inicial</div><strong class="green">R$ {{ "%.2f"|format(caixa.valor_abertura) }}</strong></div>
+    </div>
+    <div class="cx-info-item">
+      <div class="cx-ibadge cx-ibadge-blue">🛒</div>
+      <div><div class="cx-info-label">Vendas</div><strong>{{ totais.qtd }}</strong></div>
+    </div>
+    <div class="cx-info-item">
+      <div class="cx-ibadge cx-ibadge-gray">💵</div>
+      <div><div class="cx-info-label">Total Vendido</div><strong>R$ {{ "%.2f"|format(totais.total) }}</strong></div>
+    </div>
+    <div class="cx-info-item">
+      <div class="cx-ibadge cx-ibadge-green">💵</div>
+      <div><div class="cx-info-label">Dinheiro Esperado</div><strong class="green">R$ {{ "%.2f"|format(dinheiro_esperado) }}</strong></div>
+    </div>
+    <div class="cx-info-item">
+      <div class="cx-ibadge cx-ibadge-blue">⚡</div>
+      <div><div class="cx-info-label">PIX Esperado</div><strong class="blue">R$ {{ "%.2f"|format(totais.pix) }}</strong></div>
+    </div>
+    <div class="cx-info-item">
+      <div class="cx-ibadge cx-ibadge-purple">💳</div>
+      <div><div class="cx-info-label">Cartão Esperado</div><strong class="purple">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</strong></div>
+    </div>
   </div>
 
   <div class="cx-grid">
@@ -65,12 +130,62 @@
     <!-- Movimentações -->
     <div class="cx-card">
       <div class="cx-card-title">Movimentações de Caixa</div>
-      <div class="cx-row"><span class="cx-label">Sangrias</span><span class="cx-val red">- R$ {{ "%.2f"|format(total_sangrias) }}</span></div>
-      <div class="cx-row"><span class="cx-label">Suprimentos</span><span class="cx-val green">+ R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Sangrias ({{ qtd_sangrias }})</span><span class="cx-val red">- R$ {{ "%.2f"|format(total_sangrias) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Suprimentos ({{ qtd_suprimentos }})</span><span class="cx-val green">+ R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>
       {% if tipo == "admin" or "ver_despesas" in permissoes %}
-      <div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val amber">- R$ {{ "%.2f"|format(total_despesas) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Despesas ({{ qtd_despesas }})</span><span class="cx-val amber">- R$ {{ "%.2f"|format(total_despesas) }}</span></div>
+      {% endif %}
+      {% if ultima_mov %}
+      <div class="cx-ultima-mov">
+        <div class="cx-ultima-mov-top">
+          <span>🕐 Última movimentação</span>
+          <span>{{ 'Hoje' if ultima_mov.data == hoje else (ultima_mov.data|br_date) }} às {{ ultima_mov.hora }}</span>
+        </div>
+        <div class="cx-ultima-mov-bottom">
+          <span>
+            {% if ultima_mov.tipo == 'sangria' %}Sangria{% elif ultima_mov.tipo == 'suprimento' %}Suprimento{% elif ultima_mov.tipo == 'despesa' %}Despesa{% else %}{{ ultima_mov.tipo }}{% endif %}
+            realizada por {{ ultima_mov.usuario }}
+          </span>
+          <span class="{{ 'green' if ultima_mov.tipo == 'suprimento' else 'red' }}">{{ '+' if ultima_mov.tipo == 'suprimento' else '-' }} R$ {{ "%.2f"|format(ultima_mov.valor) }}</span>
+        </div>
+      </div>
+      {% endif %}
+      {% if movs %}
+      <a href="#historico-movs" class="cx-ver-hist-btn">📋 Ver todas as movimentações ›</a>
       {% endif %}
     </div>
+  </div>
+
+  <!-- Comandas abertas no período -->
+  {% set abertas_pendentes = comandas_periodo | selectattr('status', 'in', ['aberta', 'parcial']) | list %}
+  <div class="cx-card {{ 'cx-cmd-alert-card' if abertas_pendentes else '' }}" style="margin-bottom:20px;">
+    <div class="cx-cmd-card-header">
+      <div class="cx-card-title {{ 'cx-cmd-alert-title' if abertas_pendentes else '' }}" style="margin-bottom:0;">
+        {% if abertas_pendentes %}⚠️ {% endif %}Comandas Abertas no Período ({{ comandas_periodo|length }})
+      </div>
+      {% if abertas_pendentes %}
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="cx-cmd-pill">{{ abertas_pendentes|length }} comanda{{ 's' if abertas_pendentes|length != 1 else '' }} aberta{{ 's' if abertas_pendentes|length != 1 else '' }}</span>
+        <a href="{{ url_for('comandas') }}" class="cx-ver-comandas-btn">Ver Comandas</a>
+      </div>
+      {% endif %}
+    </div>
+    {% if comandas_periodo %}
+      {% for c in comandas_periodo %}
+      <div class="cx-row">
+        <span class="cx-label">📋 {{ c.nome }}{% if c.mesa %} — Mesa {{ c.mesa }}{% endif %} <span style="color:var(--text-muted);">· {{ c.hora_abertura }}</span></span>
+        <span>
+          {% if c.status == 'aberta' %}<span class="cx-cmd-badge cx-cmd-aberta">🟢 Aberta</span>
+          {% elif c.status == 'parcial' %}<span class="cx-cmd-badge cx-cmd-parcial">🟠 Parcial</span>
+          {% elif c.status == 'quitada' %}<span class="cx-cmd-badge cx-cmd-quitada">✅ Quitada</span>
+          {% elif c.status == 'cancelada' %}<span class="cx-cmd-badge cx-cmd-cancelada">🔴 Cancelada</span>
+          {% else %}<span class="cx-cmd-badge">{{ c.status }}</span>{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--text-muted);font-size:13px;">Nenhuma comanda foi aberta neste período.</p>
+    {% endif %}
   </div>
 
   <!-- Registrar movimentação -->
@@ -88,9 +203,17 @@
     </form>
   </div>
 
+  <!-- Atalhos -->
+  <div class="cx-shortcuts">
+    <button type="button" class="cx-shortcut-btn" onclick="selecionarTipoMov('sangria')">➖ Registrar Sangria<span>Retirada de dinheiro</span></button>
+    <button type="button" class="cx-shortcut-btn" onclick="selecionarTipoMov('suprimento')">➕ Registrar Suprimento<span>Adicionar dinheiro</span></button>
+    <button type="button" class="cx-shortcut-btn" onclick="selecionarTipoMov('despesa')">💼 Registrar Despesa<span>Gastos do caixa</span></button>
+    <a href="#historico-movs" class="cx-shortcut-btn">📋 Ver Histórico<span>Todas movimentações</span></a>
+  </div>
+
   <!-- Histórico de movimentações -->
   {% if movs %}
-  <div class="cx-card">
+  <div class="cx-card" id="historico-movs">
     <div class="cx-card-title">Histórico de Movimentações</div>
     {% for m in movs %}
     <div class="cx-row">
@@ -105,5 +228,54 @@
     {% endfor %}
   </div>
   {% endif %}
+
+  <!-- Aviso de rodapé -->
+  <div class="cx-footer-note">ℹ️ Antes de fechar o caixa, confira os valores esperados e verifique se todas as comandas foram encerradas.</div>
 </div>
+
+<!-- Modal Conferir Caixa -->
+<div class="cx-modal-overlay" id="conferir-overlay" onclick="if(event.target===this) fecharConferir()">
+  <div class="cx-modal">
+    <div class="cx-modal-header">
+      <span>🧾 Conferir Caixa</span>
+      <button type="button" class="cx-modal-close" onclick="fecharConferir()">✕</button>
+    </div>
+    <div class="cx-modal-body">
+      <div class="cx-card-title">Valores do Caixa</div>
+      <div class="cx-row"><span class="cx-label">Valor Inicial</span><span class="cx-val">R$ {{ "%.2f"|format(caixa.valor_abertura) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Vendas</span><span class="cx-val">{{ totais.qtd }}</span></div>
+      <div class="cx-row"><span class="cx-label">Total Vendido</span><span class="cx-val">R$ {{ "%.2f"|format(totais.total) }}</span></div>
+      <div class="cx-card-title" style="margin-top:16px;">Valores Esperados</div>
+      <div class="cx-row"><span class="cx-label">💵 Dinheiro Esperado</span><span class="cx-val green">R$ {{ "%.2f"|format(dinheiro_esperado) }}</span></div>
+      <div class="cx-row"><span class="cx-label">⚡ PIX Esperado</span><span class="cx-val blue">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
+      <div class="cx-row"><span class="cx-label">💳 Cartão Esperado</span><span class="cx-val purple">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
+      <div class="cx-card-title" style="margin-top:16px;">Movimentações</div>
+      <div class="cx-row"><span class="cx-label">Suprimentos ({{ qtd_suprimentos }})</span><span class="cx-val green">+ R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Sangrias ({{ qtd_sangrias }})</span><span class="cx-val red">- R$ {{ "%.2f"|format(total_sangrias) }}</span></div>
+      {% if tipo == "admin" or "ver_despesas" in permissoes %}
+      <div class="cx-row"><span class="cx-label">Despesas ({{ qtd_despesas }})</span><span class="cx-val amber">- R$ {{ "%.2f"|format(total_despesas) }}</span></div>
+      {% endif %}
+      <p style="color:var(--text-muted);font-size:12px;margin-top:14px;">Isso é só uma prévia — nada é salvo aqui. Pra fechar o caixa de verdade, use o botão "Fechar Caixa".</p>
+    </div>
+    <div class="cx-modal-footer">
+      <button type="button" class="cx-btn cx-btn-conferir" onclick="fecharConferir()">Fechar</button>
+      <a href="{{ url_for('caixa_fechar') }}" class="cx-btn cx-btn-fechar">Ir para Fechar Caixa</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function selecionarTipoMov(tipo) {
+  const sel = document.querySelector('select[name="tipo"]');
+  if (sel) sel.value = tipo;
+  const inp = document.querySelector('input[name="valor"]');
+  if (inp) inp.focus();
+}
+function abrirConferir() {
+  document.getElementById('conferir-overlay').classList.add('open');
+}
+function fecharConferir() {
+  document.getElementById('conferir-overlay').classList.remove('open');
+}
+</script>
 {% endblock %}

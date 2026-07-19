@@ -1,86 +1,334 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <style>
-.cx-page{max-width:760px;margin:24px auto;padding:16px;}
+.cx-page{max-width:1120px;margin:24px auto;padding:16px;}
+.cx-topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .cx-title{font-size:20px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
-.cx-sub{font-size:12px;color:var(--text-muted);margin-bottom:24px;}
-.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+.cx-sub{font-size:12px;color:var(--text-muted);}
+.cx-hist-btn{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.cx-hist-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.cx-infobar{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:20px;}
+.cx-ibar-item{display:flex;align-items:center;gap:10px;flex:1;min-width:150px;}
+.cx-ibadge{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.cx-ibadge-blue{background:#0c2340;color:#60a5fa;}
+.cx-ibadge-green{background:#052e16;color:#4ade80;}
+.cx-ibadge-purple{background:#241a3d;color:#a78bfa;}
+.cx-ibar-label{font-size:11px;color:var(--text-muted);margin-bottom:2px;}
+.cx-ibar-val{font-size:13px;font-weight:700;color:var(--text);}
+
+.cx-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+@media(max-width:760px){.cx-grid2{grid-template-columns:1fr;}}
+
+.cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;}
 .cx-card-title{font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
 .cx-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;align-items:center;}
 .cx-row:last-child{border-bottom:none;}
+.cx-row-hint{display:flex;flex-direction:column;gap:6px;padding:9px 0;border-bottom:1px solid var(--border);}
+.cx-row-hint:last-child{border-bottom:none;}
+.cx-row-hint-top{display:flex;justify-content:space-between;align-items:center;}
+.cx-row-hint-desc{font-size:11px;color:var(--text-muted);}
 .cx-label{color:var(--text-muted);}
 .cx-val{font-weight:600;color:var(--text);}
 .cx-val.green{color:#4ade80;}
 .cx-val.amber{color:#fbbf24;}
 .cx-val.red{color:#f87171;}
-.cx-total-row{display:flex;justify-content:space-between;padding:10px 0 0;margin-top:8px;font-size:15px;font-weight:bold;color:var(--accent);}
+.cx-val.blue{color:#60a5fa;}
+.cx-val.purple{color:#a78bfa;}
+.cx-esperado-line{display:flex;justify-content:space-between;align-items:center;padding-top:14px;margin-top:6px;border-top:1px solid var(--border);}
+.cx-esperado-line span:first-child{color:#86efac;font-size:13px;font-weight:700;}
+.cx-esperado-line span:last-child{color:#4ade80;font-size:19px;font-weight:bold;}
 .cx-input{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg,#1a1a1a);color:var(--text);font-size:13px;width:140px;text-align:right;}
 .cx-input:focus{outline:none;border-color:var(--accent);}
-.cx-section-title{font-size:13px;font-weight:bold;color:var(--accent);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
-.cx-esperado-box{background:#052e16;border:1px solid #16a34a;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;font-size:15px;margin-bottom:16px;}
-.cx-btn-confirm{width:100%;padding:14px;border-radius:10px;border:none;background:#7c2d12;color:#fed7aa;font-size:16px;font-weight:bold;cursor:pointer;margin-top:8px;}
+
+.cx-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.cx-stat-item{display:flex;align-items:center;gap:10px;}
+.cx-stat-label{font-size:11px;color:var(--text-muted);margin-bottom:2px;}
+.cx-stat-val{font-size:15px;font-weight:700;color:var(--text);}
+
+.pag-wrap{display:flex;align-items:center;gap:20px;}
+.pag-chart-box{width:110px;height:110px;flex-shrink:0;}
+.pag-legenda{flex:1;min-width:0;}
+.pag-item{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);}
+.pag-item:last-of-type{border-bottom:none;}
+.pag-nome{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--text);font-weight:600;}
+.pag-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.pag-right{text-align:right;}
+.pag-pct{font-size:.9rem;font-weight:800;color:var(--text);}
+.pag-val{font-size:.72rem;color:var(--text-muted);}
+
+.cx-dif-pos{color:#4ade80;}
+.cx-dif-neg{color:#f87171;}
+.cx-dif-zero{color:var(--text-muted);}
+.cx-alert-box{border-radius:10px;padding:12px 18px;font-size:13px;font-weight:600;text-align:center;margin-top:12px;}
+.cx-alert-ok{background:#052e16;border:1px solid #16a34a;color:#86efac;}
+.cx-alert-dif{background:#2a0f0f;border:1px solid #b91c1c;color:#fca5a5;}
+.cx-cmd-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:bold;}
+.cx-cmd-aberta{background:#052e16;color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+.cx-cmd-parcial{background:#2a2000;color:#fbbf24;border:1px solid rgba(251,191,36,.3);}
+.cx-cmd-quitada{background:#0d2e1a;color:#86efac;border:1px solid rgba(134,239,172,.3);}
+.cx-cmd-cancelada{background:#2a0f0f;color:#f87171;border:1px solid rgba(248,113,113,.3);}
+
+.cx-textarea{width:100%;min-height:90px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg,#1a1a1a);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;}
+.cx-textarea:focus{outline:none;border-color:var(--accent);}
+.cx-charcount{text-align:right;font-size:11px;color:var(--text-muted);margin-top:6px;}
+
+.cx-btn-confirm{width:100%;padding:14px;border-radius:10px;border:none;background:#7c2d12;color:#fed7aa;font-size:16px;font-weight:bold;cursor:pointer;}
 .cx-btn-confirm:hover{background:#9a3412;}
-.cx-btn-back{padding:10px 20px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;cursor:pointer;text-decoration:none;}
+.cx-btn-back{padding:10px 20px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;cursor:pointer;text-decoration:none;display:inline-block;margin-top:10px;width:100%;text-align:center;box-sizing:border-box;}
 </style>
 
 <div class="cx-page">
-  <div class="cx-title">🔒 Fechar Caixa</div>
-  <div class="cx-sub">Aberto em {{ caixa.data_abertura | br_date }} às {{ caixa.hora_abertura }} por {{ caixa.operador_abertura }}</div>
-
-  <!-- Resumo de vendas -->
-  <div class="cx-card">
-    <div class="cx-card-title">Resumo de Vendas ({{ totais.qtd }} vendas)</div>
-    <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
-    <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
-    <div class="cx-row"><span class="cx-label">💳 Cartão Débito/Crédito</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
-    <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
-    <div class="cx-total-row"><span>Total</span><span>R$ {{ "%.2f"|format(totais.total) }}</span></div>
+  <div class="cx-topbar">
+    <div>
+      <div class="cx-title">🔒 Fechar Caixa</div>
+      <div class="cx-sub">Confira os valores e finalize o fechamento do caixa.</div>
+    </div>
+    <a href="{{ url_for('caixa_historico_novo') }}" class="cx-hist-btn">🕒 Histórico de Fechamentos</a>
   </div>
 
-  <!-- Movimentações -->
-  {% if total_sangrias or total_suprimentos or total_despesas %}
-  <div class="cx-card">
-    <div class="cx-card-title">Movimentações</div>
-    {% if total_suprimentos %}<div class="cx-row"><span class="cx-label">Suprimentos</span><span class="cx-val green">+ R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>{% endif %}
-    {% if total_sangrias %}<div class="cx-row"><span class="cx-label">Sangrias</span><span class="cx-val red">- R$ {{ "%.2f"|format(total_sangrias) }}</span></div>{% endif %}
-    {% if total_despesas and (tipo == "admin" or "ver_despesas" in permissoes) %}<div class="cx-row"><span class="cx-label">Despesas</span><span class="cx-val amber">- R$ {{ "%.2f"|format(total_despesas) }}</span></div>{% endif %}
+  <!-- Info bar -->
+  <div class="cx-infobar">
+    <div class="cx-ibar-item">
+      <div class="cx-ibadge cx-ibadge-blue">👤</div>
+      <div><div class="cx-ibar-label">Operador</div><div class="cx-ibar-val">{{ caixa.operador_abertura }}</div></div>
+    </div>
+    <div class="cx-ibar-item">
+      <div class="cx-ibadge cx-ibadge-green">📅</div>
+      <div><div class="cx-ibar-label">Abertura do Caixa</div><div class="cx-ibar-val">{{ caixa.data_abertura|br_date }} às {{ caixa.hora_abertura }}</div></div>
+    </div>
+    <div class="cx-ibar-item">
+      <div class="cx-ibadge cx-ibadge-green">💵</div>
+      <div><div class="cx-ibar-label">Valor Inicial (Troco)</div><div class="cx-ibar-val">R$ {{ "%.2f"|format(caixa.valor_abertura or 0) }}</div></div>
+    </div>
+    <div class="cx-ibar-item">
+      <div class="cx-ibadge cx-ibadge-purple">📅</div>
+      <div><div class="cx-ibar-label">Agora</div><div class="cx-ibar-val">{{ agora.strftime('%d/%m/%Y') }} às {{ agora.strftime('%H:%M') }}</div></div>
+    </div>
+    <div class="cx-ibar-item">
+      <div class="cx-ibadge cx-ibadge-purple">⏱️</div>
+      <div><div class="cx-ibar-label">Tempo de Operação</div><div class="cx-ibar-val">{{ tempo_operacao }}</div></div>
+    </div>
   </div>
-  {% endif %}
 
-  <!-- Dinheiro esperado -->
-  <div class="cx-esperado-box">
-    <span style="color:#86efac;">💵 Dinheiro esperado no caixa</span>
-    <span style="font-weight:bold;font-size:18px;color:#4ade80;">R$ {{ "%.2f"|format(dinheiro_esperado) }}</span>
-  </div>
-
-  <!-- Formulário de conferência -->
-  <form method="post" action="{{ url_for('caixa_fechar') }}">
-    <div class="cx-card">
-      <div class="cx-card-title">Conferência — Valores contados</div>
-      <div class="cx-row">
-        <span class="cx-label">💵 Dinheiro (contado)</span>
-        <input type="number" name="conf_dinheiro" class="cx-input"
-          placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(dinheiro_esperado) }}">
+  <form method="post" action="{{ url_for('caixa_fechar') }}" data-esperado="{{ '%.2f'|format(dinheiro_esperado) }}">
+    <div class="cx-grid2">
+      <!-- Resumo do Caixa -->
+      <div class="cx-card">
+        <div class="cx-card-title">Resumo do Caixa</div>
+        <div class="cx-row"><span class="cx-label">💵 Valor inicial (troco)</span><span class="cx-val">R$ {{ "%.2f"|format(caixa.valor_abertura or 0) }}</span></div>
+        <div class="cx-row"><span class="cx-label">💵 Vendas em dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
+        <div class="cx-row"><span class="cx-label">➕ Suprimentos</span><span class="cx-val green">R$ {{ "%.2f"|format(total_suprimentos) }}</span></div>
+        <div class="cx-row"><span class="cx-label">⛔ Sangrias</span><span class="cx-val red">R$ {{ "%.2f"|format(total_sangrias) }}</span></div>
+        {% if total_despesas and (tipo == "admin" or "ver_despesas" in permissoes) %}
+        <div class="cx-row"><span class="cx-label">📄 Despesas</span><span class="cx-val amber">R$ {{ "%.2f"|format(total_despesas) }}</span></div>
+        {% endif %}
+        <div class="cx-esperado-line">
+          <span>💵 Dinheiro esperado no caixa</span>
+          <span>R$ {{ "%.2f"|format(dinheiro_esperado) }}</span>
+        </div>
+        <div class="cx-row"><span class="cx-label">⚡ Total em PIX esperado</span><span class="cx-val blue">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
+        <div class="cx-row"><span class="cx-label">💳 Total em cartão esperado</span><span class="cx-val purple">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
       </div>
-      <div class="cx-row">
-        <span class="cx-label">PIX (extrato)</span>
-        <input type="number" name="conf_pix" class="cx-input"
-          placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(totais.pix) }}">
-      </div>
-      <div class="cx-row">
-        <span class="cx-label">💳 Cartão Débito/Crédito</span>
-        <input type="number" name="conf_cartao" class="cx-input"
-          placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(totais.credito + totais.debito) }}">
+
+      <!-- Conferência - valores contados -->
+      <div class="cx-card">
+        <div class="cx-card-title">Conferência — Valores contados</div>
+        <div class="cx-row-hint">
+          <div class="cx-row-hint-top">
+            <span class="cx-label">💵 Dinheiro (contado)</span>
+            <input type="number" name="conf_dinheiro" id="conf_dinheiro" class="cx-input"
+              placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(dinheiro_esperado) }}"
+              oninput="atualizarConferencia()">
+          </div>
+          <span class="cx-row-hint-desc">Informe o total em dinheiro que está no caixa</span>
+        </div>
+        <div class="cx-row-hint">
+          <div class="cx-row-hint-top">
+            <span class="cx-label">⚡ PIX (extrato)</span>
+            <input type="number" name="conf_pix" class="cx-input"
+              placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(totais.pix) }}">
+          </div>
+          <span class="cx-row-hint-desc">Informe o total recebido via PIX</span>
+        </div>
+        <div class="cx-row-hint">
+          <div class="cx-row-hint-top">
+            <span class="cx-label">💳 Cartão Débito/Crédito (extrato)</span>
+            <input type="number" name="conf_cartao" class="cx-input"
+              placeholder="0,00" step="0.01" min="0" value="{{ "%.2f"|format(totais.credito + totais.debito) }}">
+          </div>
+          <span class="cx-row-hint-desc">Informe o total das vendas no cartão</span>
+        </div>
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;align-items:center;">
-      <a href="{{ url_for('caixa_turno') }}" class="cx-btn-back">← Voltar</a>
-      <button type="button" class="cx-btn-confirm"
-        onclick="showConfirm('Fechar caixa','Confirmar o fechamento do caixa? Esta ação não pode ser desfeita.',()=>this.closest('form').submit(),'warn')">
-        ✅ Confirmar Fechamento
-      </button>
+    <div class="cx-grid2">
+      <!-- Resumo do dia -->
+      <div class="cx-card">
+        <div class="cx-card-title">Resumo do Dia</div>
+        <div class="cx-stat-grid">
+          <div class="cx-stat-item">
+            <div class="cx-ibadge cx-ibadge-blue">🛒</div>
+            <div><div class="cx-stat-label">Vendas realizadas</div><div class="cx-stat-val">{{ totais.qtd }}</div></div>
+          </div>
+          <div class="cx-stat-item">
+            <div class="cx-ibadge cx-ibadge-purple">📦</div>
+            <div><div class="cx-stat-label">Produtos vendidos</div><div class="cx-stat-val">{{ produtos_vendidos }}</div></div>
+          </div>
+          <div class="cx-stat-item">
+            <div class="cx-ibadge cx-ibadge-green">$</div>
+            <div><div class="cx-stat-label">Faturamento total</div><div class="cx-stat-val">R$ {{ "%.2f"|format(totais.total) }}</div></div>
+          </div>
+          <div class="cx-stat-item">
+            <div class="cx-ibadge cx-ibadge-blue">📈</div>
+            <div><div class="cx-stat-label">Ticket médio</div><div class="cx-stat-val">R$ {{ "%.2f"|format(ticket_medio) }}</div></div>
+          </div>
+        </div>
+        <div class="cx-card-title">Formas de pagamento</div>
+        {% if pagamentos %}
+        <div class="pag-wrap">
+          <div class="pag-chart-box"><canvas id="chartPagCaixa"></canvas></div>
+          <div class="pag-legenda">
+            {% set cores = ["#3b82f6","#22c55e","#f97316","#a855f7","#ef4444","#eab308"] %}
+            {% for p in pagamentos %}
+            <div class="pag-item">
+              <div class="pag-nome"><span class="pag-dot" data-color="{{ cores[loop.index0 % cores|length] }}"></span>{{ p.forma }}</div>
+              <div class="pag-right"><div class="pag-pct">{{ p.pct }}%</div><div class="pag-val">R$ {{ "%.2f"|format(p.total) }}</div></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);font-size:.85rem;">Nenhuma venda registrada neste caixa.</p>
+        {% endif %}
+      </div>
+
+      <!-- Conferência - resultado -->
+      <div class="cx-card">
+        <div class="cx-card-title">Conferência — Resultado</div>
+        <div class="cx-row"><span class="cx-label">Dinheiro esperado</span><span class="cx-val" id="cf-esperado">R$ {{ "%.2f"|format(dinheiro_esperado) }}</span></div>
+        <div class="cx-row"><span class="cx-label">Dinheiro contado</span><span class="cx-val" id="cf-contado">R$ {{ "%.2f"|format(dinheiro_esperado) }}</span></div>
+        <div class="cx-row"><span class="cx-label">Diferença</span><span class="cx-val" id="cf-diferenca">R$ 0,00</span></div>
+        <div class="cx-alert-box cx-alert-ok" id="cf-alerta">✅ Caixa conferido corretamente</div>
+      </div>
+    </div>
+
+    <!-- Comandas abertas no período -->
+    <div class="cx-card" style="margin-bottom:16px;">
+      <div class="cx-card-title">Comandas Abertas no Período ({{ comandas_periodo|length }})</div>
+      {% if comandas_periodo %}
+        {% for c in comandas_periodo %}
+        <div class="cx-row">
+          <span class="cx-label">📋 {{ c.nome }}{% if c.mesa %} — Mesa {{ c.mesa }}{% endif %} <span style="color:var(--text-muted);">· {{ c.hora_abertura }}</span></span>
+          <span>
+            {% if c.status == 'aberta' %}<span class="cx-cmd-badge cx-cmd-aberta">🟢 Aberta</span>
+            {% elif c.status == 'parcial' %}<span class="cx-cmd-badge cx-cmd-parcial">🟠 Parcial</span>
+            {% elif c.status == 'quitada' %}<span class="cx-cmd-badge cx-cmd-quitada">✅ Quitada</span>
+            {% elif c.status == 'cancelada' %}<span class="cx-cmd-badge cx-cmd-cancelada">🔴 Cancelada</span>
+            {% else %}<span class="cx-cmd-badge">{{ c.status }}</span>{% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:var(--text-muted);font-size:13px;">Nenhuma comanda foi aberta neste período.</p>
+      {% endif %}
+    </div>
+
+    <div class="cx-grid2">
+      <!-- Observações -->
+      <div class="cx-card">
+        <div class="cx-card-title">Observações</div>
+        <textarea name="observacoes" id="observacoes" class="cx-textarea" maxlength="200"
+          placeholder="Digite alguma observação sobre o fechamento...&#10;Ex.: Troco inicial diferente do habitual."
+          oninput="atualizarContador()"></textarea>
+        <div class="cx-charcount"><span id="obs-count">0</span>/200</div>
+      </div>
+
+      <!-- Ações -->
+      <div class="cx-card" style="display:flex;flex-direction:column;justify-content:center;">
+        <button type="button" class="cx-btn-confirm"
+          onclick="showConfirm('Fechar caixa','Confirmar o fechamento do caixa? Esta ação não pode ser desfeita.',()=>this.closest('form').submit(),'warn')">
+          ✅ Confirmar Fechamento do Caixa
+        </button>
+        <a href="{{ url_for('caixa_turno') }}" class="cx-btn-back">← Voltar</a>
+      </div>
     </div>
   </form>
 </div>
+
+<script type="application/json" id="data-pagamentos-caixa">{{ pagamentos | tojson }}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Donut de formas de pagamento ──
+(function(){
+  const canvas = document.getElementById("chartPagCaixa");
+  if(!canvas) return;
+  const raw = JSON.parse(document.getElementById("data-pagamentos-caixa").textContent);
+  if(!raw || !raw.length) return;
+  const cores = ["#3b82f6","#22c55e","#f97316","#a855f7","#ef4444","#eab308"];
+  new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels: raw.map(p => p.forma),
+      datasets:[{
+        data: raw.map(p => p.total),
+        backgroundColor: raw.map((_,i) => cores[i % cores.length]),
+        borderWidth: 2,
+        borderColor: "transparent",
+        hoverOffset: 4
+      }]
+    },
+    options:{
+      cutout:"68%",
+      plugins:{ legend:{ display:false }, tooltip:{
+        callbacks:{ label: ctx => " R$ " + ctx.parsed.toFixed(2).replace(".",",") }
+      }},
+      responsive:true, maintainAspectRatio:true
+    }
+  });
+  document.querySelectorAll('.pag-dot[data-color]').forEach(el => {
+    el.style.background = el.dataset.color;
+  });
+})();
+
+// ── Conferência ao vivo ──
+function fmtR(n) { return 'R$ ' + n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function atualizarConferencia() {
+  const form = document.querySelector('form[data-esperado]');
+  const esperado = parseFloat(form.dataset.esperado) || 0;
+  const contadoInp = document.getElementById('conf_dinheiro');
+  const contado = parseFloat(contadoInp.value) || 0;
+  const diferenca = Math.round((contado - esperado) * 100) / 100;
+
+  document.getElementById('cf-esperado').textContent = fmtR(esperado);
+  document.getElementById('cf-contado').textContent = fmtR(contado);
+
+  const elDif = document.getElementById('cf-diferenca');
+  const elAlerta = document.getElementById('cf-alerta');
+  const sinal = diferenca < 0 ? '-' : (diferenca > 0 ? '+' : '');
+  elDif.textContent = sinal + fmtR(Math.abs(diferenca));
+  elDif.classList.remove('cx-dif-pos', 'cx-dif-neg', 'cx-dif-zero');
+
+  if (diferenca === 0) {
+    elDif.classList.add('cx-dif-zero');
+    elAlerta.className = 'cx-alert-box cx-alert-ok';
+    elAlerta.textContent = '✅ Caixa conferido corretamente';
+  } else if (diferenca > 0) {
+    elDif.classList.add('cx-dif-pos');
+    elAlerta.className = 'cx-alert-box cx-alert-dif';
+    elAlerta.textContent = '⚠️ Existe diferença no caixa (sobra)';
+  } else {
+    elDif.classList.add('cx-dif-neg');
+    elAlerta.className = 'cx-alert-box cx-alert-dif';
+    elAlerta.textContent = '⚠️ Existe diferença no caixa (falta)';
+  }
+}
+atualizarConferencia();
+
+// ── Contador de caracteres das observações ──
+function atualizarContador() {
+  document.getElementById('obs-count').textContent = document.getElementById('observacoes').value.length;
+}
+</script>
 {% endblock %}
