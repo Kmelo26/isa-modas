@@ -109,6 +109,25 @@
     color: var(--text-muted);
   }
 
+  .cp-nova-cat-box {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .cp-nova-cat-box input { flex: 1; }
+  .cp-nova-cat-box button {
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .cp-nova-cat-box button:hover { background: var(--accent-dim); }
+
   .cp-field textarea {
     resize: vertical;
     min-height: 80px;
@@ -268,12 +287,20 @@
         </div>
         <div class="cp-field">
           <label>Categoria <span class="req">*</span></label>
-          <select name="categoria" id="categoria" required onchange="atualizarConteudoPorCategoria()">
+          <select name="categoria" id="categoria" required onchange="onCategoriaChange(this)">
             <option value="">Selecione</option>
             <option value="bebida">Bebida</option>
             <option value="comida">Comida</option>
             <option value="insumo">Insumo</option>
+            {% for c in categorias_extra %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+            <option value="__nova__">+ Adicionar nova categoria...</option>
           </select>
+          <div class="cp-nova-cat-box" id="nova-categoria-box" style="display:none;">
+            <input type="text" id="nova-categoria-input" placeholder="Nome da nova categoria">
+            <button type="button" onclick="confirmarNovaCategoria()">Adicionar</button>
+          </div>
         </div>
       </div>
 
@@ -333,6 +360,18 @@
         <div class="cp-field" id="en-bloco-caixa" style="display:none;">
           <label>Quantidade (caixas) <span class="req">*</span></label>
           <input type="number" name="qtd_caixas" id="en-qtd-caixa" placeholder="Ex.: 5" min="1" oninput="calcEntrada()">
+        </div>
+      </div>
+
+      <!-- Local de entrada -->
+      <div class="cp-grid cp-grid-2" style="margin-bottom:14px;">
+        <div class="cp-field">
+          <label>Local de entrada</label>
+          <select name="local_id">
+            {% for l in locais_estoque %}
+            <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 
@@ -494,6 +533,16 @@
       </div>
     </div>
 
+    {% if permite_investidores %}
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">7. Participantes do Investimento <span style="font-weight:400;color:var(--text-muted);font-size:0.85rem;">(opcional)</span></div>
+      <p class="cp-hint" style="margin:-8px 0 12px;">Deixe em branco pra manter 100% com o dono do sistema. Se preencher, a soma dos percentuais precisa fechar em 100%.</p>
+      <div id="participantes-rows"></div>
+      <button type="button" class="btn-voltar" onclick="adicionarParticipante()" style="margin-top:4px;">+ Adicionar participante</button>
+      <div id="participantes-total" style="margin-top:10px;font-size:13px;font-weight:600;"></div>
+    </div>
+    {% endif %}
+
     <div class="cp-footer">
       <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
       <button type="submit" class="btn-cadastrar">📋 Cadastrar Produto</button>
@@ -502,7 +551,53 @@
   </form>
 </div>
 
+<script type="application/json" id="data-investidores-ativos">{{ investidores_ativos | tojson if permite_investidores else '[]' }}</script>
+
 <script>
+  /* ─── Participantes do Investimento ─── */
+  const INVESTIDORES_ATIVOS = JSON.parse(document.getElementById('data-investidores-ativos').textContent);
+  let participanteRowCount = 0;
+
+  function adicionarParticipante() {
+    participanteRowCount++;
+    const rid = 'part-row-' + participanteRowCount;
+    const opts = INVESTIDORES_ATIVOS.map(i => `<option value="${i.id}">${i.nome}</option>`).join('');
+    const row = document.createElement('div');
+    row.className = 'cp-grid cp-grid-3';
+    row.id = rid;
+    row.style.marginBottom = '10px';
+    row.innerHTML = `
+      <div class="cp-field" style="grid-column:span 2;">
+        <label>Investidor</label>
+        <select name="investidor_id[]" onchange="atualizarTotalParticipantes()">
+          <option value="">Selecione</option>${opts}
+        </select>
+      </div>
+      <div class="cp-field">
+        <label>Percentual (%)</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" name="percentual[]" step="0.01" min="0" max="100" oninput="atualizarTotalParticipantes()">
+          <button type="button" class="btn-voltar" style="padding:0 12px;" onclick="document.getElementById('${rid}').remove(); atualizarTotalParticipantes();">✕</button>
+        </div>
+      </div>`;
+    document.getElementById('participantes-rows').appendChild(row);
+    atualizarTotalParticipantes();
+  }
+
+  function atualizarTotalParticipantes() {
+    const inputs = document.querySelectorAll('input[name="percentual[]"]');
+    const total = Array.from(inputs).reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+    const el = document.getElementById('participantes-total');
+    if (!el) return;
+    if (inputs.length === 0) {
+      el.textContent = '';
+      return;
+    }
+    const ok = Math.abs(total - 100) < 0.01;
+    el.style.color = ok ? '#4ade80' : '#f87171';
+    el.textContent = 'Total: ' + total.toFixed(2) + '%' + (ok ? '' : ' — precisa fechar em 100%');
+  }
+
   /* ─── Margem de lucro ─── */
   const campoCusto  = document.getElementById('custo');
   const campoVenda  = document.getElementById('venda');
@@ -530,6 +625,37 @@
     'comida': { units: ['kg', 'UN'],   hint: 'Peso ou quantidade por porção (ex: 0.5 kg, 1 UN)' },
     'insumo': { units: ['UN'],         hint: 'Quantidade por unidade (ex: 1 UN)' },
   };
+
+  function onCategoriaChange(sel) {
+    const box = document.getElementById('nova-categoria-box');
+    if (sel.value === '__nova__') {
+      box.style.display = 'flex';
+      document.getElementById('nova-categoria-input').focus();
+      return;
+    }
+    box.style.display = 'none';
+    atualizarConteudoPorCategoria();
+  }
+
+  function confirmarNovaCategoria() {
+    const input = document.getElementById('nova-categoria-input');
+    const sel = document.getElementById('categoria');
+    const valor = input.value.trim();
+    if (!valor) return;
+    const existente = Array.from(sel.options).find(o => o.value.toLowerCase() === valor.toLowerCase());
+    if (existente) {
+      sel.value = existente.value;
+    } else {
+      const opt = document.createElement('option');
+      opt.value = valor;
+      opt.textContent = valor;
+      sel.insertBefore(opt, sel.querySelector('option[value="__nova__"]'));
+      sel.value = valor;
+    }
+    document.getElementById('nova-categoria-box').style.display = 'none';
+    input.value = '';
+    atualizarConteudoPorCategoria();
+  }
 
   function atualizarConteudoPorCategoria() {
     const cat  = document.getElementById('categoria').value;

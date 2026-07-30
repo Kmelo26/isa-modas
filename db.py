@@ -257,6 +257,17 @@ def get_all_products() -> list:
     return [_fix_product(p) for p in rows]
 
 
+def get_products_by_pids(pids: list) -> list:
+    """Busca vários produtos de uma vez por pid (1 chamada) em vez de 1
+    chamada por produto. Mesmo resultado de chamar get_product() em loop,
+    usado onde vários produtos diferentes precisam ser lidos na mesma
+    requisição (ex: cancelamento de comanda inteira)."""
+    if not pids:
+        return []
+    rows = _sb().table("products").select("*").in_("pid", pids).execute().data or []
+    return [_fix_product(p) for p in rows]
+
+
 def get_product(pid: str) -> dict | None:
     rows = _sb().table("products").select("*").eq("pid", pid).limit(1).execute().data or []
     return _fix_product(rows[0]) if rows else None
@@ -448,6 +459,17 @@ def update_sales_status_by_comanda(comanda_id: str, status: str):
         raise RuntimeError(f"Erro ao sincronizar status das vendas da comanda: {e}") from e
 
 
+def update_sales_comanda_nome(comanda_id: str, novo_nome: str):
+    """Propaga o nome corrigido da comanda pra todas as vendas (inclusive já
+    canceladas) ligadas a ela, pra não ficar um nome na comanda e outro nas
+    vendas já registradas dela."""
+    try:
+        _sb().table("sales").update({"comanda_nome": novo_nome}) \
+            .eq("comanda_id", comanda_id).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao sincronizar nome da comanda nas vendas: {e}") from e
+
+
 def get_pagamentos_comanda_por_caixa(caixa_id: str) -> list:
     """Varre todas as comandas e retorna os pagamentos (com dados da comanda
     anexados) cujo caixa_id bate com o caixa informado — usado na conciliação
@@ -480,6 +502,23 @@ def cancelar_sale(uid: str, usuario: str, quando: str):
         raise RuntimeError(f"Erro ao cancelar venda: {e}") from e
 
 
+def cancelar_sales_em_lote(uids: list, usuario: str, quando: str):
+    """Mesma operação de cancelar_sale, mas aplicada a vários uids numa só
+    chamada (ex: cancelar todas as vendas de uma comanda de uma vez, em vez
+    de 1 chamada de rede por venda)."""
+    if not uids:
+        return
+    try:
+        _sb().table("sales").update({
+            "excluida": True,
+            "excluida_em": quando,
+            "excluida_por": usuario,
+            "status": "cancelada",
+        }).in_("uid", uids).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cancelar vendas: {e}") from e
+
+
 def mark_sales_fechado(uids: list, caixa_dia: str, fechado_em: str):
     if not uids:
         return
@@ -505,6 +544,9 @@ def _fix_command(c: dict) -> dict:
         c.setdefault("data_quitada", "")
         if not isinstance(c.get("historico"), list):
             c["historico"] = []
+        if not isinstance(c.get("emprestimos"), list):
+            c["emprestimos"] = []
+        c.setdefault("margem_customizada", None)
     return c
 
 
@@ -901,7 +943,7 @@ def get_all_clientes() -> list:
 
 def get_cliente(cid: str) -> dict | None:
     r = _sb().table("clientes").select("*").eq("id", cid).maybe_single().execute()
-    return _fix_cliente(r.data) if r.data else None
+    return _fix_cliente(r.data) if r and r.data else None
 
 
 def insert_cliente(c: dict):
@@ -918,6 +960,23 @@ def update_cliente(c: dict):
         raise RuntimeError(f"Erro ao atualizar cliente: {e}") from e
 
 
+def delete_cliente(cid: str):
+    try:
+        _sb().table("clientes").delete().eq("id", cid).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao excluir cliente: {e}") from e
+
+
+def tem_comandas_abertas_cliente(cliente_id: str) -> bool:
+    rows = (
+        _sb().table("commands").select("cid")
+        .eq("cliente_id", cliente_id)
+        .not_.in_("status", ["cancelada", "fechada", "quitada"])
+        .execute().data or []
+    )
+    return bool(rows)
+
+
 def get_saldo_cliente(cliente_id: str) -> float:
     rows = (
         _sb().table("commands").select("itens")
@@ -930,3 +989,276 @@ def get_saldo_cliente(cliente_id: str) -> float:
         for item in (cmd.get("itens") or []):
             total += float(item.get("valor_venda", 0)) * int(item.get("quantidade", 0))
     return round(total, 2)
+
+
+def get_saldos_clientes(cliente_ids: list) -> dict:
+    """Mesma regra de get_saldo_cliente, mas calcula pra vários clientes de
+    uma vez (1 chamada) em vez de 1 chamada por cliente. Usado na listagem
+    de clientes, onde o saldo de todo mundo é exibido na mesma tela."""
+    if not cliente_ids:
+        return {}
+    rows = (
+        _sb().table("commands").select("cliente_id,itens")
+        .in_("cliente_id", cliente_ids)
+        .not_.in_("status", ["cancelada", "fechada", "quitada"])
+        .execute().data or []
+    )
+    saldos = {cid: 0.0 for cid in cliente_ids}
+    for cmd in rows:
+        cid = cmd.get("cliente_id")
+        if cid not in saldos:
+            continue
+        for item in (cmd.get("itens") or []):
+            saldos[cid] += float(item.get("valor_venda", 0)) * int(item.get("quantidade", 0))
+    return {cid: round(v, 2) for cid, v in saldos.items()}
+
+
+# ==================== INVESTIDORES ====================
+
+DONO_INVESTIDOR_ID = "dono"
+
+
+def _fix_investidor(i: dict) -> dict:
+    if i:
+        i.setdefault("documento", "")
+        i.setdefault("telefone", "")
+        i.setdefault("email", "")
+        i.setdefault("observacoes", "")
+        i.setdefault("status", "ativo")
+        i.setdefault("data_cadastro", "")
+    return i
+
+
+def get_all_investidores() -> list:
+    rows = _sb().table("investidores").select("*").order("nome").execute().data or []
+    return [_fix_investidor(i) for i in rows]
+
+
+def get_investidor(iid: str) -> dict | None:
+    r = _sb().table("investidores").select("*").eq("id", iid).maybe_single().execute()
+    return _fix_investidor(r.data) if r and r.data else None
+
+
+def insert_investidor(i: dict):
+    try:
+        _sb().table("investidores").insert(i).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cadastrar investidor: {e}") from e
+
+
+def update_investidor(i: dict):
+    try:
+        _sb().table("investidores").update(i).eq("id", i["id"]).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar investidor: {e}") from e
+
+
+def delete_investidor(iid: str):
+    try:
+        _sb().table("investidores").delete().eq("id", iid).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao excluir investidor: {e}") from e
+
+
+def get_or_create_dono_investidor() -> dict:
+    """Investidor seed que representa o proprietário do sistema — usado
+    automaticamente como dono de 100% de qualquer lote sem participantes
+    informados. Idempotente: só cria na primeira vez que for preciso."""
+    dono = get_investidor(DONO_INVESTIDOR_ID)
+    if dono:
+        return dono
+    novo = {
+        "id": DONO_INVESTIDOR_ID,
+        "nome": "Proprietário do Sistema",
+        "documento": "", "telefone": "", "email": "",
+        "observacoes": "Investidor padrão — dono do negócio. Pode renomear livremente.",
+        "status": "ativo",
+        "data_cadastro": "",
+    }
+    insert_investidor(novo)
+    return _fix_investidor(novo)
+
+
+def _fix_lote_investimento(li: dict) -> dict:
+    if li:
+        li.setdefault("fornecedor", "")
+        if not isinstance(li.get("participantes"), list):
+            li["participantes"] = []
+        li.setdefault("removido", False)
+    return li
+
+
+def get_all_lote_investimentos(incluir_removidos: bool = False) -> list:
+    q = _sb().table("lote_investimentos").select("*")
+    if not incluir_removidos:
+        q = q.eq("removido", False)
+    rows = q.order("data_entrada", desc=True).execute().data or []
+    return [_fix_lote_investimento(li) for li in rows]
+
+
+def get_lote_investimento(lid: str) -> dict | None:
+    r = _sb().table("lote_investimentos").select("*").eq("id", lid).maybe_single().execute()
+    return _fix_lote_investimento(r.data) if r and r.data else None
+
+
+def insert_lote_investimento(li: dict):
+    try:
+        _sb().table("lote_investimentos").insert(li).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao registrar investimento do lote: {e}") from e
+
+
+def marcar_lote_investimento_removido(lid: str):
+    try:
+        _sb().table("lote_investimentos").update({"removido": True}).eq("id", lid).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao remover investimento do lote: {e}") from e
+
+
+def tem_vinculos_investidor(investidor_id: str) -> bool:
+    lotes = get_all_lote_investimentos(incluir_removidos=False)
+    for li in lotes:
+        if any(p.get("investidor_id") == investidor_id for p in li.get("participantes", [])):
+            return True
+    pagamentos = (
+        _sb().table("pagamentos_investidor").select("id")
+        .eq("investidor_id", investidor_id).limit(1).execute().data or []
+    )
+    return bool(pagamentos)
+
+
+def get_pagamentos_investidor(investidor_id: str) -> list:
+    rows = (
+        _sb().table("pagamentos_investidor").select("*")
+        .eq("investidor_id", investidor_id).order("data", desc=True).execute().data or []
+    )
+    return rows
+
+
+def get_totais_pagamentos_investidores(investidor_ids: list) -> dict:
+    """Soma o total pago a vários investidores de uma vez (1 chamada) em
+    vez de 1 chamada por investidor. Usado no dashboard de Investidores,
+    onde o total de todo mundo é exibido na mesma tela."""
+    if not investidor_ids:
+        return {}
+    rows = (
+        _sb().table("pagamentos_investidor").select("investidor_id,valor")
+        .in_("investidor_id", investidor_ids).execute().data or []
+    )
+    totais = {iid: 0.0 for iid in investidor_ids}
+    for r in rows:
+        iid = r.get("investidor_id")
+        if iid in totais:
+            totais[iid] += float(r.get("valor", 0) or 0)
+    return totais
+
+
+def insert_pagamento_investidor(p: dict):
+    try:
+        _sb().table("pagamentos_investidor").insert(p).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao registrar pagamento: {e}") from e
+
+
+# ==================== DESPESAS ====================
+
+def get_all_despesas_categorias() -> list:
+    rows = _sb().table("despesas_categorias").select("*").order("nome").execute().data or []
+    return rows
+
+
+def insert_despesa_categoria(c: dict):
+    try:
+        _sb().table("despesas_categorias").insert(c).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cadastrar categoria de despesa: {e}") from e
+
+
+def get_all_despesas() -> list:
+    rows = _sb().table("despesas").select("*").order("data", desc=True).execute().data or []
+    return rows
+
+
+def get_despesa(did: str) -> dict | None:
+    r = _sb().table("despesas").select("*").eq("id", did).maybe_single().execute()
+    return r.data if r and r.data else None
+
+
+def insert_despesa(d: dict):
+    try:
+        _sb().table("despesas").insert(d).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cadastrar despesa: {e}") from e
+
+
+def update_despesa(d: dict):
+    try:
+        _sb().table("despesas").update(d).eq("id", d["id"]).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar despesa: {e}") from e
+
+
+def delete_despesa(did: str):
+    try:
+        _sb().table("despesas").delete().eq("id", did).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao excluir despesa: {e}") from e
+
+
+def get_all_despesas_recorrentes() -> list:
+    rows = _sb().table("despesas_recorrentes").select("*").order("categoria").execute().data or []
+    return rows
+
+
+def get_despesa_recorrente(rid: str) -> dict | None:
+    r = _sb().table("despesas_recorrentes").select("*").eq("id", rid).maybe_single().execute()
+    return r.data if r and r.data else None
+
+
+def insert_despesa_recorrente(r: dict):
+    try:
+        _sb().table("despesas_recorrentes").insert(r).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cadastrar despesa recorrente: {e}") from e
+
+
+def update_despesa_recorrente(r: dict):
+    try:
+        _sb().table("despesas_recorrentes").update(r).eq("id", r["id"]).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar despesa recorrente: {e}") from e
+
+
+def delete_despesa_recorrente(rid: str):
+    try:
+        _sb().table("despesas_recorrentes").delete().eq("id", rid).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao excluir despesa recorrente: {e}") from e
+
+
+# ==================== LOCAIS DE ESTOQUE ====================
+
+def get_all_locais_estoque(incluir_inativos: bool = False) -> list:
+    q = _sb().table("locais_estoque").select("*")
+    if not incluir_inativos:
+        q = q.eq("ativo", True)
+    return q.order("nome").execute().data or []
+
+
+def insert_local_estoque(l: dict):
+    try:
+        _sb().table("locais_estoque").insert(l).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cadastrar local de estoque: {e}") from e
+
+
+def insert_transferencia_estoque(t: dict):
+    try:
+        _sb().table("estoque_transferencias").insert(t).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao registrar transferência: {e}") from e
+
+
+def get_all_transferencias_estoque() -> list:
+    rows = _sb().table("estoque_transferencias").select("*").order("data", desc=True).order("hora", desc=True).execute().data or []
+    return rows

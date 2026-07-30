@@ -86,6 +86,11 @@
   .btn-registrar { width:100%; padding:12px; background:#22c55e; color:#fff; font-weight:700;
     font-size:0.92rem; border:none; border-radius:8px; cursor:pointer; margin-top:4px; }
   .btn-registrar:hover { background:#16a34a; }
+  .lp-btn-add-part { background:var(--card-bg); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:8px 14px; font-size:0.8rem; font-weight:600; cursor:pointer; }
+  .lp-btn-add-part:hover { border-color:#22c55e; color:#22c55e; }
+  .lp-btn-rm-part { background:var(--card-bg); border:1px solid var(--border); color:var(--text-muted);
+    border-radius:8px; padding:0 10px; cursor:pointer; }
 
   .alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
     border:1px solid #5a1f1f; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:0.875rem; }
@@ -340,6 +345,16 @@
             <input type="text" name="nome_lote" placeholder="Ex: Mango, Absolute Zero...">
           </div>
 
+          <!-- Local de entrada -->
+          <div class="lp-fg" style="margin-bottom:13px;">
+            <label>Local de entrada</label>
+            <select name="local_id">
+              {% for l in locais_estoque %}
+              <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
           <!-- Data + Validade + Fornecedor -->
           <div class="lp-r3">
             <div class="lp-fg">
@@ -355,6 +370,16 @@
               <input type="text" name="fornecedor" placeholder="Ex: Nestlé">
             </div>
           </div>
+
+          {% if permite_investidores %}
+          <div style="margin-bottom:13px;">
+            <div class="lp-card-titulo-neutral" style="margin-bottom:6px;">Participantes do Investimento (opcional)</div>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 10px;">Deixe em branco pra manter 100% com o dono do sistema. Se preencher, a soma dos percentuais precisa fechar em 100%.</p>
+            <div id="participantes-rows"></div>
+            <button type="button" class="lp-btn-add-part" onclick="adicionarParticipante()">+ Adicionar participante</button>
+            <div id="participantes-total" style="margin-top:8px;font-size:13px;font-weight:600;"></div>
+          </div>
+          {% endif %}
 
           <button type="submit" class="btn-registrar">Registrar Entrada</button>
         </form>
@@ -426,11 +451,12 @@
       {% if not lotes %}
         <p style="color:var(--text-muted);font-size:0.875rem;">Nenhum lote cadastrado.</p>
       {% else %}
+      <div style="overflow-x:auto;">
       <table class="lp-hist-table">
         <thead>
           <tr>
             <th>Data</th><th>Nome do Lote</th><th>Tipo entrada</th><th>Qtd. informada</th>
-            <th>Unid. por caixa</th><th>Total unidades</th>
+            <th>Unid. por caixa</th><th>Total unidades</th><th>Local</th>
             <th>Custo unitário</th><th>Custo total</th>
             <th>Fornecedor</th><th>Validade</th><th>Usuário</th><th></th>
           </tr>
@@ -446,6 +472,11 @@
             <td>{{ qtd_inf }} {{ 'caixas' if forma=='caixa' else 'unidades' }}</td>
             <td>{{ l.get('unidades_por_caixa') or '—' }}</td>
             <td>{{ l.qtd }}</td>
+            <td>
+              {% for local_id, qtd_local in l._distribuicao_resolvida.items() if qtd_local > 0 %}
+              <span style="white-space:nowrap;">{{ locais_nomes_map.get(local_id, local_id) }}: {{ qtd_local }}</span>{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </td>
             <td>R$ {{ "%.2f"|format(l.custo_unit) }}</td>
             <td>R$ {{ "%.2f"|format(l.qtd * l.custo_unit) }}</td>
             <td>{{ l.get('fornecedor') or '—' }}</td>
@@ -473,7 +504,7 @@
             </td>
           </tr>
           <tr id="he-{{ loop.index0 }}" style="display:none;">
-            <td colspan="12">
+            <td colspan="13">
               <form method="POST" action="{{ url_for('editar_lote', pid=produto.pid, idx=loop.index0) }}"
                     style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:4px 0;">
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Data</label>
@@ -494,6 +525,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% endif %}
     </div>
 
@@ -522,6 +554,7 @@
       {% endif %}
 
       {% if pacotes_usando %}
+      <div style="overflow-x:auto;">
       <table class="lp-pack-table">
         <thead>
           <tr>
@@ -565,6 +598,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% else %}
       <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">
         Nenhum pacote utiliza este produto ainda.
@@ -583,6 +617,7 @@
       {% if not saidas %}
         <p style="color:var(--text-muted);font-size:.875rem;">Nenhuma saída registrada para este produto.</p>
       {% else %}
+      <div style="overflow-x:auto;">
       <table class="lp-hist-table">
         <thead>
           <tr>
@@ -618,6 +653,7 @@
           </tr>
         </tfoot>
       </table>
+      </div>
       {% endif %}
     </div>
   </div>
@@ -637,6 +673,7 @@
       {% if not mov_sorted %}
         <p style="color:var(--text-muted);font-size:.875rem;">Nenhuma movimentação registrada.</p>
       {% else %}
+      <div style="overflow-x:auto;">
       <table class="lp-hist-table">
         <thead>
           <tr><th>Data</th><th>Tipo</th><th>Código</th><th>Quantidade</th><th>Valor unit.</th><th>Operador</th><th>Info</th></tr>
@@ -664,6 +701,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% endif %}
     </div>
   </div>
@@ -671,9 +709,51 @@
 </div>
 
 <script type="application/json" id="json-qtd-atual">{{ qtd_total }}</script>
+<script type="application/json" id="data-investidores-ativos">{{ investidores_ativos | tojson if permite_investidores else '[]' }}</script>
 
 <script>
 const QTD_ATUAL = JSON.parse(document.getElementById('json-qtd-atual').textContent);
+
+/* ─── Participantes do Investimento ─── */
+const INVESTIDORES_ATIVOS = JSON.parse(document.getElementById('data-investidores-ativos').textContent);
+let participanteRowCount = 0;
+
+function adicionarParticipante() {
+  participanteRowCount++;
+  const rid = 'part-row-' + participanteRowCount;
+  const opts = INVESTIDORES_ATIVOS.map(i => `<option value="${i.id}">${i.nome}</option>`).join('');
+  const row = document.createElement('div');
+  row.id = rid;
+  row.style.cssText = 'display:flex;gap:8px;align-items:end;margin-bottom:8px;';
+  row.innerHTML = `
+    <div class="lp-fg" style="flex:2;">
+      <label>Investidor</label>
+      <select name="investidor_id[]" onchange="atualizarTotalParticipantes()">
+        <option value="">Selecione</option>${opts}
+      </select>
+    </div>
+    <div class="lp-fg" style="flex:1;">
+      <label>Percentual (%)</label>
+      <input type="number" name="percentual[]" step="0.01" min="0" max="100" oninput="atualizarTotalParticipantes()">
+    </div>
+    <button type="button" class="lp-btn-rm-part" style="height:38px;" onclick="document.getElementById('${rid}').remove(); atualizarTotalParticipantes();">✕</button>`;
+  document.getElementById('participantes-rows').appendChild(row);
+  atualizarTotalParticipantes();
+}
+
+function atualizarTotalParticipantes() {
+  const inputs = document.querySelectorAll('input[name="percentual[]"]');
+  const total = Array.from(inputs).reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+  const el = document.getElementById('participantes-total');
+  if (!el) return;
+  if (inputs.length === 0) {
+    el.textContent = '';
+    return;
+  }
+  const ok = Math.abs(total - 100) < 0.01;
+  el.style.color = ok ? '#22c55e' : '#f87171';
+  el.textContent = 'Total: ' + total.toFixed(2) + '%' + (ok ? '' : ' — precisa fechar em 100%');
+}
 
 /* ── Conteúdo por unidade — unidades baseadas na categoria do produto ── */
 const UNIDADES_CAT = {

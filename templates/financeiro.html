@@ -44,6 +44,7 @@
 .kpi-icon.roxo{background:#7c3aed}
 .kpi-icon.amarelo{background:#d97706}
 .kpi-icon.ciano{background:#0891b2}
+.kpi-icon.vermelho{background:#dc2626}
 .kpi-info{min-width:0}
 .kpi-label{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
 .kpi-valor{font-size:1.45rem;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:2px}
@@ -124,6 +125,88 @@
 .fin-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
 .fin-pages button:hover:not(.ativo){border-color:var(--accent);color:var(--accent)}
 .fin-pages .ellipsis{color:var(--text-muted,#888);padding:0 4px;line-height:34px}
+
+/* ABAS */
+.fin-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.fin-tab-btn{background:none;border:none;padding:10px 18px;font-size:.88rem;font-weight:700;
+  color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.fin-tab-btn:hover{color:var(--text)}
+.fin-tab-btn.ativo{color:var(--accent);border-bottom-color:var(--accent)}
+.fin-tab-content{display:none}
+.fin-tab-content.ativo{display:block}
+
+/* DESPESAS */
+.desp-filters{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.desp-input,.desp-select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:8px;font-size:.82rem;outline:none}
+.desp-input:focus,.desp-select:focus{border-color:var(--accent)}
+.desp-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+  font-size:.85rem;font-weight:700;cursor:pointer;text-decoration:none;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);transition:.15s;white-space:nowrap}
+.desp-btn:hover{border-color:var(--accent);color:var(--accent)}
+.desp-btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.desp-btn-primary:hover{opacity:.9;color:#000}
+.desp-quick{display:flex;gap:6px;flex-wrap:wrap}
+.desp-qbtn{background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);
+  padding:7px 14px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;transition:.15s}
+.desp-qbtn:hover{border-color:var(--accent);color:var(--accent)}
+.desp-qbtn.ativo{border-color:var(--accent);color:var(--accent);background:rgba(224,224,224,.07)}
+.desp-table-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.desp-table{width:100%;border-collapse:collapse}
+.desp-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
+  letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);
+  border-right:1px solid var(--border);background:var(--card-bg);white-space:nowrap}
+.desp-table th:last-child{border-right:none}
+.desp-table td{padding:12px 14px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-size:.87rem;color:var(--text)}
+.desp-table td:last-child{border-right:none;text-align:center}
+.desp-table tr:last-child td{border-bottom:none}
+.desp-table tr:hover{background:rgba(255,255,255,.03)}
+.desp-empty{padding:32px;text-align:center;color:var(--text-muted,#888)}
+.act-btn{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;cursor:pointer;color:var(--text-muted,#888);font-size:1rem;transition:.15s;line-height:1}
+.act-btn:hover{border-color:var(--accent);color:var(--accent)}
+#desp-dropdown,#desp-rec-dropdown{display:none;position:fixed;background:var(--card-bg);border:1px solid var(--border);
+  border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.5);min-width:150px;z-index:9999;overflow:hidden}
+#desp-dropdown.aberto,#desp-rec-dropdown.aberto{display:block}
+#desp-dropdown a,#desp-rec-dropdown a{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;
+  text-decoration:none;color:var(--text);cursor:pointer;transition:background .12s;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+#desp-dropdown a:last-child,#desp-rec-dropdown a:last-child{border-bottom:none}
+#desp-dropdown a:hover,#desp-rec-dropdown a:hover{background:var(--accent-dim);color:var(--accent)}
+#desp-dropdown a.remover,#desp-rec-dropdown a.remover{color:#f87171}
+#desp-dropdown a.remover:hover,#desp-rec-dropdown a.remover:hover{background:#2a0f0f}
+
+/* MODAL NOVA/EDITAR DESPESA */
+.desp-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);
+  z-index:1000;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+.desp-overlay.open{display:flex}
+.desp-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;width:100%;
+  max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.6);animation:desp-in .25s cubic-bezier(0.22,1,0.36,1) both;margin:auto}
+@keyframes desp-in{from{opacity:0;transform:translateY(16px) scale(0.97)}to{opacity:1;transform:none}}
+.desp-modal-header{display:flex;justify-content:space-between;align-items:center;padding:18px 22px 14px;border-bottom:1px solid var(--border)}
+.desp-modal-titulo{font-size:15px;font-weight:bold;color:var(--accent);letter-spacing:.5px}
+.desp-modal-close{background:#2a2a2a;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;
+  color:var(--text-muted);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.desp-modal-close:hover{background:var(--accent-dim);color:var(--accent)}
+.desp-modal-body{padding:20px 22px 24px}
+.desp-modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.desp-modal-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.desp-modal-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px}
+.desp-modal-input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:13px;outline:none;box-sizing:border-box}
+.desp-modal-input:focus{border-color:var(--accent)}
+.desp-modal-btn-cancel{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer}
+.desp-modal-btn-cancel:hover{border-color:var(--accent);color:var(--accent)}
+.desp-modal-btn-submit{background:var(--btn-bg);color:var(--accent);border:1px solid var(--accent);
+  border-radius:8px;padding:9px 18px;font-size:13px;font-weight:bold;cursor:pointer}
+.desp-modal-btn-submit:hover{background:var(--accent-hover)}
+#desp-erro{display:none;color:#f87171;font-size:13px;margin-bottom:10px}
+#desp-rec-erro{display:none;color:#f87171;font-size:13px;margin-bottom:10px}
+.badge-status{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.badge-status.ativo{background:#052e16;color:#4ade80;border:1px solid #1a5c30}
+.badge-status.inativo{background:#2a0f0f;color:#f87171;border:1px solid #5c1a1a}
 </style>
 
 <div class="fin">
@@ -142,6 +225,15 @@
     </button>
     </div>
   </div>
+
+  {% if tipo == "admin" or "ver_despesas" in permissoes %}
+  <div class="fin-tabs">
+    <button type="button" class="fin-tab-btn" data-tab="visao-geral" onclick="mudarAbaFin('visao-geral')">Visão Geral</button>
+    <button type="button" class="fin-tab-btn" data-tab="despesas" onclick="mudarAbaFin('despesas')">Despesas</button>
+  </div>
+  {% endif %}
+
+  <div class="fin-tab-content" id="tab-visao-geral">
 
   <!-- FORM -->
   <form method="get" action="{{ url_for('financeiro') }}" id="formFin">
@@ -172,6 +264,7 @@
   </form>
 
   <!-- KPI CARDS -->
+  <div class="fin-panel-title">Vendas</div>
   <div class="fin-kpis">
     <div class="kpi">
       <div class="kpi-icon azul">
@@ -234,8 +327,27 @@
       </div>
     </div>
     {% endif %}
+  </div>
 
-    {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
+  {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
+  <div class="fin-panel-title">Lucro</div>
+  <div class="fin-kpis">
+    <div class="kpi">
+      <div class="kpi-icon vermelho">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Total Investido</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_investido)|replace(".", ",") }}</div>
+        <div class="kpi-sub">custo dos produtos vendidos</div>
+      </div>
+    </div>
+
     <div class="kpi">
       <div class="kpi-icon roxo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -267,11 +379,57 @@
         <div class="kpi-sub">proporcional ao que ainda falta receber</div>
       </div>
     </div>
+
+    <div class="kpi">
+      <div class="kpi-icon verde">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Lucro Disponível</div>
+        <div class="kpi-valor fin-val fin-oculto {% if lucro_disponivel >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
+          R$ {{ "%.2f"|format(lucro_disponivel)|replace(".", ",") }}
+        </div>
+        <div class="kpi-sub">lucro realizado menos despesas — dá pra retirar</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fin-panel-title">Despesas &amp; Estoque</div>
+  <div class="fin-kpis">
+    <div class="kpi">
+      <div class="kpi-icon azul">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Investimento em Estoque</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_investimento_estoque_periodo)|replace(".", ",") }}</div>
+        <div class="kpi-sub">reinvestido em mercadoria (novos lotes) no período</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-icon vermelho">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Despesas do Período</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_despesas_periodo)|replace(".", ",") }}</div>
+        <div class="kpi-sub">despesas administrativas lançadas</div>
+      </div>
+    </div>
     {% endif %}
   </div>
 
   {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
-  <div class="fin-kpis" style="margin-top:12px;">
+  <div class="fin-panel-title" style="margin-top:12px;">Comandas</div>
+  <div class="fin-kpis">
     <div class="kpi">
       <div class="kpi-icon amarelo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -311,6 +469,27 @@
   </div>
   {% endif %}
 
+  {% if tipo == "admin" or "ver_caixa" in permissoes %}
+  <div class="fin-panel-title" style="margin-top:12px;">Caixa</div>
+  <div class="fin-kpis">
+    <div class="kpi">
+      <div class="kpi-icon {{ 'verde' if total_sobra_falta >= 0 else 'vermelho' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Sobras de Caixa</div>
+        <div class="kpi-valor fin-val fin-oculto {% if total_sobra_falta >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
+          {{ '+' if total_sobra_falta > 0 else '' }}R$ {{ "%.2f"|format(total_sobra_falta)|replace(".", ",") }}
+        </div>
+        <div class="kpi-sub">diferença dos fechamentos de caixa no período (sobra ou falta)</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- MIDDLE: TOP PRODUTOS + PAGAMENTOS -->
   <div class="fin-mid">
 
@@ -318,6 +497,7 @@
     <div class="fin-panel">
       <div class="fin-panel-title">Produtos que mais deram lucro</div>
       {% if top_produtos %}
+      <div style="overflow-x:auto;">
       <table class="top-table">
         <thead>
           <tr>
@@ -338,6 +518,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       <a class="ver-todos" href="{{ url_for('vendas') }}?data_ini={{ data_ini_raw }}&data_fim={{ data_fim_raw }}">Ver todos os produtos</a>
       {% else %}
       <p style="color:var(--text-muted,#888);font-size:.88rem">Nenhuma venda no período.</p>
@@ -450,6 +631,269 @@
     </div>
   </div>
 
+  </div>
+  <!-- /tab-visao-geral -->
+
+  {% if tipo == "admin" or "ver_despesas" in permissoes %}
+  <div class="fin-tab-content" id="tab-despesas">
+
+    <!-- Dropdown menu (Despesas) -->
+    <div id="desp-dropdown">
+      <a id="desp-acao-editar" onclick="abrirEditarDespesa(event)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </a>
+      <a id="desp-acao-remover" class="remover" onclick="removerDespesa(event)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Excluir
+      </a>
+    </div>
+
+    <!-- Modal Nova/Editar Despesa -->
+    <div class="desp-overlay" id="desp-overlay" onclick="if(event.target===this)fecharModalDespesa()">
+      <div class="desp-modal">
+        <div class="desp-modal-header">
+          <span class="desp-modal-titulo" id="desp-modal-titulo">NOVA DESPESA</span>
+          <button class="desp-modal-close" onclick="fecharModalDespesa()">✕</button>
+        </div>
+        <div class="desp-modal-body">
+          <input type="hidden" id="desp-id">
+          <div class="desp-modal-row-2" style="margin-bottom:10px;">
+            <div>
+              <label class="desp-modal-label">Data *</label>
+              <input type="date" id="desp-data" class="desp-modal-input" value="{{ hoje_raw }}">
+            </div>
+            <div>
+              <label class="desp-modal-label">Valor (R$) *</label>
+              <input type="number" id="desp-valor" class="desp-modal-input" step="0.01" min="0.01" placeholder="0,00">
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="desp-modal-label">Categoria *</label>
+            <input type="text" id="desp-categoria" class="desp-modal-input" list="desp-categorias-list"
+                   placeholder="Digite a categoria..." autocomplete="off">
+            <datalist id="desp-categorias-list">
+              {% for cat in despesas_categorias %}
+              <option value="{{ cat.nome }}">
+              {% endfor %}
+            </datalist>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="desp-modal-label">Descrição *</label>
+            <input type="text" id="desp-descricao" class="desp-modal-input" placeholder="Ex: Conta de luz de julho">
+          </div>
+          <div style="margin-bottom:4px;">
+            <label class="desp-modal-label">Observação</label>
+            <textarea id="desp-observacao" class="desp-modal-input" rows="2" style="resize:vertical;" placeholder="Opcional"></textarea>
+          </div>
+          <div id="desp-erro"></div>
+        </div>
+        <div class="desp-modal-footer">
+          <button class="desp-modal-btn-cancel" onclick="fecharModalDespesa()">Cancelar</button>
+          <button class="desp-modal-btn-submit" onclick="salvarDespesa()" id="desp-btn-salvar">Salvar Despesa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dropdown menu (Despesas Recorrentes) -->
+    <div id="desp-rec-dropdown">
+      <a id="desp-rec-acao-editar" onclick="abrirEditarRecorrente(event)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </a>
+      <a id="desp-rec-acao-remover" class="remover" onclick="removerRecorrente(event)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Excluir
+      </a>
+    </div>
+
+    <!-- Modal Nova/Editar Despesa Recorrente -->
+    <div class="desp-overlay" id="desp-rec-overlay" onclick="if(event.target===this)fecharModalRecorrente()">
+      <div class="desp-modal">
+        <div class="desp-modal-header">
+          <span class="desp-modal-titulo" id="desp-rec-modal-titulo">NOVA DESPESA RECORRENTE</span>
+          <button class="desp-modal-close" onclick="fecharModalRecorrente()">✕</button>
+        </div>
+        <div class="desp-modal-body">
+          <input type="hidden" id="desp-rec-id">
+          <div class="desp-modal-row-2" style="margin-bottom:10px;">
+            <div>
+              <label class="desp-modal-label">Valor (R$) *</label>
+              <input type="number" id="desp-rec-valor" class="desp-modal-input" step="0.01" min="0.01" placeholder="0,00">
+            </div>
+            <div>
+              <label class="desp-modal-label">Dia do mês (1–31) *</label>
+              <input type="number" id="desp-rec-dia" class="desp-modal-input" min="1" max="31" placeholder="Ex: 5">
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="desp-modal-label">Categoria *</label>
+            <input type="text" id="desp-rec-categoria" class="desp-modal-input" list="desp-categorias-list"
+                   placeholder="Digite a categoria..." autocomplete="off">
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="desp-modal-label">Descrição *</label>
+            <input type="text" id="desp-rec-descricao" class="desp-modal-input" placeholder="Ex: Aluguel">
+          </div>
+          <div style="margin-bottom:10px;">
+            <label class="desp-modal-label">Observação</label>
+            <textarea id="desp-rec-observacao" class="desp-modal-input" rows="2" style="resize:vertical;" placeholder="Opcional"></textarea>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:4px;">
+            <input type="checkbox" id="desp-rec-ativo" checked style="width:auto;">
+            Ativa (continua lançando todo mês)
+          </label>
+          <div id="desp-rec-erro"></div>
+        </div>
+        <div class="desp-modal-footer">
+          <button class="desp-modal-btn-cancel" onclick="fecharModalRecorrente()">Cancelar</button>
+          <button class="desp-modal-btn-submit" onclick="salvarRecorrente()" id="desp-rec-btn-salvar">Salvar Recorrente</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini KPIs -->
+    <div class="fin-kpis">
+      <div class="kpi">
+        <div class="kpi-icon vermelho">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-label">Total de Despesas</div>
+          <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_despesas_periodo)|replace(".", ",") }}</div>
+          <div class="kpi-sub">no período selecionado</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon azul">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-label">Quantidade</div>
+          <div class="kpi-valor">{{ qtd_despesas_periodo }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon laranja">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-label">Maior Despesa</div>
+          <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(maior_despesa_periodo)|replace(".", ",") }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon roxo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <div class="kpi-info">
+          <div class="kpi-label">Categoria com Maior Gasto</div>
+          <div class="kpi-valor" style="font-size:1.1rem;">{{ categoria_maior_gasto or '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <form method="get" action="{{ url_for('financeiro') }}">
+      <input type="hidden" name="data_ini" value="{{ data_ini_raw }}">
+      <input type="hidden" name="data_fim" value="{{ data_fim_raw }}">
+      <input type="hidden" name="aba" value="despesas">
+      <div class="desp-filters">
+        <span style="font-size:.82rem;color:var(--text-muted);">Período: {{ data_ini_br }} até {{ data_fim_br }} (ajuste na Visão Geral)</span>
+        <select class="desp-select" name="categoria_id" onchange="this.form.submit()">
+          <option value="">Categoria (todas)</option>
+          {% for cat in despesas_categorias %}
+          <option value="{{ cat.id }}" {% if filtro_categoria_id == cat.id %}selected{% endif %}>{{ cat.nome }}</option>
+          {% endfor %}
+        </select>
+        {% if tipo == "admin" or "ver_despesas" in permissoes %}
+        <button type="button" class="desp-btn desp-btn-primary" onclick="abrirNovaDespesa()">+ Nova Despesa</button>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="desp-table-card">
+      <div style="overflow-x:auto">
+        <table class="desp-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Categoria</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+              <th>Usuário</th>
+              <th style="text-align:center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in despesas_periodo %}
+            <tr>
+              <td>{{ d.data|br_date }}</td>
+              <td>{{ despesas_categorias_map.get(d.categoria_id, '—') }}</td>
+              <td>{{ d.descricao }}{% if d.recorrencia_id %} <span title="Gerada automaticamente por uma despesa recorrente">🔁</span>{% endif %}</td>
+              <td>R$ {{ "%.2f"|format(d.valor)|replace(".", ",") }}</td>
+              <td>{{ d.usuario or '—' }}</td>
+              <td style="text-align:center">
+                <button class="act-btn" data-id="{{ d.id }}" onclick="abrirMenuDespesa(this)" type="button">···</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="desp-empty">Nenhuma despesa no período.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Despesas Recorrentes -->
+    <div class="desp-table-card" style="margin-top:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:.8rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:1px;">🔁 Despesas Recorrentes</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">lançadas automaticamente todo mês, a partir do dia configurado</div>
+        </div>
+        {% if tipo == "admin" or "ver_despesas" in permissoes %}
+        <button type="button" class="desp-btn desp-btn-primary" onclick="abrirNovaRecorrente()">+ Nova Recorrente</button>
+        {% endif %}
+      </div>
+      <div style="overflow-x:auto">
+        <table class="desp-table">
+          <thead>
+            <tr>
+              <th>Categoria</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+              <th>Dia do mês</th>
+              <th>Status</th>
+              <th style="text-align:center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in despesas_recorrentes %}
+            <tr>
+              <td>{{ despesas_categorias_map.get(r.categoria, '—') }}</td>
+              <td>{{ r.descricao }}</td>
+              <td>R$ {{ "%.2f"|format(r.valor)|replace(".", ",") }}</td>
+              <td>Todo dia {{ r.dia_mes }}</td>
+              <td><span class="badge-status {{ 'ativo' if r.ativo else 'inativo' }}">{{ 'Ativa' if r.ativo else 'Pausada' }}</span></td>
+              <td style="text-align:center">
+                <button class="act-btn" data-id="{{ r.id }}" onclick="abrirMenuRecorrente(this)" type="button">···</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="desp-empty">Nenhuma despesa recorrente cadastrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  <script type="application/json" id="data-despesas">{{ despesas_periodo | tojson }}</script>
+  <script type="application/json" id="data-despesas-categorias">{{ despesas_categorias | tojson }}</script>
+  <script type="application/json" id="data-despesas-recorrentes">{{ despesas_recorrentes | tojson }}</script>
+  {% endif %}
+
 </div>
 
 <!-- CHART.JS -->
@@ -459,6 +903,240 @@
 <script type="application/json" id="data-pagamentos-fin">{{ pagamentos | tojson }}</script>
 
 <script>
+// ── ABAS ──
+function mudarAbaFin(aba) {
+  document.querySelectorAll('.fin-tab-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tab === aba));
+  document.querySelectorAll('.fin-tab-content').forEach(c => c.classList.toggle('ativo', c.id === 'tab-' + aba));
+  if (history.replaceState) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('aba', aba);
+    history.replaceState(null, '', url);
+  }
+}
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  mudarAbaFin(params.get('aba') || 'visao-geral');
+})();
+
+// ── DESPESAS ──
+(function(){
+  const elDados = document.getElementById('data-despesas');
+  const elCats  = document.getElementById('data-despesas-categorias');
+  if (!elDados || !elCats) return; // usuário sem permissão de ver_despesas
+
+  const DESPESAS_MAP = {};
+  JSON.parse(elDados.textContent).forEach(d => { DESPESAS_MAP[d.id] = d; });
+  let CATEGORIAS = JSON.parse(elCats.textContent);
+
+  const dropdown = document.getElementById('desp-dropdown');
+  let idAtivo = null;
+  window.abrirMenuDespesa = function(btn){
+    if (idAtivo===btn.dataset.id && dropdown.classList.contains('aberto')) { fecharMenuDespesa(); return; }
+    idAtivo = btn.dataset.id;
+    const rect = btn.getBoundingClientRect();
+    let left = rect.right - 150;
+    if (left<8) left = 8;
+    dropdown.style.top = (rect.bottom + window.scrollY + 4)+'px';
+    dropdown.style.left = left+'px';
+    dropdown.classList.add('aberto');
+  };
+  function fecharMenuDespesa(){ dropdown.classList.remove('aberto'); }
+  document.addEventListener('click', e => { if (!e.target.closest('.act-btn') && !e.target.closest('#desp-dropdown')) fecharMenuDespesa(); });
+  window.addEventListener('scroll', fecharMenuDespesa);
+  window.addEventListener('resize', fecharMenuDespesa);
+
+  function nomeCategoriaPorId(id){
+    const cat = CATEGORIAS.find(c => c.id === id);
+    return cat ? cat.nome : '';
+  }
+  function preencherModalDespesa(d){
+    document.getElementById('desp-id').value = d ? d.id : '';
+    document.getElementById('desp-data').value = d ? d.data : '{{ hoje_raw }}';
+    document.getElementById('desp-valor').value = d ? d.valor : '';
+    document.getElementById('desp-categoria').value = d ? nomeCategoriaPorId(d.categoria_id) : '';
+    document.getElementById('desp-descricao').value = d ? (d.descricao || '') : '';
+    document.getElementById('desp-observacao').value = d ? (d.observacao || '') : '';
+    const erro = document.getElementById('desp-erro');
+    if (erro) erro.style.display = 'none';
+  }
+  window.abrirNovaDespesa = function(){
+    document.getElementById('desp-modal-titulo').textContent = 'NOVA DESPESA';
+    preencherModalDespesa(null);
+    document.getElementById('desp-overlay').classList.add('open');
+  };
+  window.abrirEditarDespesa = function(e){
+    e.preventDefault(); fecharMenuDespesa();
+    const d = DESPESAS_MAP[idAtivo]; if (!d) return;
+    document.getElementById('desp-modal-titulo').textContent = 'EDITAR DESPESA';
+    preencherModalDespesa(d);
+    document.getElementById('desp-overlay').classList.add('open');
+  };
+  window.fecharModalDespesa = function(){ document.getElementById('desp-overlay').classList.remove('open'); };
+  document.addEventListener('keydown', e => { if (e.key==='Escape') fecharModalDespesa(); });
+
+  function categoriaSelecionadaId(inputId) {
+    const input = document.getElementById(inputId || 'desp-categoria');
+    const nome = (input.value || '').trim();
+    if (!nome) return Promise.reject('Digite a categoria.');
+    const existente = CATEGORIAS.find(c => c.nome.toLowerCase() === nome.toLowerCase());
+    if (existente) return Promise.resolve(existente.id);
+    const fd = new FormData();
+    fd.append('nome', nome);
+    return fetch('/despesas/categorias/nova', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => {
+        if (data.erro) return Promise.reject(data.erro);
+        CATEGORIAS.push(data);
+        const opt = document.createElement('option');
+        opt.value = data.nome;
+        document.getElementById('desp-categorias-list').appendChild(opt);
+        return data.id;
+      });
+  }
+
+  window.salvarDespesa = function(){
+    const data = document.getElementById('desp-data').value;
+    const valor = document.getElementById('desp-valor').value;
+    const descricao = (document.getElementById('desp-descricao').value || '').trim();
+    const erro = document.getElementById('desp-erro');
+    if (!data || !valor || parseFloat(valor) <= 0) { erro.textContent='Data e valor são obrigatórios.'; erro.style.display='block'; return; }
+    if (!descricao) { erro.textContent='Descrição obrigatória.'; erro.style.display='block'; return; }
+    erro.style.display = 'none';
+
+    const btn = document.getElementById('desp-btn-salvar');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+
+    categoriaSelecionadaId().then(categoriaId => {
+      const id = document.getElementById('desp-id').value;
+      const fd = new FormData();
+      fd.append('data', data);
+      fd.append('categoria_id', categoriaId);
+      fd.append('descricao', descricao);
+      fd.append('valor', valor);
+      fd.append('observacao', document.getElementById('desp-observacao').value || '');
+      const url = id ? ('/despesas/' + id + '/editar') : '/despesas/nova';
+      return fetch(url, { method: 'POST', body: fd }).then(r => r.json());
+    }).then(data => {
+      btn.disabled = false; btn.textContent = 'Salvar Despesa';
+      if (data && data.erro) { erro.textContent = data.erro; erro.style.display = 'block'; return; }
+      window.location.reload();
+    }).catch(msg => {
+      btn.disabled = false; btn.textContent = 'Salvar Despesa';
+      erro.textContent = typeof msg === 'string' ? msg : 'Falha ao salvar. Tente novamente.';
+      erro.style.display = 'block';
+    });
+  };
+
+  window.removerDespesa = function(e){
+    e.preventDefault(); fecharMenuDespesa();
+    const d = DESPESAS_MAP[idAtivo]; if (!d) return;
+    if (!confirm('Excluir essa despesa? Esta ação não pode ser desfeita.')) return;
+    fetch('/despesas/' + d.id + '/excluir', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.erro) { alert(data.erro); return; }
+        window.location.reload();
+      })
+      .catch(() => alert('Falha ao excluir. Tente novamente.'));
+  };
+
+  // ── Despesas Recorrentes ──
+  const elRec = document.getElementById('data-despesas-recorrentes');
+  const RECORRENTES_MAP = {};
+  if (elRec) JSON.parse(elRec.textContent).forEach(r => { RECORRENTES_MAP[r.id] = r; });
+
+  const dropdownRec = document.getElementById('desp-rec-dropdown');
+  let idAtivoRec = null;
+  window.abrirMenuRecorrente = function(btn){
+    if (idAtivoRec===btn.dataset.id && dropdownRec.classList.contains('aberto')) { fecharMenuRecorrente(); return; }
+    idAtivoRec = btn.dataset.id;
+    const rect = btn.getBoundingClientRect();
+    let left = rect.right - 150;
+    if (left<8) left = 8;
+    dropdownRec.style.top = (rect.bottom + window.scrollY + 4)+'px';
+    dropdownRec.style.left = left+'px';
+    dropdownRec.classList.add('aberto');
+  };
+  function fecharMenuRecorrente(){ dropdownRec.classList.remove('aberto'); }
+  document.addEventListener('click', e => { if (!e.target.closest('.act-btn') && !e.target.closest('#desp-rec-dropdown')) fecharMenuRecorrente(); });
+  window.addEventListener('scroll', fecharMenuRecorrente);
+  window.addEventListener('resize', fecharMenuRecorrente);
+
+  function preencherModalRecorrente(r){
+    document.getElementById('desp-rec-id').value = r ? r.id : '';
+    document.getElementById('desp-rec-valor').value = r ? r.valor : '';
+    document.getElementById('desp-rec-dia').value = r ? r.dia_mes : '';
+    document.getElementById('desp-rec-categoria').value = r ? nomeCategoriaPorId(r.categoria) : '';
+    document.getElementById('desp-rec-descricao').value = r ? (r.descricao || '') : '';
+    document.getElementById('desp-rec-observacao').value = r ? (r.observacao || '') : '';
+    document.getElementById('desp-rec-ativo').checked = r ? !!r.ativo : true;
+    const erro = document.getElementById('desp-rec-erro');
+    if (erro) erro.style.display = 'none';
+  }
+  window.abrirNovaRecorrente = function(){
+    document.getElementById('desp-rec-modal-titulo').textContent = 'NOVA DESPESA RECORRENTE';
+    preencherModalRecorrente(null);
+    document.getElementById('desp-rec-overlay').classList.add('open');
+  };
+  window.abrirEditarRecorrente = function(e){
+    e.preventDefault(); fecharMenuRecorrente();
+    const r = RECORRENTES_MAP[idAtivoRec]; if (!r) return;
+    document.getElementById('desp-rec-modal-titulo').textContent = 'EDITAR DESPESA RECORRENTE';
+    preencherModalRecorrente(r);
+    document.getElementById('desp-rec-overlay').classList.add('open');
+  };
+  window.fecharModalRecorrente = function(){ document.getElementById('desp-rec-overlay').classList.remove('open'); };
+  document.addEventListener('keydown', e => { if (e.key==='Escape') fecharModalRecorrente(); });
+
+  window.salvarRecorrente = function(){
+    const valor = document.getElementById('desp-rec-valor').value;
+    const dia = document.getElementById('desp-rec-dia').value;
+    const descricao = (document.getElementById('desp-rec-descricao').value || '').trim();
+    const erro = document.getElementById('desp-rec-erro');
+    if (!valor || parseFloat(valor) <= 0) { erro.textContent='Valor obrigatório.'; erro.style.display='block'; return; }
+    if (!dia || dia < 1 || dia > 31) { erro.textContent='Dia do mês precisa ser entre 1 e 31.'; erro.style.display='block'; return; }
+    if (!descricao) { erro.textContent='Descrição obrigatória.'; erro.style.display='block'; return; }
+    erro.style.display = 'none';
+
+    const btn = document.getElementById('desp-rec-btn-salvar');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+
+    categoriaSelecionadaId('desp-rec-categoria').then(categoriaId => {
+      const id = document.getElementById('desp-rec-id').value;
+      const fd = new FormData();
+      fd.append('categoria_id', categoriaId);
+      fd.append('descricao', descricao);
+      fd.append('valor', valor);
+      fd.append('dia_mes', dia);
+      fd.append('observacao', document.getElementById('desp-rec-observacao').value || '');
+      fd.append('ativo', document.getElementById('desp-rec-ativo').checked ? '1' : '0');
+      const url = id ? ('/despesas/recorrentes/' + id + '/editar') : '/despesas/recorrentes/nova';
+      return fetch(url, { method: 'POST', body: fd }).then(r => r.json());
+    }).then(data => {
+      btn.disabled = false; btn.textContent = 'Salvar Recorrente';
+      if (data && data.erro) { erro.textContent = data.erro; erro.style.display = 'block'; return; }
+      window.location.reload();
+    }).catch(msg => {
+      btn.disabled = false; btn.textContent = 'Salvar Recorrente';
+      erro.textContent = typeof msg === 'string' ? msg : 'Falha ao salvar. Tente novamente.';
+      erro.style.display = 'block';
+    });
+  };
+
+  window.removerRecorrente = function(e){
+    e.preventDefault(); fecharMenuRecorrente();
+    const r = RECORRENTES_MAP[idAtivoRec]; if (!r) return;
+    if (!confirm('Excluir essa despesa recorrente? As despesas já geradas por ela continuam, só para de lançar novas.')) return;
+    fetch('/despesas/recorrentes/' + r.id + '/excluir', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.erro) { alert(data.erro); return; }
+        window.location.reload();
+      })
+      .catch(() => alert('Falha ao excluir. Tente novamente.'));
+  };
+})();
+
 // ── DONUT CHART ──
 (function(){
   const canvas = document.getElementById("chartPag");

@@ -22,6 +22,7 @@ tr:nth-child(even){background:var(--table-even);}
 
 <h2>Prévia do Caixa — {{ p.dia|br_date }}</h2>
 
+<div style="overflow-x:auto;">
 <table>
 <tr>
 <th>Produto</th>
@@ -39,6 +40,7 @@ tr:nth-child(even){background:var(--table-even);}
 </tr>
 {% endfor %}
 </table>
+</div>
 
 <div class="total">
 Investido: <b>R$ {{ "%.2f"|format(p.total_investido) }}</b><br>

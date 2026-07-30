@@ -338,10 +338,28 @@ form select:focus {
     padding: 10px;
     border-radius: 8px;
 }
+
+#page-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0;
+    background: var(--accent);
+    z-index: 99999;
+    opacity: 0;
+    transition: width 0.4s ease, opacity 0.2s ease;
+}
+#page-loading-bar.active {
+    opacity: 1;
+    width: 70%;
+}
 </style>
 </head>
 
 <body>
+
+<div id="page-loading-bar"></div>
 
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
@@ -415,6 +433,15 @@ form select:focus {
                 <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
             </svg>
             <span class="nav-label">Financeiro</span>
+        </a>
+        {% endif %}
+
+        {% if tipo == "admin" or ("ver_investidores" in permissoes) %}
+        <a href="{{ url_for('investidores_home') }}">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span class="nav-label">Investidores</span>
         </a>
         {% endif %}
 
@@ -695,6 +722,48 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 {% endif %}
+
+<script>
+(function(){
+    // Barra de progresso no topo, para qualquer navegação interna do sistema —
+    // feedback visual imediato enquanto a próxima página (recarregamento
+    // tradicional) carrega.
+    function ehNavegacaoInterna(url) {
+        if (!url) return false;
+        try {
+            const u = new URL(url, window.location.href);
+            return u.origin === window.location.origin;
+        } catch (e) {
+            return false;
+        }
+    }
+    let hideTimer = null;
+    function mostrarBarra() {
+        const bar = document.getElementById('page-loading-bar');
+        if (!bar) return;
+        bar.classList.add('active');
+        // Se o clique não resultar em navegação real (ex.: um botão que só
+        // abre um modal via JS), a barra some sozinha em vez de ficar presa.
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function(){ bar.classList.remove('active'); }, 20000);
+    }
+    document.addEventListener('click', function(e){
+        if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+        const a = e.target.closest('a[href]');
+        if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+        const href = a.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+        if (ehNavegacaoInterna(href)) mostrarBarra();
+    });
+    document.addEventListener('submit', function(e){
+        if (e.defaultPrevented) return;
+        const form = e.target;
+        if (form.tagName === 'FORM' && ehNavegacaoInterna(form.getAttribute('action') || window.location.href)) {
+            mostrarBarra();
+        }
+    });
+})();
+</script>
 
 </body>
 </html>

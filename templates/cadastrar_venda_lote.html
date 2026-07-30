@@ -52,7 +52,7 @@
 #sugestoes-produto .sug-preco { color:var(--accent); font-weight:bold; font-size:12px; flex-shrink:0; }
 
 /* ── TABELA ── */
-.pv-tabela-wrap { margin-top:16px; border-radius:10px; overflow:hidden; border:1px solid var(--border); }
+.pv-tabela-wrap { margin-top:16px; border-radius:10px; overflow-x:auto; border:1px solid var(--border); }
 .pv-tabela-wrap table { width:100%; border-collapse:collapse; background:var(--card-bg); }
 .pv-tabela-wrap th { background:#2a2a2a; color:var(--accent); padding:9px 10px;
   text-align:center; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; }
@@ -435,9 +435,19 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Dados da Venda
           </div>
-          <div class="pv-field" style="max-width:220px;">
-            <label>Data da Venda</label>
-            <input type="date" name="data" id="data_venda" value="{{ hoje }}" required>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div class="pv-field" style="max-width:220px;">
+              <label>Data da Venda</label>
+              <input type="date" name="data" id="data_venda" value="{{ hoje }}" required>
+            </div>
+            <div class="pv-field" style="max-width:220px;">
+              <label>Local de Estoque</label>
+              <select name="local_id">
+                {% for l in locais_estoque %}
+                <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
           </div>
         </div>
 

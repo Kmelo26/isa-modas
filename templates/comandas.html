@@ -20,6 +20,15 @@
 }
 .cmd-btn-nova:hover { opacity: .88; }
 
+.cmd-topbar-btns { display: flex; align-items: center; gap: 10px; }
+.cmd-btn-clientes {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--card-bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 9px; padding: 10px 18px;
+  font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;
+}
+.cmd-btn-clientes:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── Stats ── */
 .cmd-stats {
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
@@ -86,7 +95,7 @@
 /* ── Table ── */
 .cmd-table-card {
   background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: 12px; overflow: hidden;
+  border-radius: 12px; overflow-x: auto;
 }
 .cmd-table { width: 100%; border-collapse: collapse; }
 .cmd-table th {
@@ -94,9 +103,12 @@
   text-transform: uppercase; letter-spacing: .6px;
   padding: 10px 12px; text-align: left;
   border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   background: var(--card-bg);
 }
-.cmd-table td { padding: 10px 12px; vertical-align: middle; }
+.cmd-table th:last-child { border-right: none; }
+.cmd-table td { padding: 10px 12px; vertical-align: middle; border-right: 1px solid var(--border); }
+.cmd-table td:last-child { border-right: none; }
 .cmd-table tr + tr td { border-top: 1px solid var(--border); }
 .cmd-table tbody tr:hover { background: var(--accent-dim); cursor: pointer; }
 .cmd-table tbody tr.selected { background: color-mix(in srgb, var(--accent) 8%, transparent); }
@@ -174,6 +186,12 @@
 }
 .cmd-panel-close:hover { color: var(--text); }
 .cmd-panel-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.cmd-panel-btn-rename {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 2px; display: inline-flex; align-items: center;
+  flex-shrink: 0;
+}
+.cmd-panel-btn-rename:hover { color: var(--accent); }
 
 /* Financial summary row */
 .cmd-fin-row {
@@ -230,8 +248,11 @@
   font-size: 10px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .5px;
   padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
-.cmd-panel-table td { padding: 8px 14px; vertical-align: middle; color: var(--text); }
+.cmd-panel-table th:last-child { border-right: none; }
+.cmd-panel-table td { padding: 8px 14px; vertical-align: middle; color: var(--text); border-right: 1px solid var(--border); }
+.cmd-panel-table td:last-child { border-right: none; }
 .cmd-panel-table tr + tr td { border-top: 1px solid var(--border); }
 .cmd-panel-table .td-right { text-align: right; font-weight: 600; }
 .cmd-panel-empty { text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; }
@@ -425,6 +446,12 @@
       <label class="cmd-modal-label">Mesa / Local</label>
       <input type="text" name="mesa" class="cmd-modal-input"
         placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
+      <label class="cmd-modal-label">Local de Estoque</label>
+      <select name="local_id" class="cmd-modal-input">
+        {% for l in locais_estoque %}
+        <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+        {% endfor %}
+      </select>
       <div class="cmd-modal-row" style="margin-top:6px;">
         <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
         <button type="submit" class="cmd-modal-btn-submit">Abrir Comanda</button>
@@ -473,10 +500,32 @@
       <label class="cmd-modal-label">Mesa / Local</label>
       <input type="text" name="mesa" class="cmd-modal-input"
         placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
+      <label class="cmd-modal-label">Local de Estoque</label>
+      <select name="local_id" class="cmd-modal-input">
+        {% for l in locais_estoque %}
+        <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+        {% endfor %}
+      </select>
       <div class="cmd-modal-row" style="margin-top:6px;">
         <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
         <button type="submit" class="cmd-modal-btn-submit" id="fiado-btn-abrir" disabled
           style="opacity:.45;">Abrir Comanda</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: editar nome da comanda -->
+<div class="cmd-modal-bg" id="modal-editar-comanda" style="z-index:10100;">
+  <div class="cmd-modal-box" style="max-width:420px;">
+    <div class="cmd-modal-title">Editar Comanda</div>
+    <form method="post" id="form-editar-comanda">
+      <label class="cmd-modal-label">Nome <span style="color:#f87171">*</span></label>
+      <input type="text" name="nome" id="editar-comanda-nome" class="cmd-modal-input"
+        placeholder="Ex: João, Ana, Balcão" required autocomplete="off">
+      <div class="cmd-modal-row" style="margin-top:6px;">
+        <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalEditar()">Cancelar</button>
+        <button type="submit" class="cmd-modal-btn-submit">Salvar</button>
       </div>
     </form>
   </div>
@@ -646,7 +695,10 @@
   <!-- Top bar -->
   <div class="cmd-topbar">
     <div class="cmd-title">COMANDAS</div>
-    <button class="cmd-btn-nova" onclick="abrirModalNova()">+ Nova Comanda</button>
+    <div class="cmd-topbar-btns">
+      <a class="cmd-btn-clientes" href="{{ url_for('clientes_lista') }}">👤 Clientes</a>
+      <button class="cmd-btn-nova" onclick="abrirModalNova()">+ Nova Comanda</button>
+    </div>
   </div>
 
   <!-- Stats -->
@@ -726,6 +778,12 @@
           <option value="nome">Nome A-Z</option>
           <option value="saldo">Maior saldo</option>
         </select>
+        <select class="cmd-sort-sel" id="cmd-local-filtro" onchange="paginaAtual=1;renderTabela();">
+          <option value="">Todos os locais</option>
+          {% for l in locais_estoque %}
+          <option value="{{ l.id }}">{{ l.nome }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       <!-- Filtro de status -->
@@ -772,6 +830,9 @@
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div class="cmd-panel-title" id="panel-nome">—</div>
+            <button class="cmd-panel-btn-rename" title="Editar nome" onclick="abrirModalEditar()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
             <span id="panel-badge"></span>
           </div>
           <div class="cmd-panel-subtitle" id="panel-mesa"></div>
@@ -816,11 +877,12 @@
         <button class="cmd-panel-tab ativo" data-tab="itens" onclick="trocarTab(this)">Itens da Comanda</button>
         <button class="cmd-panel-tab" data-tab="pagamentos" onclick="trocarTab(this)">Pagamentos</button>
         <button class="cmd-panel-tab" data-tab="historico" onclick="trocarTab(this)">Histórico</button>
+        <button class="cmd-panel-tab" data-tab="emprestimos" onclick="trocarTab(this)">Empréstimos</button>
       </div>
 
       <!-- Tab: Itens -->
       <div class="cmd-tab-content ativo" id="tab-itens">
-        <div style="overflow-y:auto">
+        <div style="overflow:auto">
           <table class="cmd-panel-table">
             <thead>
               <tr>
@@ -850,6 +912,26 @@
         <div class="hist-list" id="hist-list"></div>
       </div>
 
+      <!-- Tab: Empréstimos -->
+      <div class="cmd-tab-content" id="tab-emprestimos">
+        <div style="overflow:auto">
+          <table class="cmd-panel-table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Motivo</th>
+                <th>Devolução</th>
+                <th style="text-align:right">Valor</th>
+              </tr>
+            </thead>
+            <tbody id="emp-tbody"></tbody>
+          </table>
+          <div id="emp-empty" class="cmd-panel-empty" style="display:none">
+            Nenhum empréstimo nesta comanda.
+          </div>
+        </div>
+      </div>
+
       <!-- Action buttons -->
       <div class="cmd-panel-btns" id="panel-btns"></div>
 
@@ -864,6 +946,7 @@
   {%- set total = namespace(v=0) -%}
   {%- set pago = namespace(v=0) -%}
   {%- for i in c.itens %}{% set total.v = total.v + i.valor_venda * i.quantidade %}{% endfor -%}
+  {%- for e in c.emprestimos %}{% set total.v = total.v + e.valor %}{% endfor -%}
   {%- for p in c.pagamentos %}{% set pago.v = pago.v + p.valor %}{% endfor -%}
   {"cid":{{ c.cid|tojson }},"nome":{{ c.nome|tojson }},"status":{{ c.status|tojson }},
    "_status_display":{{ c._status_display|tojson }},
@@ -872,10 +955,11 @@
    "vencimento":{{ (c.vencimento or "")|tojson }},
    "observacao":{{ (c.observacao or "")|tojson }},
    "data_abertura":{{ (c.data_abertura or "")|tojson }},"hora_abertura":{{ (c.hora_abertura or "")|tojson }},
-   "itens":{{ c.itens|tojson }},"total":{{ total.v|round(2) }},
+   "total":{{ total.v|round(2) }},
    "valor_pago":{{ pago.v|round(2) }},"saldo":{{ [total.v - pago.v, 0]|max|round(2) }},
    "criado_por":{{ (c.criado_por or "")|tojson }},
-   "pagamentos":{{ c.pagamentos|tojson }}}
+   "local_id":{{ (c.local_id or local_padrao)|tojson }},
+   "qtd_itens":{{ c.itens|length }}}
   {%- if not loop.last %},{% endif %}
 {% endfor %}]
 </script>
@@ -983,10 +1067,12 @@ function formaIcon(f) {
 function filtrados() {
   const termo = normaliza(document.getElementById('cmd-search').value);
   const sort  = document.getElementById('cmd-sort').value;
+  const local = document.getElementById('cmd-local-filtro').value;
 
   let lista = TODAS_CMDS.filter(c =>
     (!termo || normaliza(c.nome).includes(termo) || normaliza(c.mesa || '').includes(termo)) &&
-    (statusFiltro === 'todas' || c._status_display === statusFiltro)
+    (statusFiltro === 'todas' || c._status_display === statusFiltro) &&
+    (!local || c.local_id === local)
   );
 
   if (sort === 'recentes')    lista.sort((a,b) => (b.data_abertura+b.hora_abertura).localeCompare(a.data_abertura+a.hora_abertura));
@@ -1057,7 +1143,7 @@ function renderTabela() {
           <div class="cmd-sub">${subText}</div>
         </td>
         <td>${badgeHTML(c._status_display)}</td>
-        <td style="color:var(--text-muted);font-size:13px">${c.itens.length}</td>
+        <td style="color:var(--text-muted);font-size:13px">${c.qtd_itens}</td>
         <td class="cmd-total-cell">${verValorCmd ? fmtBRL(c.total) : '—'}</td>
         <td class="cmd-saldo-cell ${saldoClass}">${verValorCmd ? saldoText : '—'}</td>
         <td style="font-size:11px;color:var(--text-muted)">${fmtData(c.data_abertura)} ${c.hora_abertura || ''}</td>
@@ -1176,39 +1262,87 @@ function abrirPainel(cid) {
     limitBox.style.display = 'none';
   }
 
-  /* Tab itens */
-  const tbody = document.getElementById('panel-tbody');
-  tbody.innerHTML = '';
-  const emptyEl = document.getElementById('panel-empty');
-  if (!c.itens.length) {
-    emptyEl.style.display = '';
-  } else {
-    emptyEl.style.display = 'none';
-    c.itens.forEach(item => {
-      const sub = (parseFloat(item.valor_venda) || 0) * (parseInt(item.quantidade) || 0);
-      const dataHora = fmtData(item.data || c.data_abertura) + ' ' + (item.hora || '');
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td style="white-space:nowrap">' + dataHora + '</td>' +
-        '<td>' + (item.nome || '') + '</td>' +
-        '<td style="text-align:center">' + (item.quantidade || 0) + '</td>' +
-        '<td class="td-right">' + fmtBRL(item.valor_venda) + '</td>' +
-        '<td class="td-right">' + fmtBRL(sub) + '</td>';
-      tbody.appendChild(tr);
-    });
-  }
-
-  /* Tab pagamentos */
+  /* Tab pagamentos (form) — só depende de saldo/status, já disponíveis */
   renderPagForm(c);
 
-  /* Tab histórico */
-  renderHistorico(c);
-
-  /* Botões de ação */
+  /* Botões de ação — só depende de status/histórico (histórico sempre
+     vazio hoje, ver renderBotoesPainel), não depende de itens/pagamentos */
   renderBotoesPainel(c);
 
   document.getElementById('cmd-panel').classList.add('open');
   renderTabela();
+
+  /* Tabs itens / histórico / empréstimos — itens, pagamentos e empréstimos
+     não vêm mais embutidos pra TODAS as comandas na carga da página (isso
+     inflava bastante o HTML); são buscados agora só da comanda que está
+     sendo aberta, no momento em que abre. O resto do painel (header,
+     financeiro, vencimento, limite, botões) já aparece na hora, só essas
+     3 áreas mostram "Carregando..." por uma fração de segundo. */
+  const tbody = document.getElementById('panel-tbody');
+  const emptyEl = document.getElementById('panel-empty');
+  const empTbody = document.getElementById('emp-tbody');
+  const empEmpty = document.getElementById('emp-empty');
+  const histList = document.getElementById('hist-list');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Carregando…</td></tr>';
+  emptyEl.style.display = 'none';
+  empTbody.innerHTML = '';
+  empEmpty.style.display = 'none';
+  histList.innerHTML = '<div class="hist-empty">Carregando…</div>';
+
+  fetch('/comandas/' + cid + '/detalhe_json')
+    .then(r => r.json())
+    .then(detalhe => {
+      if (cidSelecionado !== cid) return; // usuário já trocou de comanda enquanto buscava
+      c.itens = detalhe.itens || [];
+      c.emprestimos = detalhe.emprestimos || [];
+      c.pagamentos = detalhe.pagamentos || [];
+
+      /* Tab itens */
+      tbody.innerHTML = '';
+      if (!c.itens.length) {
+        emptyEl.style.display = '';
+      } else {
+        emptyEl.style.display = 'none';
+        c.itens.forEach(item => {
+          const sub = (parseFloat(item.valor_venda) || 0) * (parseInt(item.quantidade) || 0);
+          const dataHora = fmtData(item.data || c.data_abertura) + ' ' + (item.hora || '');
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td style="white-space:nowrap">' + dataHora + '</td>' +
+            '<td>' + (item.nome || '') + '</td>' +
+            '<td style="text-align:center">' + (item.quantidade || 0) + '</td>' +
+            '<td class="td-right">' + fmtBRL(item.valor_venda) + '</td>' +
+            '<td class="td-right">' + fmtBRL(sub) + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+      /* Tab histórico */
+      renderHistorico(c);
+
+      /* Tab empréstimos */
+      const emprestimosCmd = c.emprestimos || [];
+      if (!emprestimosCmd.length) {
+        empEmpty.style.display = '';
+      } else {
+        empEmpty.style.display = 'none';
+        emprestimosCmd.forEach(emp => {
+          const dataHora = fmtData(emp.data || c.data_abertura) + ' ' + (emp.hora || '');
+          const venc = emp.vencimento ? fmtData(emp.vencimento) : '—';
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td style="white-space:nowrap">' + dataHora + '</td>' +
+            '<td>' + (emp.motivo || '') + '</td>' +
+            '<td>' + venc + '</td>' +
+            '<td class="td-right">' + fmtBRL(emp.valor) + '</td>';
+          empTbody.appendChild(tr);
+        });
+      }
+    })
+    .catch(() => {
+      if (cidSelecionado !== cid) return;
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Erro ao carregar. Tente reabrir a comanda.</td></tr>';
+    });
 }
 
 function renderPagForm(c) {
@@ -1375,6 +1509,20 @@ function fecharModalNova() {
   document.getElementById('modal-nova').classList.remove('open');
 }
 document.getElementById('modal-nova').addEventListener('click', function(e){ if (e.target === this) fecharModalNova(); });
+
+/* ── Editar nome da comanda ── */
+function abrirModalEditar() {
+  if (!cidSelecionado) return;
+  const c = TODAS_CMDS.find(x => x.cid === cidSelecionado);
+  if (!c) return;
+  document.getElementById('editar-comanda-nome').value = c.nome;
+  document.getElementById('form-editar-comanda').action = '/comandas/' + cidSelecionado + '/editar';
+  document.getElementById('modal-editar-comanda').classList.add('open');
+}
+function fecharModalEditar() {
+  document.getElementById('modal-editar-comanda').classList.remove('open');
+}
+document.getElementById('modal-editar-comanda').addEventListener('click', function(e){ if (e.target === this) fecharModalEditar(); });
 
 /* ── Autocomplete busca de clientes (fiado) ── */
 (function(){

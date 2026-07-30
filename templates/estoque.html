@@ -71,17 +71,26 @@
 .est-table{width:100%;border-collapse:collapse;min-width:900px}
 .est-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
   letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);
+  border-right:1px solid var(--border);
   background:var(--card-bg);white-space:nowrap}
 .est-table th:not(:first-child){text-align:right}
 .est-table th:nth-child(2),.est-table th:last-child{text-align:center}
-.est-table td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:.87rem;color:var(--text);text-align:right}
+.est-table th:last-child{border-right:none}
+.est-table td{padding:12px 14px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+  font-size:.87rem;color:var(--text);text-align:right}
 .est-table td:first-child{text-align:left;font-weight:600}
 .est-table td:nth-child(2){text-align:center}
-.est-table td:last-child{text-align:center}
+.est-table td:last-child{text-align:center;border-right:none}
 .est-table tr:last-child td{border-bottom:none}
 .est-table tr:hover{background:rgba(255,255,255,.03)}
 .td-lucro{color:#4ade80;font-weight:700}
 .td-nome{font-weight:600;color:var(--text)}
+
+/* GRUPO DE CATEGORIA */
+.est-table tr.est-cat-header:hover{background:var(--input-bg)}
+.est-table .est-cat-header td{background:var(--input-bg);color:var(--accent);font-weight:800;
+  font-size:.74rem;text-transform:uppercase;letter-spacing:1px;
+  padding:9px 14px;border-bottom:1px solid var(--border);text-align:left}
 
 /* STATUS BADGES */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
@@ -267,6 +276,10 @@
     </h1>
     <div class="est-header-btns">
       <a href="{{ url_for('bar_produtos') }}" class="est-btn">Pacotes</a>
+      <a href="{{ url_for('estoque_transferencia') }}" class="est-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Transferência
+      </a>
       <a href="{{ url_for('estoque_exportar') }}" class="est-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exportar
@@ -345,6 +358,15 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       </button>
     </div>
+    {% for l in locais_estoque %}
+    <div class="est-kpi">
+      <div class="est-kpi-label">Estoque {{ l.nome }}</div>
+      <div class="est-kpi-val oculto" id="kv-local-{{ l.id }}">{{ "{:,}".format(kpis_local.get(l.id, 0)|int).replace(",", ".") }} un.</div>
+      <button class="kpi-eye" onclick="toggleKpi('kv-local-{{ l.id }}',this)" title="Mostrar/ocultar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+    </div>
+    {% endfor %}
     <div class="est-kpi {% if estoque_baixo_count > 0 %}kpi-alerta{% endif %}">
       <div class="est-kpi-label">Estoque Baixo</div>
       <div class="est-kpi-val oculto {% if estoque_baixo_count > 0 %}alerta{% endif %}" id="kv-baixo">{{ estoque_baixo_count }}</div>
@@ -380,7 +402,10 @@
             <th style="text-align:left">Produto</th>
             <th style="text-align:center">Código</th>
             <th style="text-align:center">Categoria</th>
-            <th>Estoque</th>
+            {% for l in locais_estoque %}
+            <th>{{ l.nome }}</th>
+            {% endfor %}
+            <th>Total</th>
             <th>Est. mínimo</th>
             {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
             <th>Custo médio</th>
@@ -400,10 +425,13 @@
           {% set lucro_un = p.valor_venda - p.valor_investido %}
           {% set lucro_total = lucro_un * p.quantidade %}
           {% set qty = p.quantidade | int %}
-          <tr class="est-row">
+          <tr class="est-row" data-categoria="{{ p.categoria or 'Sem Categoria' }}">
             <td class="td-nome">{{ p.nome }}</td>
             <td style="text-align:center;font-family:monospace;font-weight:700;color:var(--accent);">{{ p.codigo or '—' }}</td>
             <td style="text-align:center">{{ p.categoria or '—' }}</td>
+            {% for l in locais_estoque %}
+            <td>{{ (p._qtd_por_local.get(l.id, 0)) | round(3) }} un.</td>
+            {% endfor %}
             <td>{{ qty }} un.</td>
             <td>{{ (p.estoque_minimo | int) if p.estoque_minimo else '—' }} {% if p.estoque_minimo %}un.{% endif %}</td>
             {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
@@ -446,7 +474,7 @@
             </td>
           </tr>
           {% else %}
-          {% set n_cols = 6 %}{% if tipo == 'admin' or 'ver_custo_produtos' in permissoes %}{% set n_cols = n_cols + 4 %}{% endif %}{% if tipo == 'admin' or 'ver_margem_estoque' in permissoes %}{% set n_cols = n_cols + 1 %}{% endif %}
+          {% set n_cols = 6 + locais_estoque|length %}{% if tipo == 'admin' or 'ver_custo_produtos' in permissoes %}{% set n_cols = n_cols + 4 %}{% endif %}{% if tipo == 'admin' or 'ver_margem_estoque' in permissoes %}{% set n_cols = n_cols + 1 %}{% endif %}
           <tr><td colspan="{{ n_cols }}" style="padding:24px;text-align:center;color:var(--text-muted,#888)">Nenhum produto encontrado.</td></tr>
           {% endfor %}
         </tbody>
@@ -472,7 +500,7 @@
 </div>
 
 <script type="application/json" id="data-nomes-estoque">{{ nomes_sugestoes | tojson }}</script>
-<script type="application/json" id="data-estoque-full">{{ estoque | tojson }}</script>
+<script type="application/json" id="data-estoque-full">{{ estoque_modal | tojson }}</script>
 <script>
 /* ── TOGGLE KPI ── */
 const eyeAberto  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
@@ -534,6 +562,22 @@ function renderPag(){
   const ini = (paginaAtual-1)*porPag;
   const fim = ini + porPag;
   todasLinhas.forEach((tr,i) => tr.style.display = (i>=ini && i<fim) ? "" : "none");
+
+  // divisórias de categoria — só entre as linhas visíveis nesta página
+  document.querySelectorAll(".est-cat-header").forEach(h => h.remove());
+  let catAnterior = null;
+  todasLinhas.forEach((tr,i) => {
+    if(i < ini || i >= fim) return;
+    const cat = tr.dataset.categoria || "Sem Categoria";
+    if(cat !== catAnterior){
+      const header = document.createElement("tr");
+      header.className = "est-cat-header";
+      const nCols = tr.children.length;
+      header.innerHTML = '<td colspan="'+nCols+'">'+cat+'</td>';
+      tr.parentNode.insertBefore(header, tr);
+      catAnterior = cat;
+    }
+  });
 
   const cont = document.getElementById("paginacao");
   cont.innerHTML = "";

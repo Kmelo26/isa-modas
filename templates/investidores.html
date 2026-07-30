@@ -1,0 +1,588 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+*{box-sizing:border-box}
+.inv{max-width:1300px;margin:0 auto;padding:24px 20px}
+
+/* HEADER + TABS */
+.inv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.inv-header h1{font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:2px;margin:0;display:flex;align-items:center;gap:10px}
+.inv-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.inv-tab-btn{background:none;border:none;padding:10px 18px;font-size:.88rem;font-weight:700;
+  color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.inv-tab-btn:hover{color:var(--text)}
+.inv-tab-btn.ativo{color:var(--accent);border-bottom-color:var(--accent)}
+.inv-tab-content{display:none}
+.inv-tab-content.ativo{display:block}
+
+.inv-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+  font-size:.85rem;font-weight:700;cursor:pointer;text-decoration:none;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);transition:.15s;white-space:nowrap}
+.inv-btn:hover{border-color:var(--accent);color:var(--accent)}
+.inv-btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.inv-btn-primary:hover{opacity:.9;color:#000}
+
+/* KPI CARDS (padrão seamed grid, igual Estoque/Caixa) */
+.inv-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;margin-bottom:20px}
+@media(max-width:800px){.inv-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.inv-kpis{grid-template-columns:1fr}}
+.kpi{background:var(--card-bg);padding:16px 18px;display:flex;align-items:center;gap:14px}
+.kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-icon svg{width:22px;height:22px;color:#fff}
+.kpi-icon.azul{background:#2563eb}.kpi-icon.verde{background:#16a34a}
+.kpi-icon.laranja{background:#ea580c}.kpi-icon.roxo{background:#7c3aed}.kpi-icon.cinza{background:#52525b}
+.kpi-icon.amarelo{background:#ca8a04}.kpi-icon.ciano{background:#0891b2}
+.kpi-info{min-width:0}
+.kpi-label{font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.kpi-valor{font-size:1.3rem;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi-sub{font-size:.72rem;color:var(--text-muted)}
+
+/* FILTROS (Investimentos) */
+.inv-filters{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.inv-input,.inv-select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:8px;font-size:.82rem;outline:none}
+.inv-input:focus,.inv-select:focus{border-color:var(--accent)}
+
+/* SEARCH (Investidores) */
+.inv-search-wrap{position:relative;flex:1;margin-bottom:16px;max-width:420px}
+.inv-search-wrap input{width:100%;padding:9px 36px 9px 12px;border-radius:8px;
+  border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:.88rem;outline:none}
+.inv-search-wrap input:focus{border-color:var(--accent)}
+.inv-search-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-muted,#888);pointer-events:none}
+
+/* TABLE */
+.inv-table-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.inv-table-wrap{overflow-x:auto}
+.inv-table{width:100%;border-collapse:collapse;min-width:760px}
+.inv-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
+  letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);
+  border-right:1px solid var(--border);background:var(--card-bg);white-space:nowrap}
+.inv-table th:last-child{border-right:none}
+.inv-table td{padding:12px 14px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+  font-size:.87rem;color:var(--text)}
+.inv-table td:last-child{border-right:none;text-align:center}
+.inv-table tr:last-child td{border-bottom:none}
+.inv-table tr:hover{background:rgba(255,255,255,.03)}
+.inv-nome-link{color:var(--text);font-weight:600;text-decoration:none}
+.inv-nome-link:hover{color:var(--accent)}
+.inv-empty{padding:32px;text-align:center;color:var(--text-muted,#888)}
+.badge-status{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.badge-status.ativo{background:#052e16;color:#4ade80;border:1px solid #1a5c30}
+.badge-status.inativo{background:#2a0f0f;color:#f87171;border:1px solid #5c1a1a}
+
+/* AÇÕES + DROPDOWN */
+.act-btn{background:var(--card-bg);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;cursor:pointer;color:var(--text-muted,#888);font-size:1rem;transition:.15s;line-height:1}
+.act-btn:hover{border-color:var(--accent);color:var(--accent)}
+#acoes-dropdown{display:none;position:fixed;background:var(--card-bg);border:1px solid var(--border);
+  border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.5);min-width:150px;z-index:9999;overflow:hidden}
+#acoes-dropdown.aberto{display:block}
+#acoes-dropdown a{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;
+  text-decoration:none;color:var(--text);cursor:pointer;transition:background .12s;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+#acoes-dropdown a:last-child{border-bottom:none}
+#acoes-dropdown a:hover{background:var(--accent-dim);color:var(--accent)}
+#acoes-dropdown a.remover{color:#f87171}
+#acoes-dropdown a.remover:hover{background:#2a0f0f}
+
+/* PAGINAÇÃO */
+.inv-pag-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;
+  border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.inv-exibir{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--text-muted,#888)}
+.inv-exibir select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:6px;font-size:.85rem;cursor:pointer}
+.inv-pages{display:flex;gap:4px;align-items:center}
+.inv-pages button{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600}
+.inv-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+.inv-pages button:hover:not(.ativo){border-color:var(--accent);color:var(--accent)}
+.inv-pages .ellipsis{color:var(--text-muted,#888);padding:0 4px;line-height:34px}
+
+/* MODAL NOVO/EDITAR INVESTIDOR */
+.vis-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);
+  z-index:1000;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+.vis-overlay.open{display:flex}
+.vis-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;width:100%;
+  max-width:520px;box-shadow:0 24px 64px rgba(0,0,0,0.6);animation:vis-in .25s cubic-bezier(0.22,1,0.36,1) both;margin:auto}
+@keyframes vis-in{from{opacity:0;transform:translateY(16px) scale(0.97)}to{opacity:1;transform:none}}
+.vis-header{display:flex;justify-content:space-between;align-items:center;padding:18px 22px 14px;border-bottom:1px solid var(--border)}
+.vis-titulo{font-size:15px;font-weight:bold;color:var(--accent);letter-spacing:.5px}
+.vis-close{background:#2a2a2a;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;
+  color:var(--text-muted);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.vis-close:hover{background:var(--accent-dim);color:var(--accent)}
+.vis-body{padding:20px 22px 24px}
+.vis-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.inv-modal-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inv-modal-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:.5px;display:block;margin-bottom:5px}
+.inv-modal-input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:13px;outline:none;box-sizing:border-box}
+.inv-modal-input:focus{border-color:var(--accent)}
+.inv-modal-btn-cancel{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer}
+.inv-modal-btn-cancel:hover{border-color:var(--accent);color:var(--accent)}
+.inv-modal-btn-submit{background:var(--btn-bg);color:var(--accent);border:1px solid var(--accent);
+  border-radius:8px;padding:9px 18px;font-size:13px;font-weight:bold;cursor:pointer}
+.inv-modal-btn-submit:hover{background:var(--accent-hover)}
+#inv-erro{display:none;color:#f87171;font-size:13px;margin-bottom:10px}
+</style>
+
+<!-- Dropdown menu (Investidores) -->
+<div id="acoes-dropdown">
+  <a id="acao-editar" onclick="abrirEditar(event)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Editar
+  </a>
+  <a id="acao-ver" onclick="abrirPainel(event)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Ver painel
+  </a>
+  {% if editar %}
+  <a id="acao-remover" class="remover" onclick="removerInvestidor(event)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    Excluir
+  </a>
+  {% endif %}
+</div>
+
+<!-- Modal Novo/Editar Investidor -->
+<div class="vis-overlay" id="inv-overlay" onclick="if(event.target===this)fecharModalInvestidor()">
+  <div class="vis-modal">
+    <div class="vis-header">
+      <span class="vis-titulo" id="inv-modal-titulo">NOVO INVESTIDOR</span>
+      <button class="vis-close" onclick="fecharModalInvestidor()">✕</button>
+    </div>
+    <div class="vis-body">
+      <input type="hidden" id="inv-id">
+      <div class="inv-modal-row-2" style="margin-bottom:10px;">
+        <div>
+          <label class="inv-modal-label">Nome *</label>
+          <input type="text" id="inv-nome" class="inv-modal-input" placeholder="Nome do investidor" autocomplete="off">
+        </div>
+        <div>
+          <label class="inv-modal-label">Documento (CPF/CNPJ)</label>
+          <input type="text" id="inv-documento" class="inv-modal-input" placeholder="Opcional" autocomplete="off">
+        </div>
+      </div>
+      <div class="inv-modal-row-2" style="margin-bottom:10px;">
+        <div>
+          <label class="inv-modal-label">Telefone</label>
+          <input type="text" id="inv-telefone" class="inv-modal-input" placeholder="Opcional" autocomplete="off">
+        </div>
+        <div>
+          <label class="inv-modal-label">E-mail</label>
+          <input type="text" id="inv-email" class="inv-modal-input" placeholder="Opcional" autocomplete="off">
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="inv-modal-label">Observações</label>
+        <textarea id="inv-observacoes" class="inv-modal-input" rows="2" style="resize:vertical;" placeholder="Observações..."></textarea>
+      </div>
+      <div style="margin-bottom:4px;">
+        <label class="inv-modal-label">Status</label>
+        <select id="inv-status" class="inv-modal-input">
+          <option value="ativo">Ativo</option>
+          <option value="inativo">Inativo</option>
+        </select>
+      </div>
+      <div id="inv-erro"></div>
+    </div>
+    <div class="vis-footer">
+      <button class="inv-modal-btn-cancel" onclick="fecharModalInvestidor()">Cancelar</button>
+      <button class="inv-modal-btn-submit" onclick="salvarInvestidor()" id="inv-btn-salvar">Salvar Investidor</button>
+    </div>
+  </div>
+</div>
+
+<div class="inv">
+
+  <div class="inv-header">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      INVESTIDORES
+    </h1>
+    {% if editar %}
+    <button type="button" class="inv-btn inv-btn-primary" onclick="abrirNovo()">+ Novo Investidor</button>
+    {% endif %}
+  </div>
+
+  <div class="inv-tabs">
+    <button type="button" class="inv-tab-btn" data-tab="dashboard" onclick="mudarAba('dashboard')">Dashboard</button>
+    <button type="button" class="inv-tab-btn" data-tab="investidores" onclick="mudarAba('investidores')">Investidores</button>
+    <button type="button" class="inv-tab-btn" data-tab="investimentos" onclick="mudarAba('investimentos')">Investimentos</button>
+  </div>
+
+  <!-- ABA DASHBOARD -->
+  <div class="inv-tab-content" id="tab-dashboard">
+    <div class="inv-kpis">
+      <div class="kpi">
+        <div class="kpi-icon azul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Total Investido</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(dash_total_investido)|replace(".", ",") }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Lucro Distribuído</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(dash_total_lucro)|replace(".", ",") }}</div>
+          <div class="kpi-sub">lucro realizado, já dividido pelos %</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon laranja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Pendente de Pagamento</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(dash_total_pendente)|replace(".", ",") }}</div>
+          <div class="kpi-sub">lucro já realizado, ainda não repassado ao investidor</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon amarelo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Valor Pendente de Vendas</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(dash_valor_pendente_vendas)|replace(".", ",") }}</div>
+          <div class="kpi-sub">vendas ainda não pagas pelo cliente</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon ciano"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Lucro Pendente de Vendas</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(dash_lucro_pendente_vendas)|replace(".", ",") }}</div>
+          <div class="kpi-sub">fatia de lucro dessas vendas ainda não pagas</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon roxo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Número de Investidores</div>
+          <div class="kpi-valor">{{ dash_num_investidores }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon cinza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Quem Mais Investiu</div>
+          <div class="kpi-valor">{{ dash_maior_investidor.nome if dash_maior_investidor else '—' }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Maior Lucro</div>
+          <div class="kpi-valor">{{ dash_maior_lucro_investidor.nome if dash_maior_lucro_investidor else '—' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA INVESTIDORES -->
+  <div class="inv-tab-content" id="tab-investidores">
+    <div class="inv-search-wrap">
+      <svg class="inv-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="inv-busca" type="text" placeholder="Buscar por nome, documento ou telefone..." autocomplete="off" oninput="filtrarInvestidores()">
+    </div>
+
+    <div class="inv-table-card">
+      <div class="inv-table-wrap">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Documento</th>
+              <th>Telefone</th>
+              <th>Status</th>
+              <th style="text-align:center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInvestidores">
+            {% for i in investidores %}
+            <tr class="inv-row" data-busca="{{ (i.nome ~ ' ' ~ (i.documento or '') ~ ' ' ~ (i.telefone or '')) | lower }}">
+              <td><a class="inv-nome-link" href="{{ url_for('investidor_detalhe', iid=i.id) }}">{{ i.nome }}</a></td>
+              <td>{{ i.documento or '—' }}</td>
+              <td>{{ i.telefone or '—' }}</td>
+              <td><span class="badge-status {{ i.status }}">{{ 'Ativo' if i.status == 'ativo' else 'Inativo' }}</span></td>
+              <td style="text-align:center">
+                <button class="act-btn" data-id="{{ i.id }}" data-href="{{ url_for('investidor_detalhe', iid=i.id) }}" onclick="abrirMenu(this)" type="button">···</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="inv-empty">Nenhum investidor cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="inv-pag-bar">
+        <div class="inv-exibir">
+          Exibir
+          <select id="selPorPagInv" onchange="renderPagInvestidores()">
+            <option value="10">10</option><option value="15">15</option><option value="25">25</option><option value="50">50</option>
+          </select>
+          registros
+        </div>
+        <div class="inv-pages" id="paginacaoInvestidores"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA INVESTIMENTOS -->
+  <div class="inv-tab-content" id="tab-investimentos">
+    <form method="get" action="{{ url_for('investidores_home') }}">
+      <input type="hidden" name="aba" value="investimentos">
+      <div class="inv-filters">
+        <input class="inv-input" type="date" name="data_ini" value="{{ filtros.data_ini }}" title="Data início">
+        <input class="inv-input" type="date" name="data_fim" value="{{ filtros.data_fim }}" title="Data fim">
+        <select class="inv-select" name="investidor_id">
+          <option value="">Investidor (todos)</option>
+          {% for i in investidores %}
+          <option value="{{ i.id }}" {% if filtros.investidor_id == i.id %}selected{% endif %}>{{ i.nome }}</option>
+          {% endfor %}
+        </select>
+        <select class="inv-select" name="pid">
+          <option value="">Produto (todos)</option>
+          {% for pid, nome in produtos_com_lote %}
+          <option value="{{ pid }}" {% if filtros.pid == pid %}selected{% endif %}>{{ nome }}</option>
+          {% endfor %}
+        </select>
+        <select class="inv-select" name="categoria">
+          <option value="">Categoria (todas)</option>
+          {% for cat in categorias_disponiveis %}
+          <option value="{{ cat }}" {% if filtros.categoria == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+        <select class="inv-select" name="fornecedor">
+          <option value="">Fornecedor (todos)</option>
+          {% for f in fornecedores_disponiveis %}
+          <option value="{{ f }}" {% if filtros.fornecedor == f %}selected{% endif %}>{{ f }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="inv-btn inv-btn-primary">Filtrar</button>
+        <a href="{{ url_for('investidores_home') }}?aba=investimentos" class="inv-btn">Limpar</a>
+      </div>
+    </form>
+
+    <div class="inv-kpis" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi">
+        <div class="kpi-icon azul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Total Investido</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(total_investido_filtrado)|replace(".", ",") }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon roxo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Quantidade de Lotes</div>
+          <div class="kpi-valor">{{ qtd_lotes_filtrado }}</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+        <div class="kpi-info">
+          <div class="kpi-label">Participantes</div>
+          <div class="kpi-valor">{{ participantes_distintos }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inv-table-card">
+      <div class="inv-table-wrap">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Produto</th>
+              <th>Valor do Lote</th>
+              <th>Participantes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for li in lotes %}
+            <tr>
+              <td>{{ li.data_entrada|br_date }}</td>
+              <td>{{ li.produto_nome }}</td>
+              <td>R$ {{ "%.2f"|format(li.valor_total)|replace(".", ",") }}</td>
+              <td>{{ li._participantes_nomes|join(', ') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="inv-empty">Nenhum lote encontrado com esses filtros.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="application/json" id="data-investidores">{{ investidores | tojson }}</script>
+<script>
+const INVESTIDORES_MAP = {};
+JSON.parse(document.getElementById('data-investidores').textContent).forEach(i => { INVESTIDORES_MAP[i.id] = i; });
+
+/* ── ABAS ── */
+function mudarAba(aba) {
+  document.querySelectorAll('.inv-tab-btn').forEach(b => b.classList.toggle('ativo', b.dataset.tab === aba));
+  document.querySelectorAll('.inv-tab-content').forEach(c => c.classList.toggle('ativo', c.id === 'tab-' + aba));
+  if (history.replaceState) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('aba', aba);
+    history.replaceState(null, '', url);
+  }
+}
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  mudarAba(params.get('aba') || 'dashboard');
+})();
+
+function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+
+/* ── BUSCA + PAGINAÇÃO (Investidores) ── */
+function filtrarInvestidores(){
+  const termo = normaliza(document.getElementById('inv-busca').value);
+  document.querySelectorAll('.inv-row').forEach(tr => {
+    tr.dataset.oculto = (termo && !normaliza(tr.dataset.busca).includes(termo)) ? '1' : '';
+  });
+  paginaAtualInv = 1;
+  renderPagInvestidores();
+}
+let paginaAtualInv = 1;
+function linhasVisiveisInv(){
+  return Array.from(document.querySelectorAll('.inv-row')).filter(tr => tr.dataset.oculto !== '1');
+}
+function renderPagInvestidores(){
+  const todas = linhasVisiveisInv();
+  document.querySelectorAll('.inv-row').forEach(tr => tr.style.display = 'none');
+  const porPag = parseInt(document.getElementById('selPorPagInv').value) || 10;
+  const total = todas.length;
+  const totalPags = Math.max(1, Math.ceil(total / porPag));
+  if (paginaAtualInv > totalPags) paginaAtualInv = totalPags;
+  const ini = (paginaAtualInv-1)*porPag, fim = ini + porPag;
+  todas.forEach((tr,i) => { if (i>=ini && i<fim) tr.style.display = ''; });
+
+  const cont = document.getElementById('paginacaoInvestidores');
+  cont.innerHTML = '';
+  function mkBtn(label, pg, ativo){
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (ativo) b.classList.add('ativo');
+    b.onclick = () => { paginaAtualInv = pg; renderPagInvestidores(); };
+    return b;
+  }
+  const prev = document.createElement('button');
+  prev.innerHTML = '&#8249;'; prev.disabled = paginaAtualInv===1;
+  prev.onclick = () => { if (paginaAtualInv>1){ paginaAtualInv--; renderPagInvestidores(); } };
+  cont.appendChild(prev);
+  const visible = new Set([1, totalPags]);
+  for (let i=Math.max(1,paginaAtualInv-1); i<=Math.min(totalPags,paginaAtualInv+1); i++) visible.add(i);
+  let prevP = 0;
+  Array.from({length: totalPags}, (_,i)=>i+1).forEach(p => {
+    if (!visible.has(p)) return;
+    if (prevP && p-prevP>1) { const el=document.createElement('span'); el.textContent='...'; el.className='ellipsis'; cont.appendChild(el); }
+    cont.appendChild(mkBtn(p,p,p===paginaAtualInv));
+    prevP = p;
+  });
+  const next = document.createElement('button');
+  next.innerHTML = '&#8250;'; next.disabled = paginaAtualInv===totalPags;
+  next.onclick = () => { if (paginaAtualInv<totalPags){ paginaAtualInv++; renderPagInvestidores(); } };
+  cont.appendChild(next);
+}
+renderPagInvestidores();
+
+/* ── DROPDOWN MENU ── */
+const dropdown = document.getElementById('acoes-dropdown');
+let idAtivo = null, hrefAtivo = null;
+window.abrirMenu = function(btn){
+  if (idAtivo===btn.dataset.id && dropdown.classList.contains('aberto')) { fecharMenu(); return; }
+  idAtivo = btn.dataset.id; hrefAtivo = btn.dataset.href;
+  const rect = btn.getBoundingClientRect();
+  let left = rect.right - 150;
+  if (left<8) left = 8;
+  dropdown.style.top = (rect.bottom + window.scrollY + 4)+'px';
+  dropdown.style.left = left+'px';
+  dropdown.classList.add('aberto');
+};
+function fecharMenu(){ dropdown.classList.remove('aberto'); }
+document.addEventListener('click', e => { if (!e.target.closest('.act-btn') && !e.target.closest('#acoes-dropdown')) fecharMenu(); });
+window.addEventListener('scroll', fecharMenu);
+window.addEventListener('resize', fecharMenu);
+window.abrirPainel = function(e){ e.preventDefault(); if (hrefAtivo) window.location.href = hrefAtivo; };
+
+/* ── MODAL NOVO/EDITAR ── */
+function preencherModalInv(i){
+  document.getElementById('inv-id').value = i ? i.id : '';
+  document.getElementById('inv-nome').value = i ? (i.nome || '') : '';
+  document.getElementById('inv-documento').value = i ? (i.documento || '') : '';
+  document.getElementById('inv-telefone').value = i ? (i.telefone || '') : '';
+  document.getElementById('inv-email').value = i ? (i.email || '') : '';
+  document.getElementById('inv-observacoes').value = i ? (i.observacoes || '') : '';
+  document.getElementById('inv-status').value = i ? (i.status || 'ativo') : 'ativo';
+  document.getElementById('inv-erro').style.display = 'none';
+}
+window.abrirNovo = function(){
+  document.getElementById('inv-modal-titulo').textContent = 'NOVO INVESTIDOR';
+  preencherModalInv(null);
+  document.getElementById('inv-overlay').classList.add('open');
+};
+window.abrirEditar = function(e){
+  e.preventDefault(); fecharMenu();
+  const i = INVESTIDORES_MAP[idAtivo]; if (!i) return;
+  document.getElementById('inv-modal-titulo').textContent = 'EDITAR INVESTIDOR';
+  preencherModalInv(i);
+  document.getElementById('inv-overlay').classList.add('open');
+};
+window.fecharModalInvestidor = function(){ document.getElementById('inv-overlay').classList.remove('open'); };
+document.addEventListener('keydown', e => { if (e.key==='Escape') fecharModalInvestidor(); });
+
+window.salvarInvestidor = function(){
+  const nome = (document.getElementById('inv-nome').value || '').trim();
+  const erro = document.getElementById('inv-erro');
+  if (!nome) { erro.textContent='Nome obrigatório.'; erro.style.display='block'; return; }
+  erro.style.display = 'none';
+  const btn = document.getElementById('inv-btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+
+  const id = document.getElementById('inv-id').value;
+  const fd = new FormData();
+  fd.append('nome', nome);
+  fd.append('documento', document.getElementById('inv-documento').value || '');
+  fd.append('telefone', document.getElementById('inv-telefone').value || '');
+  fd.append('email', document.getElementById('inv-email').value || '');
+  fd.append('observacoes', document.getElementById('inv-observacoes').value || '');
+  fd.append('status', document.getElementById('inv-status').value || 'ativo');
+
+  const url = id ? ('/investidores/' + id + '/editar') : '/investidores/novo';
+  fetch(url, { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Salvar Investidor';
+      if (data.erro) { erro.textContent = data.erro; erro.style.display = 'block'; return; }
+      window.location.reload();
+    })
+    .catch(() => {
+      btn.disabled = false; btn.textContent = 'Salvar Investidor';
+      erro.textContent = 'Falha ao salvar. Tente novamente.'; erro.style.display = 'block';
+    });
+};
+
+window.removerInvestidor = function(e){
+  e.preventDefault(); fecharMenu();
+  const i = INVESTIDORES_MAP[idAtivo]; if (!i) return;
+  if (!confirm("Excluir o investidor '" + i.nome + "'? Esta ação não pode ser desfeita.")) return;
+  fetch('/investidores/' + i.id + '/excluir', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.erro) { alert(data.erro); return; }
+      window.location.reload();
+    })
+    .catch(() => alert('Falha ao excluir. Tente novamente.'));
+};
+</script>
+
+{% endblock %}

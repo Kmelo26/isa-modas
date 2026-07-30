@@ -30,6 +30,13 @@
     outline:none; border-color:var(--accent); }
   .cp-field input[readonly] { background:var(--accent-dim); color:var(--accent); font-weight:600; cursor:default; }
   .cp-hint { font-size:0.75rem; color:var(--text-muted); }
+  .cp-nova-cat-box { display:flex; gap:8px; margin-top:8px; }
+  .cp-nova-cat-box input { flex:1; }
+  .cp-nova-cat-box button {
+    padding:0 16px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card-bg); color:var(--accent); font-weight:600;
+    font-size:0.85rem; cursor:pointer; transition:background 0.2s; }
+  .cp-nova-cat-box button:hover { background:var(--accent-dim); }
   .cp-field textarea { resize:vertical; min-height:80px; }
 
   .cp-inline { display:flex; gap:8px; }
@@ -131,12 +138,20 @@
         </div>
         <div class="cp-field">
           <label>Categoria</label>
-          <select name="categoria" id="categoria" onchange="atualizarConteudoPorCategoria()">
+          <select name="categoria" id="categoria" onchange="onCategoriaChange(this)">
             <option value="">Selecione</option>
             <option value="bebida"   {% if produto.get('categoria')=='bebida'   %}selected{% endif %}>Bebida</option>
             <option value="comida"   {% if produto.get('categoria')=='comida'   %}selected{% endif %}>Comida</option>
             <option value="insumo"   {% if produto.get('categoria')=='insumo'   %}selected{% endif %}>Insumo</option>
+            {% for c in categorias_extra %}
+            <option value="{{ c }}" {% if produto.get('categoria')==c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+            <option value="__nova__">+ Adicionar nova categoria...</option>
           </select>
+          <div class="cp-nova-cat-box" id="nova-categoria-box" style="display:none;">
+            <input type="text" id="nova-categoria-input" placeholder="Nome da nova categoria">
+            <button type="button" onclick="confirmarNovaCategoria()">Adicionar</button>
+          </div>
         </div>
       </div>
 
@@ -334,6 +349,37 @@
     'insumo': { units: ['UN'],       hint: 'Quantidade por unidade (ex: 1 UN)' },
   };
   const CONTEUDO_ATUAL = "{{ produto.get('conteudo_unidade') or '' }}";
+
+  function onCategoriaChange(sel) {
+    const box = document.getElementById('nova-categoria-box');
+    if (sel.value === '__nova__') {
+      box.style.display = 'flex';
+      document.getElementById('nova-categoria-input').focus();
+      return;
+    }
+    box.style.display = 'none';
+    atualizarConteudoPorCategoria();
+  }
+
+  function confirmarNovaCategoria() {
+    const input = document.getElementById('nova-categoria-input');
+    const sel = document.getElementById('categoria');
+    const valor = input.value.trim();
+    if (!valor) return;
+    const existente = Array.from(sel.options).find(o => o.value.toLowerCase() === valor.toLowerCase());
+    if (existente) {
+      sel.value = existente.value;
+    } else {
+      const opt = document.createElement('option');
+      opt.value = valor;
+      opt.textContent = valor;
+      sel.insertBefore(opt, sel.querySelector('option[value="__nova__"]'));
+      sel.value = valor;
+    }
+    document.getElementById('nova-categoria-box').style.display = 'none';
+    input.value = '';
+    atualizarConteudoPorCategoria();
+  }
 
   function atualizarConteudoPorCategoria() {
     const cat  = document.getElementById('categoria').value;

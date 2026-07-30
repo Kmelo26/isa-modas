@@ -163,6 +163,7 @@ tr:nth-child(even) { background:var(--table-even); }
   </form>
 
   {% if produtos %}
+  <div style="overflow-x:auto;">
   <table>
     <thead>
       <tr>
@@ -231,6 +232,7 @@ tr:nth-child(even) { background:var(--table-even); }
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <div class="bp-pag-bar">
     <div class="bp-exibir">
       Exibir

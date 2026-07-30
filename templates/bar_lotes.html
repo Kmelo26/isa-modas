@@ -56,6 +56,7 @@ tr:nth-child(even) { background:var(--table-even); }
       <div class="card">
         <div class="card-title">Lotes de compra</div>
         {% if batches %}
+        <div style="overflow-x:auto;">
         <table>
           <thead>
             <tr>
@@ -100,6 +101,7 @@ tr:nth-child(even) { background:var(--table-even); }
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% else %}
         <div style="text-align:center; color:var(--text-muted); padding:20px;">
           Nenhum lote cadastrado ainda.

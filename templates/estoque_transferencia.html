@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+  .cp-container {
+    max-width: 960px;
+    margin: 30px auto;
+    padding: 0 20px 40px;
+  }
+
+  .cp-header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .cp-header h2 {
+    color: var(--text);
+    font-size: 1.6rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 6px;
+  }
+
+  .cp-header p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .cp-secao {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .cp-secao-titulo {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cp-secao-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0 0 18px;
+  }
+
+  .cp-grid { display: grid; gap: 16px; }
+  .cp-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cp-grid-2 { grid-template-columns: 1fr 1fr; }
+
+  .cp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .cp-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .cp-field label .req { color: #f87171; }
+
+  .cp-field input,
+  .cp-field select {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+
+  .cp-field input:focus,
+  .cp-field select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .cp-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .alerta {
+    color: #f87171;
+    font-weight: bold;
+    background: #2a0f0f;
+    border: 1px solid #5a1f1f;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+  }
+
+  .sucesso {
+    color: #4ade80;
+    font-weight: bold;
+    background: #0f2a17;
+    border: 1px solid #1f5a34;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+  }
+
+  .cp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .btn-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--card-bg);
+    transition: background 0.2s;
+  }
+
+  .btn-voltar:hover { background: var(--accent-dim); }
+
+  .btn-cadastrar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 28px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    background: var(--btn-bg);
+    color: var(--accent);
+    transition: background 0.2s;
+  }
+
+  .btn-cadastrar:hover { background: var(--accent-hover); }
+
+  .search-wrap { position: relative; }
+  .search-wrap input { width: 100%; }
+  #tr-sugestoes {
+    display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 999;
+    margin: 3px 0 0; padding: 0; list-style: none;
+    background: var(--card-bg); border: 1px solid var(--accent);
+    border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    max-height: 240px; overflow-y: auto;
+  }
+  #tr-sugestoes li {
+    padding: 9px 13px; cursor: pointer; color: var(--text); font-size: 13px;
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+  }
+  #tr-sugestoes li:last-child { border-bottom: none; }
+  #tr-sugestoes li:hover { background: var(--accent-dim); color: var(--accent); }
+  #tr-sugestoes .sug-nome { flex: 1; }
+  #tr-sugestoes .sug-cat { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+  .tr-info-card {
+    display: none;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    font-size: 0.85rem;
+  }
+  .tr-info-titulo {
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  .tr-info-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-bottom: 6px;
+  }
+  .tr-info-row span.lbl { color: var(--text-muted); margin-right: 4px; }
+  .tr-info-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .tr-info-badge {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+  .tr-info-badge strong { color: var(--accent); }
+
+  .tr-lotes-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .tr-lote-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    background: var(--input-bg);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .tr-lote-card:hover { border-color: var(--accent); }
+  .tr-lote-card.selecionado {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .tr-lote-nome {
+    font-weight: 700;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .tr-lote-card.selecionado .tr-lote-nome { color: var(--accent); }
+  .tr-lote-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .tr-lote-vazio {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 10px 0;
+  }
+
+  .tr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .tr-table th, .tr-table td {
+    padding: 9px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .tr-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 640px) {
+    .cp-grid-3, .cp-grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="cp-container">
+
+  <div class="cp-header">
+    <h2>🔄 Transferência de Estoque</h2>
+    <p>Mova quantidade de um lote entre locais de estoque, sem alterar custo, validade ou fornecedor.</p>
+  </div>
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+  {% if sucesso %}
+    <div class="sucesso">Transferência registrada com sucesso.</div>
+  {% endif %}
+
+  <form method="POST" id="form-transferencia">
+    <div class="cp-secao">
+      <div class="cp-secao-titulo">Nova Transferência</div>
+
+      <div class="cp-grid cp-grid-2">
+        <div class="cp-field search-wrap">
+          <label>Produto <span class="req">*</span></label>
+          <input type="text" id="tr-busca-produto" placeholder="Selecione a origem primeiro" autocomplete="off" required disabled>
+          <input type="hidden" name="produto_pid" id="tr-pid">
+          <ul id="tr-sugestoes"></ul>
+        </div>
+        <div class="cp-field">
+          <label>Lote <span class="req">*</span></label>
+          <input type="hidden" name="lote_id" id="tr-lote">
+          <div class="tr-lotes-lista" id="tr-lotes-lista">
+            <div class="tr-lote-vazio">Selecione o produto e a origem primeiro</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tr-info-card" id="tr-produto-info">
+        <div class="tr-info-titulo" id="tr-info-nome">—</div>
+        <div class="tr-info-row">
+          <div><span class="lbl">Código:</span><span id="tr-info-codigo">—</span></div>
+          <div><span class="lbl">Categoria:</span><span id="tr-info-categoria">—</span></div>
+          <div id="tr-info-custo-wrap" style="display:none;"><span class="lbl">Custo médio:</span><span id="tr-info-custo">—</span></div>
+          <div id="tr-info-venda-wrap" style="display:none;"><span class="lbl">Preço venda:</span><span id="tr-info-venda">—</span></div>
+          <div id="tr-info-margem-wrap" style="display:none;"><span class="lbl">Margem:</span><span id="tr-info-margem">—</span></div>
+        </div>
+        <div>
+          <span class="lbl">Estoque por local:</span>
+          <div class="tr-info-badges" id="tr-info-badges"></div>
+        </div>
+      </div>
+
+      <div class="cp-grid cp-grid-3" style="margin-top:16px;">
+        <div class="cp-field">
+          <label>Origem <span class="req">*</span></label>
+          <select name="origem" id="tr-origem" required onchange="onOrigemChange()">
+            <option value="">Selecione</option>
+            {% for l in locais_estoque %}
+            <option value="{{ l.id }}">{{ l.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="cp-field">
+          <label>Destino <span class="req">*</span></label>
+          <select name="destino" id="tr-destino" required>
+            <option value="">Selecione</option>
+            {% for l in locais_estoque %}
+            <option value="{{ l.id }}">{{ l.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="cp-field">
+          <label>Quantidade <span class="req">*</span></label>
+          <input type="number" step="0.001" min="0.001" name="quantidade" id="tr-qtd" placeholder="Ex.: 10" required>
+          <span class="cp-hint" id="tr-disp-hint"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cp-footer">
+      <a class="btn-voltar" href="{{ url_for('estoque') }}">← Voltar para o estoque</a>
+      <button type="submit" class="btn-cadastrar">🔄 Transferir</button>
+    </div>
+  </form>
+
+  <div class="cp-secao">
+    <div class="cp-secao-titulo">Histórico de Transferências</div>
+    <div style="overflow-x:auto;">
+      <table class="tr-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th>Origem</th>
+            <th>Destino</th>
+            <th>Quantidade</th>
+            <th>Usuário</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transferencias %}
+          <tr>
+            <td>{{ t.data|br_date }} {{ t.hora }}</td>
+            <td>{{ t.produto_nome }}</td>
+            <td>{{ locais_nomes_map.get(t.origem, t.origem) }}</td>
+            <td>{{ locais_nomes_map.get(t.destino, t.destino) }}</td>
+            <td>{{ t.quantidade }}</td>
+            <td>{{ t.usuario }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nenhuma transferência registrada ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="data-produtos-busca">{{ produtos_busca | tojson }}</script>
+<script type="application/json" id="data-locais-estoque">{{ locais_estoque | tojson }}</script>
+<script>
+  const PRODUTOS_BUSCA = JSON.parse(document.getElementById('data-produtos-busca').textContent);
+  const LOCAIS_ESTOQUE = JSON.parse(document.getElementById('data-locais-estoque').textContent);
+  const PRODUTOS_POR_PID = Object.fromEntries(PRODUTOS_BUSCA.map(p => [p.pid, p]));
+
+  function fmt2(n) { return (Math.round((n || 0) * 100) / 100).toFixed(2); }
+
+  function mostrarInfoProduto(p) {
+    const card = document.getElementById('tr-produto-info');
+    if (!p) { card.style.display = 'none'; return; }
+
+    document.getElementById('tr-info-nome').textContent = p.nome;
+    document.getElementById('tr-info-codigo').textContent = p.codigo || '—';
+    document.getElementById('tr-info-categoria').textContent = p.categoria || '—';
+
+    const temCusto = p.valor_investido != null && p.valor_venda != null;
+    document.getElementById('tr-info-custo-wrap').style.display = temCusto ? '' : 'none';
+    document.getElementById('tr-info-venda-wrap').style.display = temCusto ? '' : 'none';
+    document.getElementById('tr-info-margem-wrap').style.display = temCusto ? '' : 'none';
+    if (temCusto) {
+      document.getElementById('tr-info-custo').textContent = 'R$ ' + fmt2(p.valor_investido);
+      document.getElementById('tr-info-venda').textContent = 'R$ ' + fmt2(p.valor_venda);
+      const margem = p.valor_venda > 0 ? ((p.valor_venda - p.valor_investido) / p.valor_venda * 100) : 0;
+      document.getElementById('tr-info-margem').textContent = fmt2(margem) + '%';
+    }
+
+    const badgesEl = document.getElementById('tr-info-badges');
+    const qtdLocal = p.qtd_por_local || {};
+    badgesEl.innerHTML = LOCAIS_ESTOQUE.map(l =>
+      `<span class="tr-info-badge">${l.nome}: <strong>${qtdLocal[l.id] || 0}</strong></span>`
+    ).join('') + `<span class="tr-info-badge">Total: <strong>${p.quantidade || 0}</strong></span>`;
+
+    card.style.display = 'block';
+  }
+
+  function onOrigemChange() {
+    const origem = document.getElementById('tr-origem').value;
+    const buscaInput = document.getElementById('tr-busca-produto');
+
+    // reseta produto selecionado — a origem mudou, a seleção anterior pode não valer mais
+    buscaInput.value = '';
+    document.getElementById('tr-pid').value = '';
+    mostrarInfoProduto(null);
+    document.getElementById('tr-sugestoes').style.display = 'none';
+
+    buscaInput.disabled = !origem;
+    buscaInput.placeholder = origem ? 'Buscar produto...' : 'Selecione a origem primeiro';
+
+    carregarLotes();
+  }
+
+  /* ── AUTOCOMPLETE ── */
+  (function () {
+    const input = document.getElementById('tr-busca-produto');
+    const pidInput = document.getElementById('tr-pid');
+    const lista = document.getElementById('tr-sugestoes');
+
+    function normaliza(s) {
+      return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    }
+
+    function mostrar() {
+      const origemAtual = document.getElementById('tr-origem').value;
+      if (!origemAtual) { lista.style.display = 'none'; return; }
+      const termo = normaliza(input.value);
+      lista.innerHTML = '';
+      if (!termo) { lista.style.display = 'none'; return; }
+      const matches = PRODUTOS_BUSCA
+        .filter(p => normaliza(p.nome).includes(termo) && (p.qtd_por_local[origemAtual] || 0) > 0)
+        .slice(0, 8);
+      if (!matches.length) { lista.style.display = 'none'; return; }
+      matches.forEach(p => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="sug-nome">${p.nome}</span><span class="sug-cat">${p.categoria || ''}</span>`;
+        li.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          input.value = p.nome;
+          pidInput.value = p.pid;
+          lista.style.display = 'none';
+          mostrarInfoProduto(p);
+          carregarLotes();
+        });
+        lista.appendChild(li);
+      });
+      lista.style.display = 'block';
+    }
+
+    input.addEventListener('input', function () {
+      if (pidInput.value && input.value !== (PRODUTOS_POR_PID[pidInput.value] || {}).nome) {
+        pidInput.value = '';
+        mostrarInfoProduto(null);
+      }
+      mostrar();
+    });
+    input.addEventListener('focus', mostrar);
+    input.addEventListener('blur', () => setTimeout(() => { lista.style.display = 'none'; }, 160));
+  })();
+
+  document.getElementById('form-transferencia').addEventListener('submit', function (e) {
+    if (!document.getElementById('tr-pid').value) {
+      e.preventDefault();
+      document.getElementById('tr-busca-produto').focus();
+      return;
+    }
+    if (!document.getElementById('tr-lote').value) {
+      e.preventDefault();
+      document.getElementById('tr-lotes-lista').scrollIntoView({ block: 'center' });
+    }
+  });
+
+  function mostrarVazioLotes(msg) {
+    document.getElementById('tr-lotes-lista').innerHTML = `<div class="tr-lote-vazio">${msg}</div>`;
+  }
+
+  async function carregarLotes() {
+    const pid = document.getElementById('tr-pid').value;
+    const origem = document.getElementById('tr-origem').value;
+    const loteInput = document.getElementById('tr-lote');
+    const listaEl = document.getElementById('tr-lotes-lista');
+    const hint = document.getElementById('tr-disp-hint');
+
+    loteInput.value = '';
+    hint.textContent = '';
+
+    if (!pid || !origem) {
+      mostrarVazioLotes('Selecione o produto e a origem primeiro');
+      return;
+    }
+
+    mostrarVazioLotes('Carregando...');
+
+    const resp = await fetch(`/estoque/transferencia/produto_lotes?pid=${encodeURIComponent(pid)}&origem=${encodeURIComponent(origem)}`);
+    const lotes = await resp.json();
+
+    if (!lotes.length) {
+      mostrarVazioLotes('Sem saldo nesse local');
+      return;
+    }
+
+    listaEl.innerHTML = '';
+    lotes.forEach(l => {
+      const card = document.createElement('div');
+      card.className = 'tr-lote-card';
+      card.dataset.loteId = l.lote_id;
+
+      const temNome = !!(l.nome_lote && l.nome_lote.trim());
+      const titulo = temNome ? l.nome_lote : `Lote de ${l.data}`;
+      const meta = temNome
+        ? `Lote de ${l.data} · Disponível: ${l.qtd_disponivel}`
+        : `Disponível: ${l.qtd_disponivel}`;
+
+      card.innerHTML = `<div class="tr-lote-nome">${titulo}</div><div class="tr-lote-meta">${meta}</div>`;
+      card.addEventListener('click', function () {
+        listaEl.querySelectorAll('.tr-lote-card.selecionado').forEach(c => c.classList.remove('selecionado'));
+        card.classList.add('selecionado');
+        loteInput.value = l.lote_id;
+        hint.textContent = `Disponível nesse lote: ${l.qtd_disponivel}`;
+      });
+      listaEl.appendChild(card);
+    });
+  }
+
+  document.getElementById('tr-lote').addEventListener('change', function () {
+    const opt = this.options[this.selectedIndex];
+    const disp = opt ? opt.getAttribute('data-disp') : null;
+    const hint = document.getElementById('tr-disp-hint');
+    hint.textContent = disp ? `Disponível nesse lote: ${disp}` : '';
+  });
+</script>
+
+{% endblock %}

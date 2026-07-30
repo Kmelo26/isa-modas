@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+*{box-sizing:border-box}
+.invd{max-width:1300px;margin:0 auto;padding:24px 20px}
+
+.invd-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.invd-header h1{font-size:1.4rem;font-weight:800;color:var(--text);letter-spacing:1px;margin:0}
+.invd-sub{font-size:.85rem;color:var(--text-muted);margin-top:4px}
+.invd-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+  font-size:.85rem;font-weight:700;cursor:pointer;text-decoration:none;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);transition:.15s;white-space:nowrap}
+.invd-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+.invd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+@media(max-width:900px){.invd-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.invd-kpis{grid-template-columns:1fr}}
+.invd-kpi{background:var(--card-bg);padding:16px 18px}
+.invd-kpi-label{font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.invd-kpi-val{font-size:1.35rem;font-weight:800;color:var(--text);line-height:1.1}
+.invd-kpi-val.pos{color:#4ade80}
+.invd-kpi-val.neg{color:#f87171}
+
+.invd-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+.invd-card-title{padding:14px 18px;font-size:.8rem;font-weight:800;color:var(--accent);
+  text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+
+.invd-table{width:100%;border-collapse:collapse}
+.invd-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
+  letter-spacing:.5px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);
+  border-right:1px solid var(--border);white-space:nowrap}
+.invd-table th:last-child{border-right:none}
+.invd-table td{padding:10px 14px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);font-size:.85rem;color:var(--text)}
+.invd-table td:last-child{border-right:none}
+.invd-table tr:last-child td{border-bottom:none}
+.invd-empty{padding:24px;text-align:center;color:var(--text-muted,#888)}
+
+.invd-pag-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.invd-input{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:8px;font-size:.85rem;outline:none}
+.invd-input:focus{border-color:var(--accent)}
+.invd-btn-add{background:var(--accent);color:#000;border:none;border-radius:8px;padding:9px 16px;
+  font-size:.85rem;font-weight:700;cursor:pointer}
+.invd-btn-add:hover{opacity:.9}
+</style>
+
+<div class="invd">
+
+  <div class="invd-header">
+    <div>
+      <h1>{{ investidor.nome }}</h1>
+      <div class="invd-sub">
+        {{ investidor.documento or 'Sem documento' }} · {{ investidor.telefone or 'Sem telefone' }}
+        {% if investidor.status == 'inativo' %} · <span style="color:#f87171">Inativo</span>{% endif %}
+      </div>
+    </div>
+    <a href="{{ url_for('investidores_home') }}?aba=investidores" class="invd-btn">← Voltar pra Investidores</a>
+  </div>
+
+  <div class="invd-kpis">
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Total Investido</div>
+      <div class="invd-kpi-val">R$ {{ "%.2f"|format(total_investido)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Qtd. de Lotes</div>
+      <div class="invd-kpi-val">{{ qtd_lotes }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Produtos ainda em Estoque</div>
+      <div class="invd-kpi-val">R$ {{ "%.2f"|format(valor_em_estoque)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Receita Gerada</div>
+      <div class="invd-kpi-val">R$ {{ "%.2f"|format(receita_gerada)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Lucro Acumulado</div>
+      <div class="invd-kpi-val pos">R$ {{ "%.2f"|format(lucro_acumulado)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Valor já Recebido</div>
+      <div class="invd-kpi-val">R$ {{ "%.2f"|format(valor_recebido)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Saldo a Receber</div>
+      <div class="invd-kpi-val {{ 'neg' if saldo_a_receber < 0 else 'pos' }}">R$ {{ "%.2f"|format(saldo_a_receber)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Valor Pendente (vendas em aberto)</div>
+      <div class="invd-kpi-val">R$ {{ "%.2f"|format(receita_pendente)|replace(".", ",") }}</div>
+    </div>
+    <div class="invd-kpi">
+      <div class="invd-kpi-label">Lucro Pendente (vendas em aberto)</div>
+      <div class="invd-kpi-val">R$ {{ "%.2f"|format(lucro_pendente)|replace(".", ",") }}</div>
+    </div>
+  </div>
+
+  <div class="invd-card">
+    <div class="invd-card-title">Lotes Vinculados</div>
+    <div style="overflow-x:auto">
+      <table class="invd-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th>Valor do Lote</th>
+            <th>Sua Participação</th>
+            <th>Sua Fatia (R$)</th>
+            <th>Qtd. Restante no Estoque</th>
+            <th>Lucro Gerado (sua fatia)</th>
+            <th>Lucro Pendente (sua fatia)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in linhas %}
+          <tr>
+            <td>{{ l.lote.data_entrada|br_date }}</td>
+            <td>{{ l.produto_nome }}</td>
+            <td>R$ {{ "%.2f"|format(l.valor_lote)|replace(".", ",") }}</td>
+            <td>{{ "%.2f"|format(l.percentual)|replace(".", ",") }}%</td>
+            <td>R$ {{ "%.2f"|format(l.sua_fatia)|replace(".", ",") }}</td>
+            <td>{{ l.qtd_restante|int }} un.</td>
+            <td>R$ {{ "%.2f"|format(l.lucro_gerado)|replace(".", ",") }}</td>
+            <td>R$ {{ "%.2f"|format(l.lucro_pendente)|replace(".", ",") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="invd-empty">Nenhum lote vinculado a esse investidor.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="invd-card">
+    <div class="invd-card-title">Histórico de Pagamentos</div>
+    {% if editar %}
+    <form class="invd-pag-form" method="post" action="{{ url_for('investidor_pagamento', iid=investidor.id) }}">
+      <input class="invd-input" type="date" name="data" value="{{ hoje }}" required>
+      <input class="invd-input" type="number" name="valor" step="0.01" min="0.01" placeholder="Valor (R$)" required style="max-width:140px">
+      <input class="invd-input" type="text" name="observacao" placeholder="Observação (opcional)" style="flex:1;min-width:180px">
+      <button type="submit" class="invd-btn-add">+ Registrar Pagamento</button>
+    </form>
+    {% endif %}
+    <div style="overflow-x:auto">
+      <table class="invd-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Valor</th>
+            <th>Observação</th>
+            <th>Usuário</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagamentos %}
+          <tr>
+            <td>{{ p.data|br_date }}</td>
+            <td>R$ {{ "%.2f"|format(p.valor)|replace(".", ",") }}</td>
+            <td>{{ p.observacao or '—' }}</td>
+            <td>{{ p.usuario or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="invd-empty">Nenhum pagamento registrado ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

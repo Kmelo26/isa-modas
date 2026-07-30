@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, session, url_for, s
 import os
 import time
 import uuid
+import calendar
+from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 from datetime import datetime, date, timezone, timedelta
 
@@ -103,6 +105,8 @@ PERMISSOES_TODAS = [
     "excluir_vendas", "alterar_preco_venda", "alterar_custo_produto",
     "gerenciar_usuarios", "alterar_permissoes",
     "ver_vendas_canceladas",
+    # Investidores
+    "ver_investidores", "editar_investidores",
 ]
 
 CARGOS = ["admin", "gerente", "vendedor", "caixa", "funcionario", "estoquista"]
@@ -197,6 +201,28 @@ def normalizar_pagamento(forma):
 
 
 # ================== FIFO / LOTES ==================
+LOCAL_PADRAO = "loja"  # local assumido pra lotes/vendas antigos, sem local_id gravado
+
+
+def _dist_lote(lote: dict) -> dict:
+    """Distribuição do lote por local de estoque. Lotes que ainda não têm
+    esse campo (cadastrados antes dessa feature) são tratados como 100% no
+    local padrão — não precisa de migração pra continuar funcionando."""
+    dist = lote.get("distribuicao")
+    if isinstance(dist, dict) and dist:
+        return dist
+    return {LOCAL_PADRAO: to_float(lote.get("qtd", 0))}
+
+
+def _qtd_por_local(produto: dict) -> dict:
+    """Soma a quantidade de todos os lotes do produto, por local de estoque."""
+    totais = {}
+    for l in produto.get("lotes", []):
+        for loc, q in _dist_lote(l).items():
+            totais[loc] = totais.get(loc, 0.0) + to_float(q)
+    return totais
+
+
 def estoque_qtd_total(produto):
     lotes = produto.get("lotes", [])
     if not isinstance(lotes, list):
@@ -211,6 +237,13 @@ def estoque_valor_total(produto):
     return sum(to_float(l.get("qtd", 0)) * to_float(l.get("custo_unit", 0)) for l in lotes)
 
 
+def _categorias_existentes(produtos: list, campo: str = "categoria") -> list:
+    return sorted(set(
+        (p.get(campo) or "").strip() for p in produtos
+        if (p.get(campo) or "").strip()
+    ))
+
+
 def atualizar_campos_derivados_estoque(produto):
     qtd = estoque_qtd_total(produto)
     valor = estoque_valor_total(produto)
@@ -220,7 +253,7 @@ def atualizar_campos_derivados_estoque(produto):
     # qtd == 0: mantém o último valor_investido; só atualiza ao entrar novo lote
 
 
-def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario=""):
+def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario="", local_id=None):
     qtd = to_int(qtd, 0)
     custo_unit = to_float(custo_unit, 0)
     if qtd <= 0:
@@ -228,13 +261,17 @@ def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario=""):
     if custo_unit <= 0:
         raise ValueError("Custo unitário inválido.")
 
-    produto.setdefault("lotes", [])
-    produto["lotes"].append({
+    novo_lote = {
+        "id": uuid.uuid4().hex,
         "data": normalizar_data_str(data),
         "qtd": qtd,
         "custo_unit": custo_unit,
         "criado_por": usuario,
-    })
+    }
+    if local_id:
+        novo_lote["distribuicao"] = {local_id: qtd}
+    produto.setdefault("lotes", [])
+    produto["lotes"].append(novo_lote)
     atualizar_campos_derivados_estoque(produto)
 
 
@@ -265,7 +302,7 @@ def consumir_fifo(produto, qtd_vender):
 
         usar = min(restante, qtd_lote)
         custo_total += usar * custo_unit
-        consumo.append({"data_lote": data_lote, "qtd": usar, "custo_unit": custo_unit})
+        consumo.append({"data_lote": data_lote, "qtd": usar, "custo_unit": custo_unit, "lote_id": lote.get("id")})
 
         lote["qtd"] = qtd_lote - usar
         restante -= usar
@@ -288,11 +325,108 @@ def devolver_fifo(produto, consumo_lotes):
 
     for c in reversed(consumo_lotes):
         lotes.insert(0, {
+            "id": c.get("lote_id"),
             "data": normalizar_data_str(c.get("data_lote")),
             "qtd": to_int(c.get("qtd", 0)),
             "custo_unit": to_float(c.get("custo_unit", 0))
         })
 
+    atualizar_campos_derivados_estoque(produto)
+
+
+def consumir_fifo_local(produto, qtd_vender, local_id):
+    """Igual a consumir_fifo, mas só consome de lotes com saldo disponível
+    no local informado — usado nos fluxos que já sabem de qual local a
+    venda saiu (comandas e venda avulsa de produtos de Estoque). Função
+    irmã, separada: consumir_fifo original não é tocado."""
+    qtd_vender = to_float(qtd_vender, 0)
+    if qtd_vender <= 0:
+        raise ValueError("Quantidade inválida.")
+    local_id = local_id or LOCAL_PADRAO
+
+    lotes = produto.get("lotes", [])
+    if not isinstance(lotes, list):
+        lotes = []
+        produto["lotes"] = lotes
+
+    disponivel_local = sum(to_float(_dist_lote(l).get(local_id, 0)) for l in lotes)
+    if qtd_vender > disponivel_local:
+        raise ValueError(f"Quantidade insuficiente nesse local. Tem {disponivel_local}, pediu {qtd_vender}.")
+
+    restante = qtd_vender
+    custo_total = 0.0
+    consumo = []
+
+    i = 0
+    while restante > 0 and i < len(lotes):
+        lote = lotes[i]
+        dist = _dist_lote(lote)
+        qtd_lote_local = to_float(dist.get(local_id, 0))
+        if qtd_lote_local <= 0:
+            i += 1
+            continue
+
+        custo_unit = to_float(lote.get("custo_unit", 0))
+        data_lote = normalizar_data_str(lote.get("data"))
+        usar = min(restante, qtd_lote_local)
+        custo_total += usar * custo_unit
+        consumo.append({
+            "data_lote": data_lote, "qtd": usar, "custo_unit": custo_unit,
+            "lote_id": lote.get("id"), "local_id": local_id,
+        })
+
+        dist = dict(dist)
+        dist[local_id] = round(qtd_lote_local - usar, 4)
+        lote["distribuicao"] = dist
+        lote["qtd"] = round(to_float(lote.get("qtd", 0)) - usar, 4)
+        restante = round(restante - usar, 6)
+
+        if lote["qtd"] <= 0:
+            lotes.pop(i)
+        else:
+            i += 1
+
+    atualizar_campos_derivados_estoque(produto)
+    return custo_total, consumo
+
+
+def devolver_fifo_local(produto, consumo_lotes, local_id):
+    """Espelho de devolver_fifo, mas devolve a quantidade pro local de onde
+    ela saiu (gravado em cada item de consumo). Função irmã, separada:
+    devolver_fifo original não é tocado."""
+    if not consumo_lotes or not isinstance(consumo_lotes, list):
+        return
+    local_id = local_id or LOCAL_PADRAO
+
+    produto.setdefault("lotes", [])
+    lotes = produto["lotes"]
+
+    for c in reversed(consumo_lotes):
+        alvo_local = c.get("local_id") or local_id
+        qtd_c = to_float(c.get("qtd", 0))
+        lotes.insert(0, {
+            "id": c.get("lote_id"),
+            "data": normalizar_data_str(c.get("data_lote")),
+            "qtd": qtd_c,
+            "custo_unit": to_float(c.get("custo_unit", 0)),
+            "distribuicao": {alvo_local: qtd_c},
+        })
+
+    atualizar_campos_derivados_estoque(produto)
+
+
+def _aplicar_devolucao_bar_componente(produto: dict, consumo: list):
+    """Lógica pura (sem acesso a banco) de devolver 1 componente ao estoque.
+    Extraída de devolver_bar_componentes pra poder ser reaproveitada em lote
+    (ver comanda_remover), sem duplicar a regra."""
+    produto.setdefault("lotes", [])
+    for c in reversed(consumo or []):
+        produto["lotes"].insert(0, {
+            "id": c.get("lote_id"),
+            "data": normalizar_data_str(c.get("data_lote")),
+            "qtd": to_float(c.get("qty", c.get("qtd", 0))),
+            "custo_unit": to_float(c.get("unit_cost", c.get("custo_unit", 0)))
+        })
     atualizar_campos_derivados_estoque(produto)
 
 
@@ -306,15 +440,46 @@ def devolver_bar_componentes(components_consumo):
         produto = db.get_product(pid)
         if not produto:
             continue
-        produto.setdefault("lotes", [])
-        for c in reversed(consumo):
-            produto["lotes"].insert(0, {
-                "data": normalizar_data_str(c.get("data_lote")),
-                "qtd": to_float(c.get("qty", c.get("qtd", 0))),
-                "custo_unit": to_float(c.get("unit_cost", c.get("custo_unit", 0)))
-            })
-        atualizar_campos_derivados_estoque(produto)
+        _aplicar_devolucao_bar_componente(produto, consumo)
         db.update_product(produto)
+
+
+def _resolver_participantes_lote(form) -> tuple[list, str]:
+    """Lê investidor_id[]/percentual[] do formulário de lote e valida a soma.
+    Se nada foi informado, o dono do sistema fica com 100% automaticamente.
+    Retorna (participantes, erro) — erro vazio quando está tudo certo."""
+    ids = form.getlist("investidor_id[]")
+    pcts = form.getlist("percentual[]")
+    participantes = []
+    for iid, pct_raw in zip(ids, pcts):
+        iid = (iid or "").strip()
+        pct = to_float(pct_raw, 0)
+        if iid and pct > 0:
+            participantes.append({"investidor_id": iid, "percentual": pct})
+    if not participantes:
+        dono = db.get_or_create_dono_investidor()
+        return [{"investidor_id": dono["id"], "percentual": 100.0}], ""
+    soma = sum(p["percentual"] for p in participantes)
+    if abs(soma - 100.0) > 0.01:
+        return [], f"A soma dos percentuais dos participantes precisa ser 100% (está em {soma:.2f}%)."
+    return participantes, ""
+
+
+def _registrar_lote_investimento(lote_id, pid, produto_nome, data_entrada, quantidade, custo_unit, fornecedor, participantes):
+    db.insert_lote_investimento({
+        "id": lote_id,
+        "pid": pid,
+        "produto_nome": produto_nome,
+        "data_entrada": normalizar_data_str(data_entrada),
+        "quantidade": to_float(quantidade, 0),
+        "custo_unit": to_float(custo_unit, 0),
+        "valor_total": round(to_float(quantidade, 0) * to_float(custo_unit, 0), 2),
+        "fornecedor": fornecedor or "",
+        "participantes": participantes,
+        "criado_por": session.get("usuario", ""),
+        "criado_em": now_brt().strftime("%Y-%m-%d %H:%M"),
+        "removido": False,
+    })
 
 
 # ================== CAIXA ==================
@@ -439,15 +604,32 @@ def _tela_atual_da_request() -> str:
 
 
 # ================== ATUALIZA SESSÃO ==================
+# Janela de tolerância pra reconferir permissões/tipo do usuário no banco.
+# Dentro desse intervalo, requests repetidos (inclusive AJAX) reaproveitam o
+# que já está na sessão Flask em vez de refazer a mesma consulta. Efeito
+# colateral aceito: bloquear/mudar permissão de alguém pode levar até esse
+# tempo pra valer, em vez de ser instantâneo (a checagem de sessão encerrada
+# remotamente, logo abaixo, continua rodando em toda requisição).
+_PERM_CACHE_TTL_SEGUNDOS = 20
+
+# Intervalo mínimo entre gravações de "última atividade" da sessão. Era
+# gravado a cada requisição (inclusive AJAX leve); passa a gravar no máximo
+# 1x por minuto. Efeito colateral aceito: a tela de usuários online pode
+# mostrar a última atividade/tela com até esse atraso.
+_ATIVIDADE_MIN_INTERVALO_SEGUNDOS = 60
+
+
 @app.before_request
 def atualizar_permissoes_da_sessao():
     if "usuario" not in session:
         return
 
     usuario = session.get("usuario", "")
+    agora = time.time()
 
     # Sessão foi encerrada remotamente (admin clicou "Encerrar Sessão") ou o
-    # usuário foi bloqueado/arquivado desde o último login.
+    # usuário foi bloqueado/arquivado desde o último login. Continua sendo
+    # checado em toda requisição — não entra no cache abaixo.
     token = session.get("_token")
     try:
         if token and not db.sessao_ativa(token):
@@ -457,35 +639,47 @@ def atualizar_permissoes_da_sessao():
     except Exception:
         pass
 
-    try:
-        user_data = db.get_user(usuario)
-    except Exception:
-        return  # falha de rede transitória — mantém sessão atual
+    perm_verificada_em = session.get("_perm_verificada_em", 0)
+    perm_em_cache = (
+        "permissoes" in session
+        and (agora - perm_verificada_em) < _PERM_CACHE_TTL_SEGUNDOS
+    )
 
-    if not user_data or user_data.get("arquivado") or not user_data.get("ativo", True):
-        session.clear()
-        return
+    if not perm_em_cache:
+        try:
+            user_data = db.get_user(usuario)
+        except Exception:
+            return  # falha de rede transitória — mantém sessão atual
 
-    tipo_atual = normalizar_tipo(user_data.get("tipo", "funcionario"))
+        if not user_data or user_data.get("arquivado") or not user_data.get("ativo", True):
+            session.clear()
+            return
 
-    if usuario == "admin" or tipo_atual == "admin":
-        session["tipo"] = "admin"
-        session["permissoes"] = PERMISSOES_TODAS[:]
-        session["cargo"] = "admin"
-    else:
-        session["tipo"] = tipo_atual
-        session["cargo"] = user_data.get("cargo") or "funcionario"
-        permissoes = user_data.get("permissoes", [])
-        if not isinstance(permissoes, list):
-            permissoes = []
-        permissoes = [p for p in permissoes if p in PERMISSOES_TODAS]
-        session["permissoes"] = permissoes
+        tipo_atual = normalizar_tipo(user_data.get("tipo", "funcionario"))
+
+        if usuario == "admin" or tipo_atual == "admin":
+            session["tipo"] = "admin"
+            session["permissoes"] = PERMISSOES_TODAS[:]
+            session["cargo"] = "admin"
+        else:
+            session["tipo"] = tipo_atual
+            session["cargo"] = user_data.get("cargo") or "funcionario"
+            permissoes = user_data.get("permissoes", [])
+            if not isinstance(permissoes, list):
+                permissoes = []
+            permissoes = [p for p in permissoes if p in PERMISSOES_TODAS]
+            session["permissoes"] = permissoes
+
+        session["_perm_verificada_em"] = agora
 
     if token:
-        try:
-            db.atualizar_atividade_sessao(token, now_brt().strftime("%Y-%m-%d %H:%M:%S"), tela=_tela_atual_da_request())
-        except Exception:
-            pass
+        atividade_gravada_em = session.get("_atividade_gravada_em", 0)
+        if (agora - atividade_gravada_em) >= _ATIVIDADE_MIN_INTERVALO_SEGUNDOS:
+            try:
+                db.atualizar_atividade_sessao(token, now_brt().strftime("%Y-%m-%d %H:%M:%S"), tela=_tela_atual_da_request())
+                session["_atividade_gravada_em"] = agora
+            except Exception:
+                pass
 
 
 # ================== LOGIN ==================
@@ -813,8 +1007,6 @@ def vendas_exportar():
     import csv, io as _io
     from datetime import timedelta
 
-    vendas_data = db.get_all_sales()
-
     data_ini_raw = request.args.get("data_ini", "").strip()
     data_fim_raw = request.args.get("data_fim", "").strip()
     busca_produto_raw = request.args.get("busca_produto", "").strip()
@@ -833,6 +1025,16 @@ def vendas_exportar():
     elif data_ini_raw == "mes":
         data_ini_raw = hoje_date.replace(day=1).strftime("%Y-%m-%d")
         data_fim_raw = hoje_date.strftime("%Y-%m-%d")
+
+    # Quando as duas pontas do período estão definidas (inclusive depois de
+    # resolver os atalhos "hoje"/"semana"/"mês" acima), pede só esse
+    # intervalo pro banco em vez da tabela de vendas inteira — mesma regra
+    # de segurança já usada em financeiro(). Se faltar alguma ponta, cai de
+    # volta pra busca completa, igual ao comportamento de sempre.
+    if data_ini_raw and data_fim_raw:
+        vendas_data = db.get_sales_by_date_range(data_ini_raw, data_fim_raw)
+    else:
+        vendas_data = db.get_all_sales()
 
     data_ini = parse_date_yyyy_mm_dd(data_ini_raw)
     data_fim = parse_date_yyyy_mm_dd(data_fim_raw)
@@ -968,6 +1170,7 @@ def editar_venda(uid):
         if not erro:
             pid_antigo = str(venda.get("produto_pid", "")).strip()
             consumo_antigo = venda.get("consumo_lotes", [])
+            local_da_venda = venda.get("local_id")
 
             if pid_antigo == str(produto_novo.get("pid", "")):
                 produto_antigo = produto_novo
@@ -975,10 +1178,16 @@ def editar_venda(uid):
                 produto_antigo = next((p for p in estoque if str(p.get("pid", "")) == pid_antigo), None)
 
             if produto_antigo and consumo_antigo:
-                devolver_fifo(produto_antigo, consumo_antigo)
+                if local_da_venda:
+                    devolver_fifo_local(produto_antigo, consumo_antigo, local_da_venda)
+                else:
+                    devolver_fifo(produto_antigo, consumo_antigo)
 
             try:
-                custo_total, consumo_novo = consumir_fifo(produto_novo, nova_qtd)
+                if local_da_venda:
+                    custo_total, consumo_novo = consumir_fifo_local(produto_novo, nova_qtd, local_da_venda)
+                else:
+                    custo_total, consumo_novo = consumir_fifo(produto_novo, nova_qtd)
             except ValueError as e:
                 erro = str(e)
 
@@ -1011,6 +1220,99 @@ def editar_venda(uid):
     )
 
 
+@app.route("/vendas/produtos_troca")
+def vendas_produtos_troca():
+    """Lista leve de produtos (pid/nome/valor_venda) pro seletor do modal
+    'Trocar Produto' — buscada sob demanda (fetch) só quando o modal é
+    aberto, em vez de carregar o estoque inteiro em toda visita a /vendas."""
+    if not usuario_logado():
+        return jsonify([]), 401
+    if session.get("tipo") != "admin" and not tem_permissao("editar_vendas"):
+        return jsonify([]), 403
+    produtos = [
+        {"pid": p.get("pid"), "nome": p.get("nome"), "valor_venda": to_float(p.get("valor_venda", 0))}
+        for p in db.get_all_products()
+    ]
+    return jsonify(produtos)
+
+
+@app.route("/vendas/trocar/<uid>", methods=["POST"])
+def trocar_produto_venda(uid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("editar_vendas"):
+        return redirect(url_for("vendas"))
+
+    venda = db.get_sale(uid)
+    if not venda or venda.get("excluida"):
+        return redirect(url_for("vendas"))
+    if venda.get("fechado"):
+        session["_erro_autorizacao"] = "Esta venda já foi fechada no caixa e não pode ser trocada."
+        return redirect(url_for("vendas"))
+
+    novo_pid = (request.form.get("novo_pid") or "").strip()
+    forma_diferenca = (request.form.get("forma_pagamento_diferenca") or "").strip()
+
+    produto_novo = db.get_product(novo_pid)
+    if not produto_novo:
+        session["_erro_autorizacao"] = "Produto novo não encontrado."
+        return redirect(url_for("vendas"))
+
+    pid_antigo = str(venda.get("produto_pid", "")).strip()
+    nome_antigo = venda.get("nome", "")
+    preco_antigo = to_float(venda.get("valor_venda", 0))
+    qtd = to_int(venda.get("quantidade", 1), 1)
+
+    if pid_antigo == str(produto_novo.get("pid", "")):
+        produto_antigo = produto_novo
+    else:
+        produto_antigo = db.get_product(pid_antigo)
+
+    consumo_antigo = venda.get("consumo_lotes", [])
+    local_da_venda = venda.get("local_id")
+    if produto_antigo and consumo_antigo:
+        if local_da_venda:
+            devolver_fifo_local(produto_antigo, consumo_antigo, local_da_venda)
+        else:
+            devolver_fifo(produto_antigo, consumo_antigo)
+
+    try:
+        if local_da_venda:
+            custo_total, consumo_novo = consumir_fifo_local(produto_novo, qtd, local_da_venda)
+        else:
+            custo_total, consumo_novo = consumir_fifo(produto_novo, qtd)
+    except ValueError as e:
+        # como nenhum db.update_product() é chamado neste caminho, a
+        # devolução acima fica só na memória e nunca é salva — nada muda
+        # de verdade no estoque quando a troca falha.
+        session["_erro_autorizacao"] = str(e)
+        return redirect(url_for("vendas"))
+
+    preco_novo = to_float(produto_novo.get("valor_venda", 0))
+    diferenca = round((preco_novo - preco_antigo) * qtd, 2)
+    custo_unit_medio = (custo_total / qtd) if qtd else 0.0
+
+    venda["produto_pid"] = produto_novo.get("pid")
+    venda["nome"] = produto_novo.get("nome", venda.get("nome", ""))
+    venda["valor_venda"] = preco_novo
+    venda["valor_investido"] = round(custo_unit_medio, 4)
+    venda["consumo_lotes"] = consumo_novo
+    if forma_diferenca:
+        venda["forma_pagamento"] = normalizar_pagamento(forma_diferenca)
+
+    db.update_sale(venda)
+    db.update_product(produto_novo)
+    if produto_antigo and produto_antigo is not produto_novo:
+        db.update_product(produto_antigo)
+
+    db.registrar_log(
+        session.get("usuario", ""), "venda_trocada",
+        f"Trocou produto da venda: {nome_antigo} → {produto_novo.get('nome','')} (diferença: R$ {diferenca:+.2f})",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return redirect(url_for("vendas"))
+
+
 # ================== CANCELAR VENDA (arquiva em Vendas Canceladas) ==================
 def _cancelar_venda_individual(uid: str, usuario: str):
     """Cancela uma única linha de venda: devolve estoque, ajusta o caixa e marca
@@ -1025,7 +1327,11 @@ def _cancelar_venda_individual(uid: str, usuario: str):
     consumo_lotes = venda.get("consumo_lotes", [])
 
     if produto and consumo_lotes:
-        devolver_fifo(produto, consumo_lotes)
+        local_da_venda = venda.get("local_id")
+        if local_da_venda:
+            devolver_fifo_local(produto, consumo_lotes, local_da_venda)
+        else:
+            devolver_fifo(produto, consumo_lotes)
         db.update_product(produto)
 
     # Atualiza o caixa se a venda pertencia a uma sessão
@@ -1183,7 +1489,10 @@ def estoque():
         return redirect(url_for("vendas"))
 
     estoque_data = db.get_all_products()
-    estoque_data.sort(key=lambda p: str(p.get("nome", "")).strip().lower())
+    estoque_data.sort(key=lambda p: (
+        (p.get("categoria") or "").strip().lower() or "zzz_sem_categoria",
+        str(p.get("nome", "")).strip().lower(),
+    ))
 
     def compute_status(p):
         qty   = float(p.get("quantidade", 0) or 0)
@@ -1198,6 +1507,7 @@ def estoque():
 
     for p in estoque_data:
         p["_status"] = compute_status(p)
+        p["_qtd_por_local"] = _qtd_por_local(p)
 
     # KPIs sobre todo o estoque
     total_produtos       = len(estoque_data)
@@ -1208,10 +1518,13 @@ def estoque():
         for p in estoque_data
     ), 2)
 
-    categorias = sorted(set(
-        (p.get("categoria") or "").strip() for p in estoque_data
-        if (p.get("categoria") or "").strip()
-    ))
+    locais_estoque = db.get_all_locais_estoque()
+    kpis_local = {
+        l["id"]: sum(p["_qtd_por_local"].get(l["id"], 0.0) for p in estoque_data)
+        for l in locais_estoque
+    }
+
+    categorias = _categorias_existentes(estoque_data)
 
     q             = (request.args.get("q", "")          or "").strip()
     codigo_filtro = (request.args.get("codigo", "")      or "").strip().upper()
@@ -1247,9 +1560,25 @@ def estoque():
         if p.get("nome", "").strip()
     ))
 
+    # Versão enxuta dos produtos, só com os campos que o modal "Visualizar"
+    # (JS de estoque.html) de fato lê — em particular, sem o campo "lotes"
+    # (o pesado: todos os lotes de todos os produtos), que esse modal nunca
+    # usa. Reduz bastante o JSON embutido na página sem mudar nada visível.
+    CAMPOS_MODAL_VISUALIZAR_PRODUTO = (
+        "pid", "data", "nome", "categoria", "tipo_controle", "unidade_venda",
+        "quantidade", "estoque_minimo", "valor_investido", "valor_venda",
+        "conteudo_valor", "conteudo_unidade", "validade", "fornecedor",
+        "tipo_conversao", "unidades_por_caixa", "observacoes",
+    )
+    estoque_modal = [
+        {campo: p.get(campo) for campo in CAMPOS_MODAL_VISUALIZAR_PRODUTO}
+        for p in estoque_filtrado
+    ]
+
     return render_template(
         "estoque.html",
         estoque=estoque_filtrado,
+        estoque_modal=estoque_modal,
         q=q,
         codigo_filtro=codigo_filtro,
         cat_filtro=cat_filtro,
@@ -1261,10 +1590,142 @@ def estoque():
         total_estoque_un=total_estoque_un,
         estoque_baixo_count=estoque_baixo_count,
         valor_total_estoque=valor_total_estoque,
+        locais_estoque=locais_estoque,
+        kpis_local=kpis_local,
         erro="",
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
         nomes_sugestoes=nomes_sugestoes,
+    )
+
+
+@app.route("/estoque/transferencia/produto_lotes")
+def estoque_transferencia_produto_lotes():
+    """Lotes com saldo no local de origem escolhido, pro select lazy-loaded
+    da tela de Transferência (mesmo padrão de /vendas/produtos_troca)."""
+    if not usuario_logado():
+        return jsonify([]), 401
+    if not tem_permissao("ver_estoque"):
+        return jsonify([]), 403
+
+    pid = (request.args.get("pid") or "").strip()
+    origem = (request.args.get("origem") or "").strip()
+    produto = db.get_product(pid)
+    if not produto or not origem:
+        return jsonify([])
+
+    lotes = []
+    for l in produto.get("lotes", []):
+        qtd_disp = to_float(_dist_lote(l).get(origem, 0))
+        if qtd_disp > 0:
+            lotes.append({
+                "lote_id": l.get("id"),
+                "data": normalizar_data_str(l.get("data")),
+                "qtd_disponivel": qtd_disp,
+                "nome_lote": l.get("nome_lote") or "",
+            })
+    return jsonify(lotes)
+
+
+@app.route("/estoque/transferencia", methods=["GET", "POST"])
+def estoque_transferencia():
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if not tem_permissao("ver_estoque"):
+        return redirect(url_for("vendas"))
+
+    erro = ""
+    sucesso = request.args.get("sucesso") == "1"
+
+    if request.method == "POST":
+        pid = (request.form.get("produto_pid") or "").strip()
+        lote_id = (request.form.get("lote_id") or "").strip()
+        origem = (request.form.get("origem") or "").strip()
+        destino = (request.form.get("destino") or "").strip()
+        quantidade = to_float(request.form.get("quantidade"), 0)
+
+        produto = db.get_product(pid)
+        if not produto:
+            erro = "Produto não encontrado."
+        elif not origem or not destino:
+            erro = "Selecione origem e destino."
+        elif origem == destino:
+            erro = "Origem e destino não podem ser o mesmo local."
+        elif quantidade <= 0:
+            erro = "Quantidade inválida."
+        else:
+            lote = next((l for l in produto.get("lotes", []) if str(l.get("id")) == lote_id), None)
+            if not lote:
+                erro = "Lote não encontrado."
+            else:
+                dist = dict(_dist_lote(lote))
+                disponivel = to_float(dist.get(origem, 0))
+                if quantidade > disponivel:
+                    erro = f"Quantidade insuficiente no local de origem. Disponível: {disponivel}."
+                else:
+                    dist[origem] = round(disponivel - quantidade, 4)
+                    dist[destino] = round(to_float(dist.get(destino, 0)) + quantidade, 4)
+                    lote["distribuicao"] = dist
+                    db.update_product(produto)
+
+                    hoje = now_brt().strftime("%Y-%m-%d")
+                    hora = now_brt().strftime("%H:%M")
+                    usuario = session.get("usuario", "")
+                    db.insert_transferencia_estoque({
+                        "id": uuid.uuid4().hex,
+                        "data": hoje,
+                        "hora": hora,
+                        "usuario": usuario,
+                        "pid": pid,
+                        "produto_nome": produto.get("nome", ""),
+                        "lote_id": lote_id,
+                        "origem": origem,
+                        "destino": destino,
+                        "quantidade": quantidade,
+                        "criado_em": f"{hoje} {hora}",
+                    })
+                    db.registrar_log(
+                        usuario, "transferencia_estoque",
+                        f"Transferiu {quantidade} de '{produto.get('nome','')}' de {origem} para {destino}",
+                        hoje, hora,
+                    )
+                    return redirect(url_for("estoque_transferencia") + "?sucesso=1")
+
+    estoque_data = db.get_all_products()
+    estoque_data.sort(key=lambda p: str(p.get("nome", "")).strip().lower())
+    transferencias = db.get_all_transferencias_estoque()
+    locais_estoque = db.get_all_locais_estoque()
+    locais_nomes_map = {l["id"]: l["nome"] for l in locais_estoque}
+
+    pode_ver_custo = session.get("tipo") == "admin" or "ver_custo_produtos" in session.get("permissoes", [])
+    produtos_busca = []
+    for p in estoque_data:
+        item = {
+            "pid": p.get("pid"),
+            "nome": p.get("nome", ""),
+            "codigo": p.get("codigo", ""),
+            "categoria": p.get("categoria", ""),
+            "quantidade": to_float(p.get("quantidade", 0)),
+            "qtd_por_local": _qtd_por_local(p),
+        }
+        if pode_ver_custo:
+            item["valor_investido"] = to_float(p.get("valor_investido", 0))
+            item["valor_venda"] = to_float(p.get("valor_venda", 0))
+        produtos_busca.append(item)
+
+    return render_template(
+        "estoque_transferencia.html",
+        estoque=estoque_data,
+        produtos_busca=produtos_busca,
+        locais_estoque=locais_estoque,
+        locais_nomes_map=locais_nomes_map,
+        local_padrao=LOCAL_PADRAO,
+        transferencias=transferencias,
+        erro=erro,
+        sucesso=sucesso,
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+        usuario=session.get("usuario", ""),
     )
 
 
@@ -1322,6 +1783,7 @@ def estoque_novo():
         forma_entrada = request.form.get("forma_entrada", "unidade")
         tipo_custo    = request.form.get("tipo_custo", "total")
         data_entrada  = request.form.get("data_entrada") or data or today_brt().isoformat()
+        local_id      = (request.form.get("local_id") or LOCAL_PADRAO).strip()
 
         if forma_entrada == "caixa":
             qtd_caixas = to_int(request.form.get("qtd_caixas"), 0)
@@ -1349,6 +1811,8 @@ def estoque_novo():
             "observacoes":        request.form.get("observacoes") or None,
         }
 
+        permite_investidores = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
+
         if not nome:
             erro = "Informe o nome do produto."
         elif quantidade <= 0:
@@ -1356,6 +1820,12 @@ def estoque_novo():
         elif valor_investido <= 0:
             erro = "Informe o custo do produto."
         else:
+            if permite_investidores:
+                participantes_lote, erro = _resolver_participantes_lote(request.form)
+            else:
+                participantes_lote = [{"investidor_id": db.get_or_create_dono_investidor()["id"], "percentual": 100.0}]
+
+        if not erro:
             nome_key = nome.lower()
             estoque_data = db.get_all_products()
             existente = next(
@@ -1367,12 +1837,16 @@ def estoque_novo():
                 existente["valor_venda"] = valor_venda
                 existente.update(extras)
                 try:
-                    entrada_estoque_lote(existente, data_entrada, quantidade, valor_investido, usuario=session.get("usuario", ""))
+                    entrada_estoque_lote(existente, data_entrada, quantidade, valor_investido, usuario=session.get("usuario", ""), local_id=local_id)
                     db.update_product(existente)
                     db.registrar_log(
                         session.get("usuario", ""), "estoque_alterado",
                         f"Alterou estoque: {nome} (+{quantidade})",
                         now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+                    )
+                    _registrar_lote_investimento(
+                        existente["lotes"][-1]["id"], existente["pid"], nome, data_entrada,
+                        quantidade, valor_investido, extras.get("fornecedor"), participantes_lote,
                     )
                 except ValueError as e:
                     erro = str(e)
@@ -1387,7 +1861,7 @@ def estoque_novo():
                     **extras,
                 }
                 try:
-                    entrada_estoque_lote(novo, data_entrada, quantidade, valor_investido, usuario=session.get("usuario", ""))
+                    entrada_estoque_lote(novo, data_entrada, quantidade, valor_investido, usuario=session.get("usuario", ""), local_id=local_id)
                 except ValueError as e:
                     erro = str(e)
 
@@ -1397,15 +1871,31 @@ def estoque_novo():
                         session.get("usuario", ""), "produto_criado", f"Cadastrou produto: {nome}",
                         now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
                     )
+                    _registrar_lote_investimento(
+                        novo["lotes"][-1]["id"], novo["pid"], nome, data_entrada,
+                        quantidade, valor_investido, extras.get("fornecedor"), participantes_lote,
+                    )
 
             if not erro:
                 return redirect(url_for("estoque"))
+
+    categorias_extra = [
+        c for c in _categorias_existentes(db.get_all_products())
+        if c.strip().lower() not in ("bebida", "comida", "insumo")
+    ]
+    permite_investidores = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
+    investidores_ativos = [i for i in db.get_all_investidores() if i.get("status") == "ativo"] if permite_investidores else []
 
     return render_template(
         "estoque_novo.html",
         erro=erro,
         hoje=today_brt().isoformat(),
         fornecedores=[],
+        categorias_extra=categorias_extra,
+        permite_investidores=permite_investidores,
+        investidores_ativos=investidores_ativos,
+        locais_estoque=db.get_all_locais_estoque(),
+        local_padrao=LOCAL_PADRAO,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
     )
@@ -1471,10 +1961,16 @@ def editar_produto(pid):
             )
             return redirect(url_for("estoque"))
 
+    categorias_extra = [
+        c for c in _categorias_existentes(db.get_all_products())
+        if c.strip().lower() not in ("bebida", "comida", "insumo")
+    ]
+
     return render_template(
         "editar_produto.html",
         produto=produto,
         erro=erro,
+        categorias_extra=categorias_extra,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
     )
@@ -1519,6 +2015,7 @@ def estoque_produto(pid):
         fornecedor_lote  = request.form.get("fornecedor") or None
         validade_lote    = request.form.get("validade") or None
         tipo_custo       = request.form.get("tipo_custo", "unitario")
+        local_id         = (request.form.get("local_id") or LOCAL_PADRAO).strip()
 
         if forma_entrada == "caixa":
             qtd_caixas     = to_int(request.form.get("qtd_caixas"), 0)
@@ -1536,20 +2033,31 @@ def estoque_produto(pid):
         else:
             custo_unit = to_float(request.form.get("custo_unit"), 0.0)
 
+        permite_investidores = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
+
         if qtd <= 0:
             erro = "Quantidade inválida."
         elif custo_unit <= 0:
             erro = "Custo unitário inválido."
         else:
+            if permite_investidores:
+                participantes_lote, erro = _resolver_participantes_lote(request.form)
+            else:
+                participantes_lote = [{"investidor_id": db.get_or_create_dono_investidor()["id"], "percentual": 100.0}]
+
+        if not erro:
             conteudo_val  = to_float(request.form.get("conteudo_valor"), None) if request.form.get("conteudo_valor") else None
             conteudo_unit = request.form.get("conteudo_unidade") or None
+            lote_id = uuid.uuid4().hex
             lote = {
+                "id":             lote_id,
                 "data":           normalizar_data_str(data),
                 "qtd":            qtd,
                 "custo_unit":     custo_unit,
                 "forma_entrada":  forma_entrada,
                 "qtd_informada":  qtd_informada,
                 "criado_por":     session.get("usuario", ""),
+                "distribuicao":   {local_id: qtd},
             }
             if unid_por_caixa:
                 lote["unidades_por_caixa"] = unid_por_caixa
@@ -1568,6 +2076,10 @@ def estoque_produto(pid):
                 produto["conteudo_valor"]   = conteudo_val
                 produto["conteudo_unidade"] = conteudo_unit or "ml"
             db.update_product(produto)
+            _registrar_lote_investimento(
+                lote_id, pid, produto.get("nome", ""), data, qtd, custo_unit,
+                fornecedor_lote, participantes_lote,
+            )
             return redirect(url_for("estoque_produto", pid=pid))
 
     lotes = produto.get("lotes", [])
@@ -1575,6 +2087,8 @@ def estoque_produto(pid):
         lotes = sorted(lotes, key=lambda l: str(l.get("data", "")))
     else:
         lotes = []
+    for l in lotes:
+        l["_distribuicao_resolvida"] = _dist_lote(l)
 
     pacotes_usando = db.bar_get_packages_using_product(pid)
 
@@ -1584,6 +2098,11 @@ def estoque_produto(pid):
         reverse=True
     )
 
+    permite_investidores = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
+    investidores_ativos = [i for i in db.get_all_investidores() if i.get("status") == "ativo"] if permite_investidores else []
+    locais_estoque = db.get_all_locais_estoque()
+    locais_nomes_map = {l["id"]: l["nome"] for l in locais_estoque}
+
     return render_template(
         "estoque_produto.html",
         produto=produto,
@@ -1592,6 +2111,11 @@ def estoque_produto(pid):
         erro=erro,
         hoje=today_brt().isoformat(),
         pacotes_usando=pacotes_usando,
+        permite_investidores=permite_investidores,
+        investidores_ativos=investidores_ativos,
+        locais_estoque=locais_estoque,
+        locais_nomes_map=locais_nomes_map,
+        local_padrao=LOCAL_PADRAO,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
     )
@@ -1607,9 +2131,15 @@ def remover_lote(pid, idx):
         if isinstance(lotes, list) and 0 <= idx < len(lotes):
             lotes_sorted = sorted(lotes, key=lambda l: str(l.get("data", "")))
             lote_alvo = lotes_sorted[idx]
+            lote_id_removido = lote_alvo.get("id")
             produto["lotes"] = [l for l in lotes if l is not lote_alvo]
             atualizar_campos_derivados_estoque(produto)
             db.update_product(produto)
+            if lote_id_removido:
+                try:
+                    db.marcar_lote_investimento_removido(lote_id_removido)
+                except RuntimeError:
+                    pass
     return redirect(url_for("estoque_produto", pid=pid))
 
 
@@ -1814,6 +2344,7 @@ def cadastrar_venda_lote():
 
         data = request.form.get("data", "")
         forma_pagamento = request.form.get("forma_pagamento", "")
+        local_id = (request.form.get("local_id") or LOCAL_PADRAO).strip()
 
         pids   = request.form.getlist("produto_pid[]")
         qtds   = request.form.getlist("quantidade[]")
@@ -1892,11 +2423,10 @@ def cadastrar_venda_lote():
                     try:
                         if vpc and cv > 1:
                             qtd_estoque = qtd / cv
-                            custo_total, consumo = bar_fifo_consume(pid, qtd_estoque)
-                            # bar_fifo_consume já salva internamente
+                            custo_total, consumo = consumir_fifo_local(produto, qtd_estoque, local_id)
                         else:
-                            custo_total, consumo = consumir_fifo(produto, qtd)
-                            produtos_modificados.append(produto)
+                            custo_total, consumo = consumir_fifo_local(produto, qtd, local_id)
+                        produtos_modificados.append(produto)
                     except ValueError as e:
                         erro = str(e)
                         break
@@ -1917,6 +2447,7 @@ def cadastrar_venda_lote():
                         "consumo_lotes": consumo,
                         "hora": now_brt().strftime("%H:%M"),
                         "usuario": session.get("usuario", ""),
+                        "local_id": local_id,
                     })
 
             if not erro and not novas_vendas:
@@ -1952,11 +2483,51 @@ def cadastrar_venda_lote():
         caixa_aberto=caixa_aberto,
         usuario=session.get("usuario", ""),
         tipo=session.get("tipo"),
-        permissoes=session.get("permissoes", [])
+        permissoes=session.get("permissoes", []),
+        locais_estoque=db.get_all_locais_estoque(),
+        local_padrao=LOCAL_PADRAO,
     )
 
 
 # ================== COMANDAS ==================
+def _total_comanda(comanda: dict) -> float:
+    """Total que o cliente deve na comanda: itens consumidos + empréstimos
+    (dinheiro emprestado, incluindo juros lançados à parte). NÃO usar em
+    cálculos de faturamento/lucro (Financeiro) — lá o total é só de itens,
+    já que empréstimo não é venda de mercadoria."""
+    total_itens = sum(
+        to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
+        for i in comanda.get("itens", [])
+    )
+    total_emprestimos = sum(to_float(e.get("valor", 0)) for e in comanda.get("emprestimos", []))
+    return total_itens + total_emprestimos
+
+
+def _margem_comanda(comanda: dict) -> float:
+    """Margem % atual da comanda, só sobre itens (mesma fórmula usada em
+    Vendas/Estoque/Financeiro: (venda - custo) / venda * 100). Empréstimo
+    não entra aqui, igual não entra no cálculo de lucro do Financeiro."""
+    total_venda = sum(
+        to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
+        for i in comanda.get("itens", [])
+    )
+    total_custo = sum(
+        to_float(i.get("valor_investido", 0)) * to_int(i.get("quantidade", 0))
+        for i in comanda.get("itens", [])
+    )
+    if total_venda <= 0:
+        return 0.0
+    return round((total_venda - total_custo) / total_venda * 100, 2)
+
+
+def _preco_por_margem(custo: float, margem_pct: float) -> float:
+    """Preço de venda necessário pra bater a margem % desejada sobre esse
+    custo, invertendo a mesma fórmula: margem% = (venda-custo)/venda*100."""
+    if custo <= 0:
+        return 0.0
+    return custo / (1 - margem_pct / 100)
+
+
 @app.route("/comandas")
 def comandas():
     if not usuario_logado():
@@ -1967,12 +2538,6 @@ def comandas():
     hoje = now_brt().strftime("%Y-%m-%d")
     todas = db.get_all_commands()
 
-    def total_comanda(c):
-        return sum(
-            to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
-            for i in c.get("itens", [])
-        )
-
     def valor_pago(c):
         return sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
 
@@ -1982,7 +2547,7 @@ def comandas():
             c["_status_display"] = "atrasada"
         else:
             c["_status_display"] = c.get("status", "aberta")
-        c["_total"] = round(total_comanda(c), 2)
+        c["_total"] = round(_total_comanda(c), 2)
         c["_valor_pago"] = round(valor_pago(c), 2)
         c["_saldo"] = round(max(c["_total"] - c["_valor_pago"], 0), 2)
 
@@ -2012,6 +2577,8 @@ def comandas():
         hoje=hoje,
         stats=stats,
         erro_caixa=erro_caixa,
+        locais_estoque=db.get_all_locais_estoque(),
+        local_padrao=LOCAL_PADRAO,
     )
 
 
@@ -2026,6 +2593,7 @@ def comanda_nova():
     nome = (request.form.get("nome") or "").strip()
     mesa = (request.form.get("mesa") or "").strip()
     cliente_id = (request.form.get("cliente_id") or "").strip() or None
+    local_id = (request.form.get("local_id") or LOCAL_PADRAO).strip()
 
     if tipo == "fiado" and cliente_id:
         cliente = db.get_cliente(cliente_id)
@@ -2041,6 +2609,7 @@ def comanda_nova():
         "mesa": mesa,
         "tipo_atendimento": tipo,
         "cliente_id": cliente_id,
+        "local_id": local_id,
         "limite": None,
         "data_abertura": now_brt().strftime("%Y-%m-%d"),
         "hora_abertura": now_brt().strftime("%H:%M"),
@@ -2057,7 +2626,55 @@ def comanda_nova():
     return redirect(url_for("comandas"))
 
 
+@app.route("/comandas/<cid>/editar", methods=["POST"])
+def comanda_editar(cid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return redirect(url_for("comandas"))
+
+    comanda = db.get_command(cid)
+    if not comanda:
+        return redirect(url_for("comandas"))
+
+    novo_nome = (request.form.get("nome") or "").strip()
+    if novo_nome and novo_nome != comanda.get("nome"):
+        nome_antigo = comanda.get("nome", "")
+        comanda["nome"] = novo_nome
+        db.update_command(comanda)
+        db.update_sales_comanda_nome(cid, novo_nome)
+        db.registrar_log(
+            session.get("usuario", ""), "comanda_editada",
+            f"Renomeou comanda: {nome_antigo} → {novo_nome}",
+            now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+        )
+    return redirect(url_for("comandas"))
+
+
 # ==================== CLIENTES ====================
+
+@app.route("/clientes")
+def clientes_lista():
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return redirect(url_for("comandas"))
+
+    clientes = db.get_all_clientes()
+    saldos = db.get_saldos_clientes([c["id"] for c in clientes])
+    for c in clientes:
+        saldo = saldos.get(c["id"], 0.0)
+        limite = to_float(c.get("limite_credito") or 0)
+        c["saldo_utilizado"] = saldo
+        c["credito_disponivel"] = round(limite - saldo, 2)
+
+    return render_template(
+        "clientes.html",
+        clientes=clientes,
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+    )
+
 
 @app.route("/clientes/buscar")
 def clientes_buscar():
@@ -2128,6 +2745,93 @@ def cliente_novo():
     return jsonify(novo)
 
 
+@app.route("/clientes/<cid>/editar", methods=["POST"])
+def cliente_editar(cid):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return jsonify({"erro": "não autorizado"}), 403
+
+    cliente = db.get_cliente(cid)
+    if not cliente:
+        return jsonify({"erro": "Cliente não encontrado"}), 404
+
+    nome = (request.form.get("nome") or "").strip()
+    telefone = (request.form.get("telefone") or "").strip()
+    if not nome:
+        return jsonify({"erro": "Nome obrigatório"}), 400
+    if not telefone:
+        return jsonify({"erro": "Telefone obrigatório"}), 400
+
+    cliente.update({
+        "nome": nome,
+        "apelido": (request.form.get("apelido") or "").strip(),
+        "telefone": telefone,
+        "cpf": (request.form.get("cpf") or "").strip(),
+        "rg": (request.form.get("rg") or "").strip(),
+        "endereco": (request.form.get("endereco") or "").strip(),
+        "observacoes": (request.form.get("observacoes") or "").strip(),
+        "limite_credito": to_float(request.form.get("limite_credito") or "0"),
+        "dia_vencimento": to_int(request.form.get("dia_vencimento") or "0") or None,
+        "proximo_vencimento": (request.form.get("proximo_vencimento") or "").strip(),
+    })
+    try:
+        db.update_cliente(cliente)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "cliente_editado", f"Editou cliente: {nome}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(cliente)
+
+
+@app.route("/clientes/<cid>/excluir", methods=["POST"])
+def cliente_excluir(cid):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return jsonify({"erro": "não autorizado"}), 403
+
+    cliente = db.get_cliente(cid)
+    if not cliente:
+        return jsonify({"erro": "Cliente não encontrado"}), 404
+
+    if db.tem_comandas_abertas_cliente(cid):
+        return jsonify({"erro": "Esse cliente tem comanda em aberto. Feche ou quite antes de excluir."}), 400
+
+    try:
+        db.delete_cliente(cid)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "cliente_excluido", f"Excluiu cliente: {cliente.get('nome', '')}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/comandas/<cid>/detalhe_json")
+def comanda_detalhe_json(cid):
+    """Itens/empréstimos/pagamentos de 1 comanda, sob demanda — carregado só
+    quando o painel de detalhe dela é aberto em /comandas, em vez de vir
+    embutido no JSON de TODAS as comandas já na carga inicial da página
+    (mesmo padrão já usado em /estoque/transferencia/produto_lotes e
+    /clientes/<cid>/info)."""
+    if not usuario_logado():
+        return jsonify({}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return jsonify({}), 403
+    c = db.get_command(cid)
+    if not c:
+        return jsonify({}), 404
+    return jsonify({
+        "itens": c.get("itens", []),
+        "emprestimos": c.get("emprestimos", []),
+        "pagamentos": c.get("pagamentos", []),
+    })
+
+
 @app.route("/comandas/<cid>")
 def comanda_detalhe(cid):
     if not usuario_logado():
@@ -2146,10 +2850,8 @@ def comanda_detalhe(cid):
     bar_pacotes = [p for p in db.bar_get_all_products() if p.get("type") == "composite"]
     bar_pacotes.sort(key=lambda p: str(p.get("name", "")).lower())
 
-    total = sum(
-        to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
-        for i in comanda.get("itens", [])
-    )
+    total = _total_comanda(comanda)
+    locais_nomes_map = {l["id"]: l["nome"] for l in db.get_all_locais_estoque()}
 
     return render_template(
         "comanda_detalhe.html",
@@ -2157,10 +2859,14 @@ def comanda_detalhe(cid):
         estoque=estoque_disponivel,
         bar_pacotes=bar_pacotes,
         total=round(total, 2),
+        margem_atual=_margem_comanda(comanda),
+        permite_margem=(session.get("tipo") == "admin" or tem_permissao("aplicar_desconto")),
         erro=session.pop("erro_comanda", ""),
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
-        usuario=session.get("usuario", "")
+        usuario=session.get("usuario", ""),
+        locais_nomes_map=locais_nomes_map,
+        local_padrao=LOCAL_PADRAO,
     )
 
 
@@ -2208,6 +2914,12 @@ def comanda_adicionar(cid):
                     components_consumo.append({"pid": comp_pid, "consumo": log})
 
                 custo_unit = round(total_cost / qtd, 4) if qtd else 0.0
+                margem_ativa = comanda.get("margem_customizada")
+                preco_unit = (
+                    _preco_por_margem(custo_unit, margem_ativa)
+                    if margem_ativa is not None
+                    else to_float(bar_prod.get("sale_price", 0))
+                )
                 hoje_item = now_brt().strftime("%Y-%m-%d")
                 hora_item = now_brt().strftime("%H:%M")
                 sale_uid = uuid.uuid4().hex
@@ -2220,7 +2932,7 @@ def comanda_adicionar(cid):
                     "produto_pid": pid,
                     "produto_tipo": "bar",
                     "nome": bar_prod["name"],
-                    "valor_venda": to_float(bar_prod.get("sale_price", 0)),
+                    "valor_venda": round(preco_unit, 4),
                     "valor_investido": custo_unit,
                     "quantidade": qtd,
                     "status": "pendente",
@@ -2234,7 +2946,7 @@ def comanda_adicionar(cid):
                     "produto_tipo": "bar",
                     "nome": bar_prod["name"],
                     "quantidade": qtd,
-                    "valor_venda": to_float(bar_prod.get("sale_price", 0)),
+                    "valor_venda": round(preco_unit, 4),
                     "valor_investido": custo_unit,
                     "consumo_lotes": all_logs,
                     "bar_consumo_components": components_consumo,
@@ -2253,15 +2965,26 @@ def comanda_adicionar(cid):
         else:
             try:
                 cv = float((produto or {}).get("conteudo_valor") or 1)
+                margem_ativa = comanda.get("margem_customizada")
+                local_id = comanda.get("local_id") or LOCAL_PADRAO
                 if vender_por_conteudo and cv > 1:
                     qtd_estoque = qtd / cv
-                    custo_total, consumo = bar_fifo_consume(pid, qtd_estoque)
+                    custo_total, consumo = consumir_fifo_local(produto, qtd_estoque, local_id)
                     custo_unit_medio = (custo_total / qtd) if qtd else 0.0
-                    preco_unit = to_float(produto.get("valor_venda", 0)) / cv
+                    preco_unit = (
+                        _preco_por_margem(custo_unit_medio, margem_ativa)
+                        if margem_ativa is not None
+                        else to_float(produto.get("valor_venda", 0)) / cv
+                    )
+                    db.update_product(produto)
                 else:
-                    custo_total, consumo = consumir_fifo(produto, qtd)
+                    custo_total, consumo = consumir_fifo_local(produto, qtd, local_id)
                     custo_unit_medio = (custo_total / qtd) if qtd else 0.0
-                    preco_unit = to_float(produto.get("valor_venda", 0))
+                    preco_unit = (
+                        _preco_por_margem(custo_unit_medio, margem_ativa)
+                        if margem_ativa is not None
+                        else to_float(produto.get("valor_venda", 0))
+                    )
                     db.update_product(produto)
 
                 hoje_item = now_brt().strftime("%Y-%m-%d")
@@ -2282,6 +3005,7 @@ def comanda_adicionar(cid):
                     "status": "pendente",
                     "consumo_lotes": consumo,
                     "usuario": session.get("usuario", ""),
+                    "local_id": local_id,
                 })
                 comanda["itens"].append({
                     "item_id": uuid.uuid4().hex,
@@ -2294,6 +3018,7 @@ def comanda_adicionar(cid):
                     "valor_venda": round(preco_unit, 4),
                     "valor_investido": round(custo_unit_medio, 4),
                     "consumo_lotes": consumo,
+                    "local_id": local_id,
                     "data": hoje_item,
                     "hora": hora_item
                 })
@@ -2308,20 +3033,73 @@ def comanda_adicionar(cid):
         estoque_disponivel.sort(key=lambda p: str(p.get("nome", "")).lower())
         bar_pacotes = [p for p in db.bar_get_all_products() if p.get("type") == "composite"]
         bar_pacotes.sort(key=lambda p: str(p.get("name", "")).lower())
-        total = sum(
-            to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
-            for i in comanda.get("itens", [])
-        )
+        total = _total_comanda(comanda)
         return render_template(
             "comanda_detalhe.html",
             comanda=comanda,
             estoque=estoque_disponivel,
             bar_pacotes=bar_pacotes,
             total=round(total, 2),
+            margem_atual=_margem_comanda(comanda),
+            permite_margem=(session.get("tipo") == "admin" or tem_permissao("aplicar_desconto")),
             erro=erro,
             tipo=session.get("tipo"),
             permissoes=session.get("permissoes", []),
-            usuario=session.get("usuario", "")
+            usuario=session.get("usuario", ""),
+            locais_nomes_map={l["id"]: l["nome"] for l in db.get_all_locais_estoque()},
+            local_padrao=LOCAL_PADRAO,
+        )
+
+    return redirect(url_for("comanda_detalhe", cid=cid))
+
+
+@app.route("/comandas/<cid>/margem", methods=["POST"])
+def comanda_margem(cid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("aplicar_desconto"):
+        session["_erro_autorizacao"] = "Você não tem permissão pra ajustar a margem da comanda."
+        return redirect(url_for("comanda_detalhe", cid=cid))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") != "aberta":
+        return redirect(url_for("comandas"))
+
+    if (request.form.get("acao") or "").strip() == "resetar":
+        comanda["margem_customizada"] = None
+        db.update_command(comanda)
+        return redirect(url_for("comanda_detalhe", cid=cid))
+
+    margem_raw = (request.form.get("margem") or "").strip()
+    try:
+        margem = float(margem_raw.replace(",", "."))
+    except ValueError:
+        session["_erro_autorizacao"] = "Margem inválida."
+        return redirect(url_for("comanda_detalhe", cid=cid))
+
+    if margem >= 100:
+        session["_erro_autorizacao"] = "Margem inválida (precisa ser menor que 100%)."
+        return redirect(url_for("comanda_detalhe", cid=cid))
+
+    comanda["margem_customizada"] = margem
+    itens_pulados = 0
+    for item in comanda.get("itens", []):
+        venda = db.get_sale(item.get("sale_uid", "")) if item.get("sale_uid") else None
+        if venda and venda.get("fechado"):
+            itens_pulados += 1
+            continue
+        novo_valor = round(_preco_por_margem(to_float(item.get("valor_investido", 0)), margem), 4)
+        item["valor_venda"] = novo_valor
+        if venda:
+            venda["valor_venda"] = novo_valor
+            db.update_sale(venda)
+
+    db.update_command(comanda)
+
+    if itens_pulados:
+        session["_erro_autorizacao"] = (
+            f"Margem aplicada, mas {itens_pulados} item(ns) não foram atualizados "
+            "porque já estão em um caixa fechado."
         )
 
     return redirect(url_for("comanda_detalhe", cid=cid))
@@ -2345,12 +3123,19 @@ def comanda_remover_item(cid, item_id):
                 devolver_bar_componentes(item.get("bar_consumo_components", []))
             elif item.get("vender_por_conteudo"):
                 pid_dev = str(item.get("produto_pid", ""))
-                devolver_bar_componentes([{"pid": pid_dev, "consumo": item.get("consumo_lotes", [])}])
+                consumo_dev = item.get("consumo_lotes", [])
+                if consumo_dev and isinstance(consumo_dev, list) and "qtd" in consumo_dev[0]:
+                    produto = db.get_product(pid_dev)
+                    if produto:
+                        devolver_fifo_local(produto, consumo_dev, item.get("local_id") or comanda.get("local_id") or LOCAL_PADRAO)
+                        db.update_product(produto)
+                else:
+                    devolver_bar_componentes([{"pid": pid_dev, "consumo": consumo_dev}])
             else:
                 pid = str(item.get("produto_pid", ""))
                 produto = db.get_product(pid)
                 if produto and item.get("consumo_lotes"):
-                    devolver_fifo(produto, item["consumo_lotes"])
+                    devolver_fifo_local(produto, item["consumo_lotes"], item.get("local_id") or comanda.get("local_id") or LOCAL_PADRAO)
                     db.update_product(produto)
 
             comanda["itens"] = [i for i in comanda["itens"] if str(i.get("item_id")) != str(item_id)]
@@ -2360,6 +3145,68 @@ def comanda_remover_item(cid, item_id):
         except RuntimeError as e:
             session["erro_comanda"] = f"Não foi possível remover o item: {e}"
 
+    return redirect(url_for("comanda_detalhe", cid=cid))
+
+
+@app.route("/comandas/<cid>/emprestimo", methods=["POST"])
+def comanda_emprestimo(cid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") != "aberta":
+        return redirect(url_for("comandas"))
+
+    motivo = (request.form.get("motivo") or "").strip()
+    valor = to_float(request.form.get("valor"))
+    vencimento = (request.form.get("vencimento") or "").strip()
+
+    if not motivo or valor <= 0:
+        session["erro_comanda"] = "Informe o motivo e um valor válido para o empréstimo."
+        return redirect(url_for("comanda_detalhe", cid=cid))
+
+    hoje = now_brt().strftime("%Y-%m-%d")
+    hora = now_brt().strftime("%H:%M")
+    usuario = session.get("usuario", "")
+
+    emprestimos = comanda.get("emprestimos") or []
+    emprestimos.append({
+        "id": uuid.uuid4().hex,
+        "motivo": motivo,
+        "valor": round(valor, 2),
+        "vencimento": vencimento,
+        "data": hoje,
+        "hora": hora,
+        "criado_por": usuario,
+    })
+    comanda["emprestimos"] = emprestimos
+    db.update_command(comanda)
+    venc_txt = f" (devolução prevista: {vencimento})" if vencimento else ""
+    db.registrar_log(
+        usuario, "emprestimo_comanda",
+        f"Lançou empréstimo de R$ {valor:.2f} na comanda {comanda.get('nome', '')}: {motivo}{venc_txt}",
+        hoje, hora,
+    )
+    return redirect(url_for("comanda_detalhe", cid=cid))
+
+
+@app.route("/comandas/<cid>/emprestimo/<emp_id>/remover", methods=["POST"])
+def comanda_emprestimo_remover(cid, emp_id):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") != "aberta":
+        return redirect(url_for("comandas"))
+
+    comanda["emprestimos"] = [
+        e for e in comanda.get("emprestimos", []) if str(e.get("id")) != str(emp_id)
+    ]
+    db.update_command(comanda)
     return redirect(url_for("comanda_detalhe", cid=cid))
 
 
@@ -2377,23 +3224,75 @@ def comanda_remover(cid):
         return redirect(url_for("comandas"))
 
     try:
-        for item in comanda.get("itens", []):
+        itens = comanda.get("itens", [])
+
+        # 1ª passada (sem consulta ao banco): descobre de antemão quais
+        # produtos serão tocados, pra buscar todos numa única chamada em vez
+        # de 1 chamada por item/componente (mesmos critérios da 2ª passada
+        # abaixo, só adiantados).
+        pids_necessarios = set()
+        for item in itens:
             if item.get("produto_tipo") == "bar":
-                devolver_bar_componentes(item.get("bar_consumo_components", []))
+                for comp in (item.get("bar_consumo_components", []) or []):
+                    if comp.get("pid") and comp.get("consumo"):
+                        pids_necessarios.add(str(comp["pid"]))
             elif item.get("vender_por_conteudo"):
                 pid_dev = str(item.get("produto_pid", ""))
-                devolver_bar_componentes([{"pid": pid_dev, "consumo": item.get("consumo_lotes", [])}])
+                if pid_dev and item.get("consumo_lotes"):
+                    pids_necessarios.add(pid_dev)
             else:
                 pid = str(item.get("produto_pid", ""))
-                produto = db.get_product(pid)
+                if pid and item.get("consumo_lotes"):
+                    pids_necessarios.add(pid)
+
+        produtos_por_pid = {
+            p["pid"]: p for p in db.get_products_by_pids(list(pids_necessarios))
+        }
+        produtos_alterados = set()
+
+        # 2ª passada: aplica exatamente a mesma regra de devolução de estoque
+        # de antes, mas em memória sobre produtos_por_pid — sem 1 leitura e
+        # 1 gravação por item da comanda.
+        for item in itens:
+            if item.get("produto_tipo") == "bar":
+                for comp in (item.get("bar_consumo_components", []) or []):
+                    pid = comp.get("pid", "")
+                    consumo = comp.get("consumo", [])
+                    if not pid or not consumo:
+                        continue
+                    produto = produtos_por_pid.get(str(pid))
+                    if not produto:
+                        continue
+                    _aplicar_devolucao_bar_componente(produto, consumo)
+                    produtos_alterados.add(produto["pid"])
+            elif item.get("vender_por_conteudo"):
+                pid_dev = str(item.get("produto_pid", ""))
+                consumo_dev = item.get("consumo_lotes", [])
+                if consumo_dev and isinstance(consumo_dev, list) and "qtd" in consumo_dev[0]:
+                    produto = produtos_por_pid.get(pid_dev)
+                    if produto:
+                        devolver_fifo_local(produto, consumo_dev, item.get("local_id") or comanda.get("local_id") or LOCAL_PADRAO)
+                        produtos_alterados.add(produto["pid"])
+                elif pid_dev and consumo_dev:
+                    produto = produtos_por_pid.get(pid_dev)
+                    if produto:
+                        _aplicar_devolucao_bar_componente(produto, consumo_dev)
+                        produtos_alterados.add(produto["pid"])
+            else:
+                pid = str(item.get("produto_pid", ""))
+                produto = produtos_por_pid.get(pid)
                 if produto and item.get("consumo_lotes"):
-                    devolver_fifo(produto, item["consumo_lotes"])
-                    db.update_product(produto)
+                    devolver_fifo_local(produto, item["consumo_lotes"], item.get("local_id") or comanda.get("local_id") or LOCAL_PADRAO)
+                    produtos_alterados.add(produto["pid"])
+
+        for pid in produtos_alterados:
+            db.update_product(produtos_por_pid[pid])
 
         db.delete_command(cid)
-        for item in comanda.get("itens", []):
-            if item.get("sale_uid"):
-                db.cancelar_sale(item["sale_uid"], session.get("usuario", ""), now_brt().strftime("%Y-%m-%d %H:%M"))
+
+        sale_uids = [item["sale_uid"] for item in itens if item.get("sale_uid")]
+        if sale_uids:
+            db.cancelar_sales_em_lote(sale_uids, session.get("usuario", ""), now_brt().strftime("%Y-%m-%d %H:%M"))
     except RuntimeError as e:
         session["erro_comanda"] = f"Não foi possível cancelar a comanda: {e}"
         return redirect(url_for("comanda_detalhe", cid=cid))
@@ -2478,7 +3377,7 @@ def comanda_pagar(cid):
     if not comanda or comanda.get("status") not in PAGAVEIS:
         return redirect(url_for("comandas"))
 
-    if not comanda.get("itens"):
+    if not comanda.get("itens") and not comanda.get("emprestimos"):
         return redirect(url_for("comandas"))
 
     valor_raw = (request.form.get("valor") or "0").strip()
@@ -2486,10 +3385,7 @@ def comanda_pagar(cid):
     forma = (request.form.get("forma") or "dinheiro").strip()
     obs   = (request.form.get("obs") or "").strip()
 
-    total = sum(
-        to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
-        for i in comanda.get("itens", [])
-    )
+    total = _total_comanda(comanda)
     pago_antes = sum(to_float(p.get("valor", 0)) for p in comanda.get("pagamentos", []))
     saldo = round(total - pago_antes, 2)
 
@@ -2580,7 +3476,7 @@ def comanda_fechar(cid):
     if not comanda or comanda.get("status") not in FECHAVEIS:
         return redirect(url_for("comandas"))
 
-    if not comanda.get("itens"):
+    if not comanda.get("itens") and not comanda.get("emprestimos"):
         return redirect(url_for("comandas"))
 
     forma_pagamento = (request.form.get("forma_pagamento") or "dinheiro").strip()
@@ -2588,10 +3484,7 @@ def comanda_fechar(cid):
     hora = now_brt().strftime("%H:%M")
     usuario = session.get("usuario", "")
 
-    total = sum(
-        to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0))
-        for i in comanda.get("itens", [])
-    )
+    total = _total_comanda(comanda)
     pago_antes = sum(to_float(p.get("valor", 0)) for p in comanda.get("pagamentos", []))
     restante = round(total - pago_antes, 2)
 
@@ -2652,6 +3545,454 @@ def comanda_reverter(cid):
     except RuntimeError:
         pass
     return redirect(url_for("comandas"))
+
+
+# ================== INVESTIDORES ==================
+
+def _fracao_paga_por_comanda() -> dict:
+    """Réplica da mesma fórmula já usada em financeiro() pra saber quanto de
+    cada comanda em pagamento parcial já foi efetivamente pago pelo cliente.
+    Implementação própria (não chama financeiro()) pra não alterar nada lá."""
+    fracoes = {}
+    for c in db.get_all_commands():
+        if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
+            continue
+        total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
+        pago_c = sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
+        fracoes[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
+    return fracoes
+
+
+_RESULTADO_LOTE_VAZIO = {
+    "receita": 0.0, "custo": 0.0, "lucro": 0.0, "qtd_vendida": 0.0,
+    "receita_pendente": 0.0, "lucro_pendente": 0.0,
+}
+
+# _calcular_resultados_lotes() varre sales + commands inteiras — caro, e
+# tanto o dashboard de Investidores quanto a página de cada investidor
+# pedem esse mesmo cálculo, um logo depois do outro, na mesma navegação.
+# Cache curto (60s) evita refazer a varredura inteira a cada clique; dado
+# não muda perceptivelmente entre 2 cliques do mesmo usuário no módulo.
+_CACHE_RESULTADOS_LOTES_TTL = 60
+_cache_resultados_lotes = {"dados": None, "ts": 0.0}
+
+
+def _calcular_resultados_lotes_todos() -> dict:
+    """Varre as vendas não canceladas uma única vez e calcula, por lote_id
+    (de TODOS os lotes ativos), receita/custo/lucro REALIZADOS (só a fração
+    já paga pelo cliente, mesmo princípio do "Venda ≠ Recebimento ≠ Lucro"
+    do Financeiro) e quantidade vendida. Também acumula
+    receita_pendente/lucro_pendente — o complemento (fração ainda não paga)
+    de cada venda, pra dar visibilidade ao que está "na fila" sem contar
+    como realizado. Quando uma venda consumiu de mais de um lote (ex:
+    pacote do bar com vários componentes), rateia proporcionalmente ao
+    custo que cada lote contribuiu pra aquela venda."""
+    # As 3 buscas abaixo são independentes entre si — rodam em paralelo em
+    # vez de uma atrás da outra (mesma ideia já aplicada no Financeiro).
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        fut_lotes = executor.submit(db.get_all_lote_investimentos)
+        fut_fracao = executor.submit(_fracao_paga_por_comanda)
+        fut_vendas = executor.submit(db.get_all_sales)
+        lote_ids = {l["id"] for l in fut_lotes.result()}
+        fracao_paga_comanda = fut_fracao.result()
+        vendas = fut_vendas.result()
+
+    resultado = {lid: dict(_RESULTADO_LOTE_VAZIO) for lid in lote_ids}
+
+    for v in vendas:
+        consumo = v.get("consumo_lotes") or []
+        if not consumo:
+            continue
+        custo_total_venda = sum(
+            to_float(c.get("custo_unit", c.get("unit_cost", 0))) * to_float(c.get("qtd", c.get("qty", 0)))
+            for c in consumo
+        )
+        if custo_total_venda <= 0:
+            continue
+
+        qtd_venda = to_float(v.get("quantidade", 0))
+        valor_unit = to_float(v.get("valor_venda", 0))
+        receita_total_venda = valor_unit * qtd_venda
+        lucro_total_venda = receita_total_venda - custo_total_venda
+
+        comanda_id = v.get("comanda_id")
+        if comanda_id:
+            status_v = v.get("status")
+            if status_v == "quitada":
+                fracao = 1.0
+            elif status_v == "parcial":
+                fracao = fracao_paga_comanda.get(comanda_id, 0.0)
+            else:
+                fracao = 0.0
+        else:
+            fracao = 1.0  # venda avulsa (fora de comanda) já é recebida na hora
+
+        for c in consumo:
+            lid = c.get("lote_id")
+            if lid not in resultado:
+                continue
+            qtd_c = to_float(c.get("qtd", c.get("qty", 0)))
+            custo_c = to_float(c.get("custo_unit", c.get("unit_cost", 0))) * qtd_c
+            fatia = custo_c / custo_total_venda
+            resultado[lid]["receita"] += receita_total_venda * fatia * fracao
+            resultado[lid]["custo"]   += custo_c
+            resultado[lid]["lucro"]   += lucro_total_venda * fatia * fracao
+            resultado[lid]["qtd_vendida"] += qtd_c
+            resultado[lid]["receita_pendente"] += receita_total_venda * fatia * (1 - fracao)
+            resultado[lid]["lucro_pendente"]   += lucro_total_venda * fatia * (1 - fracao)
+
+    return resultado
+
+
+def _obter_todos_resultados_lotes() -> dict:
+    """Cálculo completo (todos os lotes) respeitando o cache de
+    _CACHE_RESULTADOS_LOTES_TTL segundos — usado tanto por
+    _calcular_resultados_lotes() quanto diretamente pelas rotas, quando
+    fazem sentido disparar esse cálculo em paralelo com outras buscas
+    independentes (ver investidores_home/investidor_detalhe)."""
+    agora = time.monotonic()
+    cache = _cache_resultados_lotes
+    if cache["dados"] is None or (agora - cache["ts"]) >= _CACHE_RESULTADOS_LOTES_TTL:
+        cache["dados"] = _calcular_resultados_lotes_todos()
+        cache["ts"] = agora
+    return cache["dados"]
+
+
+def _calcular_resultados_lotes(lote_ids: set) -> dict:
+    """Devolve os resultados (receita/custo/lucro realizado e pendente) só
+    dos lote_ids pedidos — mesmo contrato de sempre (mesmas chaves, mesmos
+    valores de antes). Por baixo, reaproveita um cálculo cacheado por até
+    _CACHE_RESULTADOS_LOTES_TTL segundos em vez de varrer vendas e comandas
+    de novo a cada chamada — dashboard de Investidores e página de um
+    investidor específico pediam exatamente o mesmo cálculo, um logo depois
+    do outro."""
+    todos = _obter_todos_resultados_lotes()
+    return {lid: todos.get(lid, dict(_RESULTADO_LOTE_VAZIO)) for lid in lote_ids}
+
+
+@app.route("/investidores")
+def investidores_home():
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("ver_investidores"):
+        return redirect(url_for("comandas"))
+
+    editar = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
+
+    # As 4 buscas abaixo são independentes entre si (o cálculo de resultados
+    # busca seu próprio universo de lotes por baixo — não depende de
+    # "lotes" buscado aqui) — rodam em paralelo em vez de uma atrás da
+    # outra, mesma ideia já aplicada no Financeiro.
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        fut_investidores = executor.submit(db.get_all_investidores)
+        fut_lotes = executor.submit(db.get_all_lote_investimentos)
+        fut_produtos = executor.submit(db.get_all_products)
+        fut_todos_resultados = executor.submit(_obter_todos_resultados_lotes)
+        investidores = fut_investidores.result()
+        lotes = fut_lotes.result()
+        produtos_map = {p["pid"]: p for p in fut_produtos.result()}
+        todos_resultados = fut_todos_resultados.result()
+
+    resultados = {
+        lid: todos_resultados.get(lid, dict(_RESULTADO_LOTE_VAZIO))
+        for lid in {l["id"] for l in lotes}
+    }
+    investidores_map = {i["id"]: i for i in investidores}
+
+    f_data_ini = (request.args.get("data_ini") or "").strip()
+    f_data_fim = (request.args.get("data_fim") or "").strip()
+    f_investidor = (request.args.get("investidor_id") or "").strip()
+    f_pid = (request.args.get("pid") or "").strip()
+    f_categoria = (request.args.get("categoria") or "").strip()
+    f_fornecedor = (request.args.get("fornecedor") or "").strip()
+
+    def _fornecedor_efetivo(li):
+        return li.get("fornecedor") or produtos_map.get(li["pid"], {}).get("fornecedor") or ""
+
+    def passa_filtro(li):
+        if f_data_ini and li["data_entrada"] < f_data_ini:
+            return False
+        if f_data_fim and li["data_entrada"] > f_data_fim:
+            return False
+        if f_investidor and not any(p.get("investidor_id") == f_investidor for p in li.get("participantes", [])):
+            return False
+        if f_pid and li["pid"] != f_pid:
+            return False
+        if f_categoria and (produtos_map.get(li["pid"], {}).get("categoria") or "") != f_categoria:
+            return False
+        if f_fornecedor and _fornecedor_efetivo(li) != f_fornecedor:
+            return False
+        return True
+
+    lotes_filtrados = [li for li in lotes if passa_filtro(li)]
+    for li in lotes_filtrados:
+        li["_participantes_nomes"] = [
+            f"{investidores_map.get(p['investidor_id'], {}).get('nome', '?')} - {to_float(p['percentual']):g}%"
+            for p in li.get("participantes", [])
+        ]
+
+    participantes_distintos = {p["investidor_id"] for li in lotes_filtrados for p in li.get("participantes", [])}
+
+    total_investido_geral = sum(li["valor_total"] for li in lotes)
+    total_lucro_geral = sum(r["lucro"] for r in resultados.values())
+    pagamentos_por_investidor = db.get_totais_pagamentos_investidores([i["id"] for i in investidores])
+    total_pago_geral = sum(pagamentos_por_investidor.values())
+    total_pendente_geral = max(total_lucro_geral - total_pago_geral, 0.0)
+    valor_pendente_vendas_geral = sum(r["receita_pendente"] for r in resultados.values())
+    lucro_pendente_vendas_geral = sum(r["lucro_pendente"] for r in resultados.values())
+
+    investido_por_investidor = {i["id"]: 0.0 for i in investidores}
+    lucro_por_investidor = {i["id"]: 0.0 for i in investidores}
+    for li in lotes:
+        r = resultados.get(li["id"], {"lucro": 0.0})
+        for p in li.get("participantes", []):
+            iid = p["investidor_id"]
+            if iid not in investido_por_investidor:
+                continue
+            fatia = to_float(p["percentual"]) / 100.0
+            investido_por_investidor[iid] += li["valor_total"] * fatia
+            lucro_por_investidor[iid] += r["lucro"] * fatia
+
+    maior_investidor_id = max(investido_por_investidor, key=investido_por_investidor.get, default=None)
+    maior_lucro_investidor_id = max(lucro_por_investidor, key=lucro_por_investidor.get, default=None)
+
+    categorias_disponiveis = sorted({(p.get("categoria") or "").strip() for p in produtos_map.values() if p.get("categoria")})
+    fornecedores_disponiveis = sorted({_fornecedor_efetivo(li).strip() for li in lotes if _fornecedor_efetivo(li)})
+    produtos_com_lote = sorted(
+        {(li["pid"], li["produto_nome"]) for li in lotes},
+        key=lambda t: t[1].lower(),
+    )
+
+    return render_template(
+        "investidores.html",
+        editar=editar,
+        investidores=investidores,
+        lotes=lotes_filtrados,
+        produtos_map=produtos_map,
+        filtros={
+            "data_ini": f_data_ini, "data_fim": f_data_fim, "investidor_id": f_investidor,
+            "pid": f_pid, "categoria": f_categoria, "fornecedor": f_fornecedor,
+        },
+        categorias_disponiveis=categorias_disponiveis,
+        fornecedores_disponiveis=fornecedores_disponiveis,
+        produtos_com_lote=produtos_com_lote,
+        total_investido_filtrado=round(sum(li["valor_total"] for li in lotes_filtrados), 2),
+        qtd_lotes_filtrado=len(lotes_filtrados),
+        participantes_distintos=len(participantes_distintos),
+        dash_total_investido=round(total_investido_geral, 2),
+        dash_total_lucro=round(total_lucro_geral, 2),
+        dash_total_pago=round(total_pago_geral, 2),
+        dash_total_pendente=round(total_pendente_geral, 2),
+        dash_valor_pendente_vendas=round(valor_pendente_vendas_geral, 2),
+        dash_lucro_pendente_vendas=round(lucro_pendente_vendas_geral, 2),
+        dash_num_investidores=len(investidores),
+        dash_maior_investidor=investidores_map.get(maior_investidor_id),
+        dash_maior_lucro_investidor=investidores_map.get(maior_lucro_investidor_id),
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+    )
+
+
+@app.route("/investidores/novo", methods=["POST"])
+def investidor_novo():
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("editar_investidores"):
+        return jsonify({"erro": "não autorizado"}), 403
+    nome = (request.form.get("nome") or "").strip()
+    if not nome:
+        return jsonify({"erro": "Nome obrigatório"}), 400
+    novo = {
+        "id": uuid.uuid4().hex,
+        "nome": nome,
+        "documento": (request.form.get("documento") or "").strip(),
+        "telefone": (request.form.get("telefone") or "").strip(),
+        "email": (request.form.get("email") or "").strip(),
+        "observacoes": (request.form.get("observacoes") or "").strip(),
+        "status": (request.form.get("status") or "ativo").strip(),
+        "data_cadastro": now_brt().strftime("%Y-%m-%d"),
+    }
+    try:
+        db.insert_investidor(novo)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "investidor_criado", f"Cadastrou investidor: {nome}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(novo)
+
+
+@app.route("/investidores/<iid>/editar", methods=["POST"])
+def investidor_editar(iid):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("editar_investidores"):
+        return jsonify({"erro": "não autorizado"}), 403
+    investidor = db.get_investidor(iid)
+    if not investidor:
+        return jsonify({"erro": "Investidor não encontrado"}), 404
+    nome = (request.form.get("nome") or "").strip()
+    if not nome:
+        return jsonify({"erro": "Nome obrigatório"}), 400
+    investidor.update({
+        "nome": nome,
+        "documento": (request.form.get("documento") or "").strip(),
+        "telefone": (request.form.get("telefone") or "").strip(),
+        "email": (request.form.get("email") or "").strip(),
+        "observacoes": (request.form.get("observacoes") or "").strip(),
+        "status": (request.form.get("status") or "ativo").strip(),
+    })
+    try:
+        db.update_investidor(investidor)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "investidor_editado", f"Editou investidor: {nome}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(investidor)
+
+
+@app.route("/investidores/<iid>/excluir", methods=["POST"])
+def investidor_excluir(iid):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("editar_investidores"):
+        return jsonify({"erro": "não autorizado"}), 403
+    investidor = db.get_investidor(iid)
+    if not investidor:
+        return jsonify({"erro": "Investidor não encontrado"}), 404
+    if iid == db.DONO_INVESTIDOR_ID:
+        return jsonify({"erro": "O investidor 'dono' é gerenciado automaticamente pelo sistema e não pode ser excluído."}), 400
+    if db.tem_vinculos_investidor(iid):
+        return jsonify({"erro": "Esse investidor tem lotes ou pagamentos vinculados. Não é possível excluir."}), 400
+    try:
+        db.delete_investidor(iid)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "investidor_excluido", f"Excluiu investidor: {investidor.get('nome', '')}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/investidores/<iid>")
+def investidor_detalhe(iid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("ver_investidores"):
+        return redirect(url_for("comandas"))
+
+    investidor = db.get_investidor(iid)
+    if not investidor:
+        return redirect(url_for("investidores_home"))
+
+    editar = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
+
+    # As 4 buscas abaixo são independentes entre si (o cálculo de resultados
+    # busca seu próprio universo de lotes por baixo) — rodam em paralelo em
+    # vez de uma atrás da outra, mesma ideia já aplicada no Financeiro.
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        fut_lotes = executor.submit(db.get_all_lote_investimentos)
+        fut_produtos = executor.submit(db.get_all_products)
+        fut_todos_resultados = executor.submit(_obter_todos_resultados_lotes)
+        fut_pagamentos = executor.submit(db.get_pagamentos_investidor, iid)
+        lotes = [
+            li for li in fut_lotes.result()
+            if any(p.get("investidor_id") == iid for p in li.get("participantes", []))
+        ]
+        produtos_map = {p["pid"]: p for p in fut_produtos.result()}
+        todos_resultados = fut_todos_resultados.result()
+        pagamentos = fut_pagamentos.result()
+
+    resultados = {
+        lid: todos_resultados.get(lid, dict(_RESULTADO_LOTE_VAZIO))
+        for lid in {l["id"] for l in lotes}
+    }
+
+    total_investido = 0.0
+    valor_em_estoque = 0.0
+    receita_gerada = 0.0
+    lucro_acumulado = 0.0
+    receita_pendente_investidor = 0.0
+    lucro_pendente_investidor = 0.0
+    linhas = []
+    for li in lotes:
+        pct = next((to_float(p["percentual"]) for p in li["participantes"] if p["investidor_id"] == iid), 0.0) / 100.0
+        r = resultados.get(li["id"], {"receita": 0.0, "lucro": 0.0, "qtd_vendida": 0.0, "receita_pendente": 0.0, "lucro_pendente": 0.0})
+        produto = produtos_map.get(li["pid"], {})
+        qtd_restante = sum(to_float(l.get("qtd", 0)) for l in produto.get("lotes", []) if l.get("id") == li["id"])
+        valor_restante = qtd_restante * to_float(li["custo_unit"])
+
+        total_investido += li["valor_total"] * pct
+        valor_em_estoque += valor_restante * pct
+        receita_gerada += r["receita"] * pct
+        lucro_acumulado += r["lucro"] * pct
+        receita_pendente_investidor += r["receita_pendente"] * pct
+        lucro_pendente_investidor += r["lucro_pendente"] * pct
+
+        linhas.append({
+            "lote": li, "produto_nome": li["produto_nome"], "percentual": pct * 100,
+            "valor_lote": li["valor_total"], "sua_fatia": li["valor_total"] * pct,
+            "qtd_restante": qtd_restante, "lucro_gerado": r["lucro"] * pct,
+            "lucro_pendente": r["lucro_pendente"] * pct,
+        })
+
+    valor_recebido = sum(to_float(p["valor"]) for p in pagamentos)
+    saldo_a_receber = round(lucro_acumulado - valor_recebido, 2)
+
+    return render_template(
+        "investidor_detalhe.html",
+        investidor=investidor,
+        editar=editar,
+        linhas=linhas,
+        pagamentos=pagamentos,
+        total_investido=round(total_investido, 2),
+        qtd_lotes=len(lotes),
+        valor_em_estoque=round(valor_em_estoque, 2),
+        receita_gerada=round(receita_gerada, 2),
+        lucro_acumulado=round(lucro_acumulado, 2),
+        valor_recebido=round(valor_recebido, 2),
+        saldo_a_receber=saldo_a_receber,
+        receita_pendente=round(receita_pendente_investidor, 2),
+        lucro_pendente=round(lucro_pendente_investidor, 2),
+        hoje=today_brt().isoformat(),
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+    )
+
+
+@app.route("/investidores/<iid>/pagamento", methods=["POST"])
+def investidor_pagamento(iid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("editar_investidores"):
+        return redirect(url_for("investidor_detalhe", iid=iid))
+    investidor = db.get_investidor(iid)
+    if not investidor:
+        return redirect(url_for("investidores_home"))
+
+    data = (request.form.get("data") or "").strip() or today_brt().isoformat()
+    valor = to_float(request.form.get("valor"), 0.0)
+    observacao = (request.form.get("observacao") or "").strip()
+    if valor > 0:
+        db.insert_pagamento_investidor({
+            "id": uuid.uuid4().hex,
+            "investidor_id": iid,
+            "data": normalizar_data_str(data),
+            "valor": valor,
+            "observacao": observacao,
+            "usuario": session.get("usuario", ""),
+            "criado_em": now_brt().strftime("%Y-%m-%d %H:%M"),
+        })
+        db.registrar_log(
+            session.get("usuario", ""), "pagamento_investidor",
+            f"Registrou pagamento de R$ {valor:.2f} pro investidor {investidor.get('nome', '')}",
+            now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+        )
+    return redirect(url_for("investidor_detalhe", iid=iid))
 
 
 # ================== CAIXA PDV ==================
@@ -3272,6 +4613,8 @@ def financeiro():
     if session.get("tipo") != "admin" and not tem_permissao("ver_financeiro"):
         return redirect(url_for("vendas"))
 
+    pode_ver_despesas = session.get("tipo") == "admin" or tem_permissao("ver_despesas")
+
     data_ini_raw = (request.args.get("data_ini") or "").strip()
     data_fim_raw = (request.args.get("data_fim") or "").strip()
 
@@ -3283,7 +4626,57 @@ def financeiro():
     data_de = parse_date_input(data_ini_raw)
     data_ate = parse_date_input(data_fim_raw)
 
-    vendas = db.get_all_sales()  # já exclui canceladas (excluida=False)
+    def _buscar_vendas():
+        # Quando o período tem as duas pontas definidas (caso normal,
+        # inclusive o padrão "hoje"), pede só esse intervalo pro banco em vez
+        # da tabela de vendas inteira. Se faltar alguma ponta (filtro
+        # limpo/parcial), cai de volta pra busca completa — igual ao
+        # comportamento de antes — pra não arriscar mudar o resultado
+        # exibido nesse caso raro.
+        if data_ini_raw and data_fim_raw:
+            return db.get_sales_by_date_range(data_ini_raw, data_fim_raw)
+        return db.get_all_sales()  # já exclui canceladas (excluida=False)
+
+    # As 7 buscas abaixo são todas independentes entre si (nenhuma usa o
+    # resultado da outra) — antes rodavam uma atrás da outra, cada uma
+    # pagando sua própria viagem de rede até o Supabase (a API REST não tem
+    # pool de conexão nem faz nada em paralelo sozinha). Agora rodam ao
+    # mesmo tempo em threads: o tempo total passa a ser o da busca mais
+    # lenta, não a soma de todas. Nenhum cálculo ou resultado exibido muda,
+    # só a ordem/paralelismo das leituras.
+    tarefas = {
+        "vendas": _buscar_vendas,
+        "comandas": db.get_all_commands,
+        "despesas": (lambda: db.get_all_despesas()) if pode_ver_despesas else (lambda: []),
+        "despesas_categorias": (lambda: db.get_all_despesas_categorias()) if pode_ver_despesas else (lambda: []),
+        "despesas_recorrentes": (lambda: db.get_all_despesas_recorrentes()) if pode_ver_despesas else (lambda: []),
+        "caixas": db.get_all_caixas,
+        "lote_investimentos": db.get_all_lote_investimentos,
+    }
+    with ThreadPoolExecutor(max_workers=len(tarefas)) as executor:
+        futuros = {nome: executor.submit(fn) for nome, fn in tarefas.items()}
+        resultados = {nome: fut.result() for nome, fut in futuros.items()}
+
+    vendas = resultados["vendas"]
+    todas_comandas = resultados["comandas"]
+    todas_despesas = resultados["despesas"]
+    despesas_categorias = resultados["despesas_categorias"]
+    despesas_recorrentes = resultados["despesas_recorrentes"]
+    todas_caixas = resultados["caixas"]
+    todos_lotes_investimento = resultados["lote_investimentos"]
+
+    if pode_ver_despesas:
+        try:
+            # Se alguma despesa recorrente automática for gerada agora
+            # (dia de vencimento chegou e ainda não tinha instância este
+            # mês), soma na lista já buscada em memória — sem precisar
+            # buscar despesas de novo no banco pra ela aparecer nesta mesma
+            # tela (mesmo resultado de antes, sem custo extra).
+            novas_despesas = _gerar_despesas_recorrentes_pendentes(todas_despesas, despesas_recorrentes)
+            if novas_despesas:
+                todas_despesas = todas_despesas + novas_despesas
+        except Exception:
+            pass  # nunca deve derrubar o carregamento do financeiro
 
     vendas_filtradas = []
     for v in vendas:
@@ -3303,12 +4696,17 @@ def financeiro():
         reverse=True
     )
 
+    # todas_comandas já foi buscada no lote paralelo acima e é reaproveitada
+    # aqui nos 3 lugares que precisam dela (fração paga, pagamentos por
+    # forma, contagem por status) — antes eram 3 buscas completas de
+    # commands na mesma requisição.
+
     # Fração paga de cada comanda parcial (pago / total), pra reconhecer
     # recebido/lucro na proporção certa — nunca o valor cheio antes de entrar
     # de fato no caixa. Comandas quitadas/pendentes não precisam da fração
     # (100% e 0% respectivamente, já cobertos pelo status da venda).
     fracao_paga_comanda = {}
-    for c in db.get_all_commands():
+    for c in todas_comandas:
         if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
             continue
         total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
@@ -3381,7 +4779,7 @@ def financeiro():
             continue
         forma = normalizar_pagamento(v.get("forma_pagamento", ""))
         pag_totais[forma] += to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 0))
-    for c in db.get_all_commands():
+    for c in todas_comandas:
         if not isinstance(c, dict):
             continue
         for p in c.get("pagamentos", []):
@@ -3400,7 +4798,7 @@ def financeiro():
     num_comandas_parciais = 0
     num_comandas_quitadas = 0
     STATUS_ABERTA = ("aberta", "aguardando_pagamento", "agendado", "atrasada", "em_pagamento")
-    for c in db.get_all_commands():
+    for c in todas_comandas:
         if not isinstance(c, dict):
             continue
         d = parse_date_input(c.get("data_abertura", ""))
@@ -3428,6 +4826,78 @@ def financeiro():
         if isinstance(v, dict) and v.get("nome", "").strip()
     ))
 
+    # Sobras/faltas de caixa: diferença (contado - esperado) dos fechamentos
+    # de caixa concluídos dentro do período — soma todas as formas de
+    # pagamento pra dar o total que precisa ser contabilizado.
+    total_sobra_falta = 0.0
+    for c in todas_caixas:
+        if c.get("status") != "fechado":
+            continue
+        d_fech = parse_date_input(c.get("data_fechamento", ""))
+        if not d_fech:
+            continue
+        if data_de and d_fech < data_de:
+            continue
+        if data_ate and d_fech > data_ate:
+            continue
+        dif = c.get("diferencas") or {}
+        total_sobra_falta += (
+            to_float(dif.get("dinheiro", 0)) + to_float(dif.get("pix", 0))
+            + to_float(dif.get("credito", 0)) + to_float(dif.get("debito", 0))
+        )
+    total_sobra_falta = round(total_sobra_falta, 2)
+
+    # ── Despesas administrativas (aba nova, independente da despesa de
+    # caixa/turno já existente) e Investimento em Estoque (ledger de lotes
+    # já usado na feature de Investidores) — ambos filtrados pelo mesmo
+    # período do Financeiro. (pode_ver_despesas, todas_despesas,
+    # despesas_categorias e despesas_recorrentes já vieram do lote paralelo
+    # buscado no início da função — reaproveitados aqui.)
+    despesas_categorias_map = {c["id"]: c["nome"] for c in despesas_categorias}
+    filtro_categoria_id = (request.args.get("categoria_id") or "").strip()
+
+    despesas_periodo = []
+    total_despesas_periodo = 0.0
+    maior_despesa_periodo = 0.0
+    gasto_por_categoria = defaultdict(float)
+    if pode_ver_despesas:
+        for d in todas_despesas:
+            dd = parse_date_input(d.get("data", ""))
+            if not dd:
+                continue
+            if data_de and dd < data_de:
+                continue
+            if data_ate and dd > data_ate:
+                continue
+            if filtro_categoria_id and d.get("categoria_id") != filtro_categoria_id:
+                continue
+            despesas_periodo.append(d)
+            valor_d = to_float(d.get("valor", 0))
+            total_despesas_periodo += valor_d
+            maior_despesa_periodo = max(maior_despesa_periodo, valor_d)
+            gasto_por_categoria[d.get("categoria_id")] += valor_d
+        despesas_periodo.sort(key=lambda x: x.get("data", ""), reverse=True)
+    total_despesas_periodo = round(total_despesas_periodo, 2)
+    qtd_despesas_periodo = len(despesas_periodo)
+    categoria_maior_gasto = None
+    if gasto_por_categoria:
+        cat_id_top = max(gasto_por_categoria, key=gasto_por_categoria.get)
+        categoria_maior_gasto = despesas_categorias_map.get(cat_id_top)
+
+    total_investimento_estoque_periodo = 0.0
+    for li in todos_lotes_investimento:
+        d_lote = parse_date_input(li.get("data_entrada", ""))
+        if not d_lote:
+            continue
+        if data_de and d_lote < data_de:
+            continue
+        if data_ate and d_lote > data_ate:
+            continue
+        total_investimento_estoque_periodo += to_float(li.get("valor_total", 0))
+    total_investimento_estoque_periodo = round(total_investimento_estoque_periodo, 2)
+
+    lucro_disponivel = round(lucro_realizado - total_despesas_periodo, 2)
+
     return render_template(
         "financeiro.html",
         vendas=vendas_filtradas,
@@ -3442,6 +4912,7 @@ def financeiro():
         num_comandas_parciais=num_comandas_parciais,
         num_comandas_quitadas=num_comandas_quitadas,
         valor_recebido=valor_recebido,
+        total_sobra_falta=total_sobra_falta,
         num_vendas=len(vendas_filtradas),
         data_ini_raw=data_ini_raw,
         data_fim_raw=data_fim_raw,
@@ -3451,10 +4922,288 @@ def financeiro():
         pagamentos=pagamentos,
         nomes_sugestoes=nomes_sugestoes,
         hoje_raw=today_brt().strftime("%Y-%m-%d"),
+        despesas_categorias=despesas_categorias,
+        despesas_categorias_map=despesas_categorias_map,
+        despesas_recorrentes=despesas_recorrentes,
+        despesas_periodo=despesas_periodo,
+        filtro_categoria_id=filtro_categoria_id,
+        total_despesas_periodo=total_despesas_periodo,
+        qtd_despesas_periodo=qtd_despesas_periodo,
+        maior_despesa_periodo=maior_despesa_periodo,
+        categoria_maior_gasto=categoria_maior_gasto,
+        total_investimento_estoque_periodo=total_investimento_estoque_periodo,
+        lucro_disponivel=lucro_disponivel,
         usuario=session.get("usuario", ""),
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
     )
+
+
+# ================== DESPESAS ==================
+
+@app.route("/despesas/categorias/nova", methods=["POST"])
+def despesa_categoria_nova():
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+    nome = (request.form.get("nome") or "").strip()
+    if not nome:
+        return jsonify({"erro": "Nome obrigatório"}), 400
+    existente = next((c for c in db.get_all_despesas_categorias() if c["nome"].strip().lower() == nome.lower()), None)
+    if existente:
+        return jsonify(existente)
+    nova = {"id": uuid.uuid4().hex, "nome": nome}
+    try:
+        db.insert_despesa_categoria(nova)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    return jsonify(nova)
+
+
+@app.route("/despesas/nova", methods=["POST"])
+def despesa_nova():
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+
+    data = (request.form.get("data") or "").strip()
+    categoria_id = (request.form.get("categoria_id") or "").strip()
+    descricao = (request.form.get("descricao") or "").strip()
+    valor = to_float(request.form.get("valor"), 0.0)
+    if not data or not categoria_id or not descricao or valor <= 0:
+        return jsonify({"erro": "Preencha data, categoria, descrição e um valor válido."}), 400
+
+    nova = {
+        "id": uuid.uuid4().hex,
+        "data": normalizar_data_str(data),
+        "categoria_id": categoria_id,
+        "descricao": descricao,
+        "valor": valor,
+        "observacao": (request.form.get("observacao") or "").strip(),
+        "usuario": session.get("usuario", ""),
+        "criado_em": now_brt().strftime("%Y-%m-%d %H:%M"),
+    }
+    try:
+        db.insert_despesa(nova)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "despesa_criada", f"Lançou despesa: {descricao} (R$ {valor:.2f})",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(nova)
+
+
+@app.route("/despesas/<did>/editar", methods=["POST"])
+def despesa_editar(did):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+    despesa = db.get_despesa(did)
+    if not despesa:
+        return jsonify({"erro": "Despesa não encontrada"}), 404
+
+    data = (request.form.get("data") or "").strip()
+    categoria_id = (request.form.get("categoria_id") or "").strip()
+    descricao = (request.form.get("descricao") or "").strip()
+    valor = to_float(request.form.get("valor"), 0.0)
+    if not data or not categoria_id or not descricao or valor <= 0:
+        return jsonify({"erro": "Preencha data, categoria, descrição e um valor válido."}), 400
+
+    despesa.update({
+        "data": normalizar_data_str(data),
+        "categoria_id": categoria_id,
+        "descricao": descricao,
+        "valor": valor,
+        "observacao": (request.form.get("observacao") or "").strip(),
+    })
+    try:
+        db.update_despesa(despesa)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "despesa_editada", f"Editou despesa: {descricao} (R$ {valor:.2f})",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(despesa)
+
+
+@app.route("/despesas/<did>/excluir", methods=["POST"])
+def despesa_excluir(did):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+    despesa = db.get_despesa(did)
+    if not despesa:
+        return jsonify({"erro": "Despesa não encontrada"}), 404
+    try:
+        db.delete_despesa(did)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "despesa_excluida", f"Excluiu despesa: {despesa.get('descricao', '')}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify({"ok": True})
+
+
+def _gerar_despesas_recorrentes_pendentes(
+    despesas_existentes: list | None = None,
+    despesas_recorrentes_existentes: list | None = None,
+) -> list:
+    """Lança automaticamente, no mês atual, as despesas recorrentes ativas
+    cujo dia de vencimento já chegou e que ainda não têm instância gerada
+    esse mês. Sem cron: roda de forma leve toda vez que financeiro() carrega.
+
+    despesas_existentes / despesas_recorrentes_existentes: listas já
+    buscadas por quem chamou (financeiro() já busca as duas), pra não
+    repetir a mesma busca completa de novo aqui. Se não forem passadas
+    (outros usos futuros da função), busca por conta própria — mesmo
+    comportamento de antes.
+
+    Retorna a lista das despesas efetivamente criadas nesta chamada (pode
+    ser vazia), pra quem chamou poder somar na própria lista em memória sem
+    precisar buscar despesas de novo no banco só pra enxergar o que acabou
+    de ser inserido."""
+    hoje = now_brt().date()
+    ano, mes = hoje.year, hoje.month
+    ultimo_dia_mes = calendar.monthrange(ano, mes)[1]
+
+    todas = despesas_existentes if despesas_existentes is not None else db.get_all_despesas()
+    despesas_do_mes = [
+        d for d in todas
+        if d.get("recorrencia_id") and (d.get("data") or "").startswith(f"{ano:04d}-{mes:02d}")
+    ]
+    recorrencias_ja_geradas = {d["recorrencia_id"] for d in despesas_do_mes}
+
+    recorrentes = (
+        despesas_recorrentes_existentes if despesas_recorrentes_existentes is not None
+        else db.get_all_despesas_recorrentes()
+    )
+
+    novas_geradas = []
+    for r in recorrentes:
+        if not r.get("ativo"):
+            continue
+        if r["id"] in recorrencias_ja_geradas:
+            continue
+        dia_alvo = min(to_int(r.get("dia_mes"), 1), ultimo_dia_mes)
+        if hoje.day < dia_alvo:
+            continue
+        data_gerada = date(ano, mes, dia_alvo).isoformat()
+        nova = {
+            "id": uuid.uuid4().hex,
+            "data": data_gerada,
+            "categoria_id": r.get("categoria"),
+            "descricao": r.get("descricao", ""),
+            "valor": to_float(r.get("valor"), 0.0),
+            "observacao": r.get("observacao") or "",
+            "usuario": "Recorrente (automático)",
+            "criado_em": now_brt().strftime("%Y-%m-%d %H:%M"),
+            "recorrencia_id": r["id"],
+        }
+        try:
+            db.insert_despesa(nova)
+            novas_geradas.append(nova)
+        except RuntimeError:
+            pass
+    return novas_geradas
+
+
+@app.route("/despesas/recorrentes/nova", methods=["POST"])
+def despesa_recorrente_nova():
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+
+    categoria_id = (request.form.get("categoria_id") or "").strip()
+    descricao = (request.form.get("descricao") or "").strip()
+    valor = to_float(request.form.get("valor"), 0.0)
+    dia_mes = to_int(request.form.get("dia_mes"), 0)
+    if not categoria_id or not descricao or valor <= 0 or not (1 <= dia_mes <= 31):
+        return jsonify({"erro": "Preencha categoria, descrição, valor e um dia do mês entre 1 e 31."}), 400
+
+    nova = {
+        "id": uuid.uuid4().hex,
+        "categoria": categoria_id,
+        "descricao": descricao,
+        "valor": valor,
+        "dia_mes": dia_mes,
+        "observacao": (request.form.get("observacao") or "").strip(),
+        "ativo": True,
+        "criado_por": session.get("usuario", ""),
+        "criado_em": now_brt().strftime("%Y-%m-%d %H:%M"),
+    }
+    try:
+        db.insert_despesa_recorrente(nova)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "despesa_recorrente_criada", f"Criou despesa recorrente: {descricao} (R$ {valor:.2f}, dia {dia_mes})",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(nova)
+
+
+@app.route("/despesas/recorrentes/<rid>/editar", methods=["POST"])
+def despesa_recorrente_editar(rid):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+    recorrente = db.get_despesa_recorrente(rid)
+    if not recorrente:
+        return jsonify({"erro": "Despesa recorrente não encontrada"}), 404
+
+    categoria_id = (request.form.get("categoria_id") or "").strip()
+    descricao = (request.form.get("descricao") or "").strip()
+    valor = to_float(request.form.get("valor"), 0.0)
+    dia_mes = to_int(request.form.get("dia_mes"), 0)
+    if not categoria_id or not descricao or valor <= 0 or not (1 <= dia_mes <= 31):
+        return jsonify({"erro": "Preencha categoria, descrição, valor e um dia do mês entre 1 e 31."}), 400
+
+    recorrente.update({
+        "categoria": categoria_id,
+        "descricao": descricao,
+        "valor": valor,
+        "dia_mes": dia_mes,
+        "observacao": (request.form.get("observacao") or "").strip(),
+        "ativo": (request.form.get("ativo") or "1") == "1",
+    })
+    try:
+        db.update_despesa_recorrente(recorrente)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "despesa_recorrente_editada", f"Editou despesa recorrente: {descricao}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify(recorrente)
+
+
+@app.route("/despesas/recorrentes/<rid>/excluir", methods=["POST"])
+def despesa_recorrente_excluir(rid):
+    if not usuario_logado():
+        return jsonify({"erro": "não autorizado"}), 401
+    if session.get("tipo") != "admin" and not tem_permissao("ver_despesas"):
+        return jsonify({"erro": "não autorizado"}), 403
+    recorrente = db.get_despesa_recorrente(rid)
+    if not recorrente:
+        return jsonify({"erro": "Despesa recorrente não encontrada"}), 404
+    try:
+        db.delete_despesa_recorrente(rid)
+    except RuntimeError as e:
+        return jsonify({"erro": str(e)}), 500
+    db.registrar_log(
+        session.get("usuario", ""), "despesa_recorrente_excluida", f"Excluiu despesa recorrente: {recorrente.get('descricao', '')}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return jsonify({"ok": True})
 
 
 # ================== BAR ==================
@@ -3490,7 +5239,7 @@ def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
             custo_unit = to_float(lote.get("custo_unit", 0))
             consume = min(avail, remaining)
             total_cost += consume * custo_unit
-            log.append({"data_lote": lote.get("data"), "qty": round(consume, 6), "unit_cost": custo_unit})
+            log.append({"data_lote": lote.get("data"), "qty": round(consume, 6), "unit_cost": custo_unit, "lote_id": lote.get("id")})
             novo_qtd = round(avail - consume, 6)
             lote["qtd"] = novo_qtd
             if novo_qtd <= 0:
@@ -3575,10 +5324,7 @@ def bar_produtos():
         and (not codigo or (p.get("codigo") or "").upper() == codigo)
     ]
 
-    categorias = sorted(set(
-        (p.get("category") or "").strip()
-        for p in todos if p.get("category")
-    ))
+    categorias = _categorias_existentes(todos, campo="category")
     nomes_sugestoes = sorted(set(
         p.get("name", "").strip() for p in todos if p.get("name")
     ))
@@ -3625,7 +5371,12 @@ def bar_produto_novo():
                 "conteudo_valor": p.get("conteudo_valor") or 0,
                 "conteudo_unidade": p.get("conteudo_unidade") or ""}
                for p in db.get_all_products()]
+    categorias_extra = [
+        c for c in _categorias_existentes(db.bar_get_all_products(), campo="category")
+        if c.strip().lower() not in ("drink", "combo", "porcao")
+    ]
     return render_template("bar_produto_form.html", produto=None, components=[], insumos=insumos, erro=erro,
+        categorias_extra=categorias_extra,
         tipo=session.get("tipo"), usuario=session.get("usuario", ""), permissoes=session.get("permissoes", []))
 
 
@@ -3665,7 +5416,12 @@ def bar_produto_editar(pid):
                    "conteudo_unidade": p.get("conteudo_unidade") or ""}
                   for p in db.get_all_products()]
     components = db.bar_get_components(pid)
+    categorias_extra = [
+        c for c in _categorias_existentes(db.bar_get_all_products(), campo="category")
+        if c.strip().lower() not in ("drink", "combo", "porcao")
+    ]
     return render_template("bar_produto_form.html", produto=produto, components=components, insumos=insumos, erro=erro,
+        categorias_extra=categorias_extra,
         tipo=session.get("tipo"), usuario=session.get("usuario", ""), permissoes=session.get("permissoes", []))
 
 

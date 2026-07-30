@@ -24,6 +24,7 @@ tr:nth-child(even) { background:var(--table-even); }
   <h2>Histórico de Caixas</h2>
 
   {% if caixa and caixa|length > 0 %}
+  <div style="overflow-x:auto;">
   <table>
     <thead>
       <tr>
@@ -51,6 +52,7 @@ tr:nth-child(even) { background:var(--table-even); }
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
     <p style="text-align:center;">Nenhum caixa fechado ainda.</p>
   {% endif %}

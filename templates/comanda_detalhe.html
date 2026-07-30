@@ -111,6 +111,13 @@ input[name="produto_pid"] { display: none; }
   display: flex; align-items: center; gap: 6px; white-space: nowrap;
 }
 .cd-btn-add:hover { opacity: .88; }
+.cd-text-inp {
+  width: 100%; padding: 10px 14px; height: 40px; box-sizing: border-box;
+  border-radius: 9px; border: 1px solid var(--border);
+  background: var(--input-bg); color: var(--text);
+  font-size: 14px; outline: none;
+}
+.cd-text-inp:focus { border-color: var(--accent); }
 
 /* ── Items table ── */
 .cd-table { width: 100%; border-collapse: collapse; }
@@ -118,8 +125,11 @@ input[name="produto_pid"] { display: none; }
   font-size: 11px; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .5px;
   padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
-.cd-table td { padding: 12px 12px; vertical-align: middle; }
+.cd-table th:last-child { border-right: none; }
+.cd-table td { padding: 12px 12px; vertical-align: middle; border-right: 1px solid var(--border); }
+.cd-table td:last-child { border-right: none; }
 .cd-table tr + tr td { border-top: 1px solid var(--border); }
 
 .cd-prod-cell { display: flex; align-items: center; gap: 10px; }
@@ -167,6 +177,34 @@ input[name="produto_pid"] { display: none; }
 }
 .cd-res-total-label { font-size: 15px; font-weight: 700; color: var(--text); }
 .cd-res-total-val   { font-size: 28px; font-weight: 800; color: #4ade80; line-height: 1; }
+
+.cd-margem-edit-btn {
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  padding: 2px 4px; margin-left: 4px; font-size: 12px; border-radius: 4px;
+}
+.cd-margem-edit-btn:hover { color: var(--accent); }
+.cd-margem-tag {
+  font-size: 10px; font-weight: 700; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 2px 6px; border-radius: 10px; margin-left: 6px; text-transform: uppercase;
+}
+.cd-margem-box {
+  margin: 6px 0 10px; padding: 10px; border-radius: 9px;
+  background: var(--input-bg); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cd-margem-form { display: flex; gap: 8px; align-items: center; margin: 0; }
+.cd-margem-form input { width: 80px; }
+.cd-margem-apply {
+  background: var(--accent); color: #000; border: none; border-radius: 7px;
+  padding: 0 14px; height: 40px; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.cd-margem-reset-form { margin: 0; }
+.cd-margem-reset {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  border-radius: 7px; padding: 6px 10px; font-size: 12px; cursor: pointer; width: 100%;
+}
+.cd-margem-reset:hover { border-color: #f87171; color: #f87171; }
 
 /* Last item box */
 .cd-last-box {
@@ -312,6 +350,14 @@ input[name="produto_pid"] { display: none; }
         <div class="cd-header-info-val">{{ comanda.hora_abertura }}</div>
       </div>
     </div>
+    <div class="cd-header-sep"></div>
+    <div class="cd-header-info">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><path d="M12 22s8-4.5 8-11.8A8 8 0 0 0 4 10.2C4 17.5 12 22 12 22z"/><circle cx="12" cy="10" r="3"/></svg>
+      <div>
+        <div class="cd-header-info-label">Local</div>
+        <div class="cd-header-info-val">{{ locais_nomes_map.get(comanda.local_id or local_padrao, comanda.local_id or local_padrao) }}</div>
+      </div>
+    </div>
   </div>
   <a href="/comandas" class="cd-header-back">← Voltar às comandas</a>
 </div>
@@ -361,12 +407,41 @@ input[name="produto_pid"] { display: none; }
           </div>
         </form>
       </div>
+
+      <!-- Adicionar empréstimo -->
+      <div class="cd-card">
+        <div class="cd-card-title">Adicionar Empréstimo</div>
+        <form method="post" action="/comandas/{{ comanda.cid }}/emprestimo">
+          <div class="cd-add-grid" style="grid-template-columns: 1fr 140px 160px auto;">
+            <div class="cd-field">
+              <label>Motivo</label>
+              <input type="text" name="motivo" class="cd-text-inp" required
+                placeholder="Ex: Emprestei R$50 pro João, ele paga semana que vem" autocomplete="off">
+            </div>
+            <div class="cd-field">
+              <label>Valor (R$)</label>
+              <input type="number" name="valor" class="cd-text-inp" step="0.01" min="0.01" required placeholder="0,00">
+            </div>
+            <div class="cd-field">
+              <label>Devolução prevista</label>
+              <input type="date" name="vencimento" class="cd-text-inp">
+            </div>
+            <div class="cd-field">
+              <label>&nbsp;</label>
+              <button type="submit" class="cd-btn-add">
+                💰 Lançar
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
       {% endif %}
 
       <!-- Itens consumidos -->
       <div class="cd-card">
         <div class="cd-card-title">Itens consumidos</div>
         {% if comanda.itens %}
+        <div style="overflow-x:auto;">
         <table class="cd-table">
           <thead>
             <tr>
@@ -411,8 +486,52 @@ input[name="produto_pid"] { display: none; }
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% else %}
         <div class="cd-empty">Nenhum item adicionado ainda.</div>
+        {% endif %}
+      </div>
+
+      <!-- Empréstimos -->
+      <div class="cd-card">
+        <div class="cd-card-title">Empréstimos</div>
+        {% if comanda.emprestimos %}
+        <div style="overflow-x:auto;">
+        <table class="cd-table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Motivo</th>
+              <th>Devolução prevista</th>
+              <th>Lançado por</th>
+              <th style="text-align:right">Valor</th>
+              {% if comanda.status == "aberta" %}<th></th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp in comanda.emprestimos %}
+            <tr>
+              <td class="cd-hora-cell">{{ (emp.data or comanda.data_abertura)|br_date }} {{ emp.hora }}</td>
+              <td>{{ emp.motivo }}</td>
+              <td>{{ emp.vencimento|br_date if emp.vencimento else '—' }}</td>
+              <td>{{ emp.criado_por or '—' }}</td>
+              <td class="cd-sub-cell">R$ {{ "%.2f"|format(emp.valor) }}</td>
+              {% if comanda.status == "aberta" %}
+              <td>
+                <form method="post" action="/comandas/{{ comanda.cid }}/emprestimo/{{ emp.id }}/remover"
+                      class="cd-rm-form">
+                  <button type="button" class="cd-btn-rm" title="Remover"
+                    onclick="var f=this.closest('form');showConfirm('Remover empréstimo','Remover este lançamento de R$ {{ "%.2f"|format(emp.valor) }}?',function(){f.submit()})">🗑</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="cd-empty">Nenhum empréstimo lançado.</div>
         {% endif %}
       </div>
     </div>
@@ -430,6 +549,42 @@ input[name="produto_pid"] { display: none; }
           <span class="cd-res-label">Qtd total de itens</span>
           <span class="cd-res-val">{{ comanda.itens | sum(attribute='quantidade') }}</span>
         </div>
+        {% if comanda.emprestimos %}
+        <div class="cd-res-row">
+          <span class="cd-res-label">Empréstimos</span>
+          <span class="cd-res-val">R$ {{ "%.2f"|format(comanda.emprestimos | sum(attribute='valor'))|replace(".", ",") }}</span>
+        </div>
+        {% endif %}
+
+        {% if comanda.itens %}
+        <div class="cd-res-row">
+          <span class="cd-res-label">
+            Margem
+            {% if permite_margem and comanda.status == "aberta" %}
+            <button type="button" class="cd-margem-edit-btn" onclick="toggleMargemBox()" title="Ajustar margem">✎</button>
+            {% endif %}
+          </span>
+          <span class="cd-res-val">
+            {{ margem_atual }}%
+            {% if comanda.margem_customizada is not none %}<span class="cd-margem-tag">ajustada</span>{% endif %}
+          </span>
+        </div>
+        {% if permite_margem and comanda.status == "aberta" %}
+        <div class="cd-margem-box" id="margem-box" style="display:none;">
+          <form method="post" action="{{ url_for('comanda_margem', cid=comanda.cid) }}" class="cd-margem-form">
+            <input type="number" step="0.1" min="-100" max="99" name="margem" value="{{ margem_atual }}" class="cd-text-inp" required>
+            <span>%</span>
+            <button type="submit" class="cd-margem-apply">Aplicar</button>
+          </form>
+          {% if comanda.margem_customizada is not none %}
+          <form method="post" action="{{ url_for('comanda_margem', cid=comanda.cid) }}" class="cd-margem-reset-form">
+            <input type="hidden" name="acao" value="resetar">
+            <button type="submit" class="cd-margem-reset">Resetar pro preço normal</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endif %}
 
         <div class="cd-res-total">
           <span class="cd-res-total-label">Total</span>
@@ -450,7 +605,7 @@ input[name="produto_pid"] { display: none; }
         {% if comanda.status == "aberta" %}
           <button class="cd-sb-btn cd-sb-btn-close"
                   onclick="abrirModal()"
-                  {% if not comanda.itens %}disabled{% endif %}>
+                  {% if not comanda.itens and not comanda.emprestimos %}disabled{% endif %}>
             🔒 Fechar comanda
           </button>
           <button class="cd-sb-btn cd-sb-btn-cancel"
@@ -502,6 +657,12 @@ const CATALOGO = [...ESTOQUE, ...PACOTES];
 const TOTAL_COMANDA = JSON.parse(document.getElementById('data-total').textContent);
 
 function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+
+window.toggleMargemBox = function() {
+  const box = document.getElementById('margem-box');
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+};
 
 /* ── Busca unificada ── */
 const searchInp  = document.getElementById('cd-search');

@@ -16,6 +16,7 @@ tr:nth-child(even) { background:#202020; }
 
 <h2>Faturados em Aberto</h2>
 
+<div style="overflow-x:auto;">
 <table border="1">
 <tr>
 <th>Data</th>
@@ -37,6 +38,7 @@ tr:nth-child(even) { background:#202020; }
 </tr>
 {% endfor %}
 </table>
+</div>
 
 <p><strong>Total em aberto:</strong>
 R$ {{ "%.2f"|format(total_aberto) }}</p>
