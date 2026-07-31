@@ -636,9 +636,12 @@ def _fix_caixa_sessao(c: dict) -> dict:
     return c
 
 
-def get_caixa_aberto() -> dict | None:
+def get_caixa_aberto(local_id: str | None = None) -> dict | None:
     try:
-        r = _sb().table("caixas").select("*").eq("status", "aberto").maybe_single().execute()
+        q = _sb().table("caixas").select("*").eq("status", "aberto")
+        if local_id:
+            q = q.eq("local_id", local_id)
+        r = q.maybe_single().execute()
         return _fix_caixa_sessao(r.data) if r.data else None
     except Exception:
         return None

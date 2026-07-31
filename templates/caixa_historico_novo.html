@@ -150,20 +150,24 @@
 
   <!-- KPI CARDS -->
   <div class="cx-kpis">
-    <!-- Caixa Atual -->
+    <!-- Caixa Atual por local -->
     <div class="kpi">
       <div class="kpi-icon azul">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
       </div>
       <div class="kpi-info">
         <div class="kpi-label">Caixa Atual</div>
-        {% if caixa_aberto %}
-        <div class="kpi-valor azul">ABERTO</div>
-        <div class="kpi-sub">Desde {{ caixa_aberto.hora_abertura }}</div>
-        {% else %}
-        <div class="kpi-valor" style="color:var(--text-muted)">FECHADO</div>
-        <div class="kpi-sub">Nenhum aberto</div>
-        {% endif %}
+        {% for l in locais_estoque %}
+        {% set c = caixas_por_local.get(l.id) %}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px;">
+          <span style="font-size:12px;color:var(--text-muted);">{{ l.nome }}</span>
+          {% if c %}
+          <a href="{{ url_for('caixa_turno', local=l.id) }}" class="kpi-valor azul" style="font-size:13px;">ABERTO</a>
+          {% else %}
+          <a href="{{ url_for('caixa_abrir', local=l.id) }}" style="font-size:13px;color:var(--text-muted);">FECHADO</a>
+          {% endif %}
+        </div>
+        {% endfor %}
       </div>
     </div>
 
@@ -265,6 +269,7 @@
       <thead>
         <tr>
           <th>Data</th>
+          <th>Local</th>
           <th>Operador</th>
           <th>Abertura</th>
           <th>Fechamento</th>
@@ -284,6 +289,7 @@
             data-operador="{{ s.operador_abertura | lower }}"
             data-status="{{ s.status }}">
           <td><strong>{{ s.data_abertura | br_date }}</strong></td>
+          <td>{{ locais_nomes_map.get(s.get('local_id') or local_padrao, s.get('local_id')) }}</td>
           <td>{{ s.operador_abertura }}</td>
           <td>{{ s.hora_abertura }}</td>
           <td>{{ s.hora_fechamento or '—' }}</td>

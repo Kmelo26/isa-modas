@@ -79,13 +79,21 @@
 <div class="cx-page">
   <div class="cx-header">
     <div>
-      <div class="cx-title">📊 Caixa Ativo</div>
+      <div class="cx-title">📊 Caixa Ativo — {{ locais_nomes_map.get(local_atual, local_atual) }}</div>
       <div class="cx-status-line">🟢 Caixa aberto e operando normalmente</div>
       <div class="cx-sub">📅 Aberto em {{ caixa.data_abertura | br_date }} às {{ caixa.hora_abertura }} por {{ caixa.operador_abertura }} &nbsp;·&nbsp; 🕐 Aberto há {{ tempo_operacao }}</div>
+      {% if locais_estoque|length > 1 %}
+      <div class="cx-sub">
+        Local:
+        {% for l in locais_estoque %}
+        {% if l.id == local_atual %}<strong>{{ l.nome }}</strong>{% else %}<a href="{{ url_for('caixa_turno', local=l.id) }}">{{ l.nome }}</a>{% endif %}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
     <div style="display:flex;gap:10px;">
       <button type="button" class="cx-btn cx-btn-conferir" onclick="abrirConferir()">🧾 Conferir Caixa</button>
-      <a href="{{ url_for('caixa_fechar') }}" class="cx-btn cx-btn-fechar">🔒 Fechar Caixa</a>
+      <a href="{{ url_for('caixa_fechar', local=local_atual) }}" class="cx-btn cx-btn-fechar">🔒 Fechar Caixa</a>
     </div>
   </div>
 
@@ -192,6 +200,7 @@
   <div class="cx-card" style="margin-bottom:20px;">
     <div class="cx-card-title">Registrar Movimentação</div>
     <form method="post" action="{{ url_for('caixa_movimentacao') }}" class="cx-mov-form">
+      <input type="hidden" name="local_id" value="{{ local_atual }}">
       <select name="tipo" class="cx-input">
         <option value="sangria">Sangria (retirada)</option>
         <option value="suprimento">Suprimento (entrada)</option>
@@ -259,7 +268,7 @@
     </div>
     <div class="cx-modal-footer">
       <button type="button" class="cx-btn cx-btn-conferir" onclick="fecharConferir()">Fechar</button>
-      <a href="{{ url_for('caixa_fechar') }}" class="cx-btn cx-btn-fechar">Ir para Fechar Caixa</a>
+      <a href="{{ url_for('caixa_fechar', local=local_atual) }}" class="cx-btn cx-btn-fechar">Ir para Fechar Caixa</a>
     </div>
   </div>
 </div>

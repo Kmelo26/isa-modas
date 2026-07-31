@@ -12,22 +12,48 @@
 .cx-btn:hover{opacity:.88;}
 .cx-erro{background:#2a0f0f;border:1px solid #f87171;border-radius:8px;padding:10px 14px;color:#f87171;font-size:13px;margin-bottom:16px;}
 .cx-aberto{background:#052e16;border:1px solid #16a34a;border-radius:10px;padding:16px;color:#4ade80;margin-bottom:20px;}
+.cx-status-locais{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
+.cx-status-local{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;border:1px solid var(--border);font-size:13px;}
+.cx-status-local .badge-aberto{color:#4ade80;font-weight:bold;}
+.cx-status-local .badge-fechado{color:var(--text-muted);}
 </style>
 
 <div class="cx-page">
   <div class="cx-card">
     <div class="cx-title">🏦 Abrir Caixa</div>
-    <div class="cx-sub">Informe o valor disponível para troco no início do turno.</div>
+    <div class="cx-sub">Informe o local e o valor disponível para troco no início do turno.</div>
 
     {% if erro %}<div class="cx-erro">{{ erro }}</div>{% endif %}
 
+    <div class="cx-status-locais">
+      {% for l in locais_estoque %}
+      <div class="cx-status-local">
+        <span>{{ l.nome }}</span>
+        {% if caixas_por_local.get(l.id) %}
+        <span class="badge-aberto">● Aberto — <a href="{{ url_for('caixa_turno', local=l.id) }}" style="color:#4ade80;">ver turno</a></span>
+        {% else %}
+        <span class="badge-fechado">○ Fechado</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
     {% if caixa_aberto %}
     <div class="cx-aberto">
-      ✅ Já existe um caixa aberto desde {{ caixa_aberto.hora_abertura }} por <strong>{{ caixa_aberto.operador_abertura }}</strong>.<br>
-      <a href="{{ url_for('caixa_turno') }}" style="color:#86efac;font-weight:bold;">Ver caixa ativo →</a>
+      ✅ Já existe um caixa aberto em <strong>{{ (locais_estoque|selectattr('id','equalto',local_atual)|first).nome if locais_estoque else local_atual }}</strong> desde {{ caixa_aberto.hora_abertura }} por <strong>{{ caixa_aberto.operador_abertura }}</strong>.<br>
+      <a href="{{ url_for('caixa_turno', local=local_atual) }}" style="color:#86efac;font-weight:bold;">Ver caixa ativo →</a>
     </div>
     {% else %}
     <form method="post" action="{{ url_for('caixa_abrir') }}">
+      <label class="cx-label">Local</label>
+      <select class="cx-input" name="local_id">
+        {% for l in locais_estoque %}
+        <option value="{{ l.id }}" {% if l.id == local_atual %}selected{% endif %} {% if caixas_por_local.get(l.id) %}disabled{% endif %}>
+          {{ l.nome }}{% if caixas_por_local.get(l.id) %} (já aberto){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+
       <label class="cx-label">Operador</label>
       <input class="cx-input" type="text" value="{{ session.get('usuario','') }}" disabled
         style="opacity:.6;cursor:not-allowed;">

@@ -81,7 +81,7 @@
 <div class="cx-page">
   <div class="cx-topbar">
     <div>
-      <div class="cx-title">🔒 Fechar Caixa</div>
+      <div class="cx-title">🔒 Fechar Caixa — {{ locais_nomes_map.get(caixa.get('local_id') or local_padrao, caixa.get('local_id')) }}</div>
       <div class="cx-sub">Confira os valores e finalize o fechamento do caixa.</div>
     </div>
     <a href="{{ url_for('caixa_historico_novo') }}" class="cx-hist-btn">🕒 Histórico de Fechamentos</a>
@@ -112,6 +112,7 @@
   </div>
 
   <form method="post" action="{{ url_for('caixa_fechar') }}" data-esperado="{{ '%.2f'|format(dinheiro_esperado) }}">
+    <input type="hidden" name="local_id" value="{{ caixa.get('local_id') or local_padrao }}">
     <div class="cx-grid2">
       <!-- Resumo do Caixa -->
       <div class="cx-card">
@@ -250,7 +251,7 @@
           onclick="showConfirm('Fechar caixa','Confirmar o fechamento do caixa? Esta ação não pode ser desfeita.',()=>this.closest('form').submit(),'warn')">
           ✅ Confirmar Fechamento do Caixa
         </button>
-        <a href="{{ url_for('caixa_turno') }}" class="cx-btn-back">← Voltar</a>
+        <a href="{{ url_for('caixa_turno', local=(caixa.get('local_id') or local_padrao)) }}" class="cx-btn-back">← Voltar</a>
       </div>
     </div>
   </form>

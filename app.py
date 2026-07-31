@@ -2198,7 +2198,7 @@ def cadastrar_venda():
         )
 
     try:
-        caixa_aberto_cv = db.get_caixa_aberto()
+        caixa_aberto_cv = db.get_caixa_aberto(LOCAL_PADRAO)
     except Exception:
         caixa_aberto_cv = None
 
@@ -2333,18 +2333,23 @@ def cadastrar_venda_lote():
         ]
         drinks.append(d)
     try:
-        caixa_aberto = db.get_caixa_aberto()
+        caixa_aberto = db.get_caixa_aberto(LOCAL_PADRAO)
     except Exception:
         caixa_aberto = None
     erro = ""
 
     if request.method == "POST":
-        if not caixa_aberto:
-            erro = "⚠️ Nenhum caixa aberto. Abra o caixa antes de registrar vendas."
-
         data = request.form.get("data", "")
         forma_pagamento = request.form.get("forma_pagamento", "")
         local_id = (request.form.get("local_id") or LOCAL_PADRAO).strip()
+
+        try:
+            caixa_aberto = db.get_caixa_aberto(local_id)
+        except Exception:
+            caixa_aberto = None
+        if not caixa_aberto:
+            nome_local = next((l["nome"] for l in db.get_all_locais_estoque() if l["id"] == local_id), local_id)
+            erro = f"⚠️ Nenhum caixa aberto em {nome_local}. Abra o caixa antes de registrar vendas."
 
         pids   = request.form.getlist("produto_pid[]")
         qtds   = request.form.getlist("quantidade[]")
@@ -3364,17 +3369,19 @@ def comanda_pagar(cid):
     if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
         return redirect(url_for("vendas"))
 
-    try:
-        caixa_pagar = db.get_caixa_aberto()
-    except Exception:
-        caixa_pagar = None
-    if not caixa_pagar:
-        session["erro_caixa"] = "⚠️ Nenhum caixa aberto. Abra o caixa antes de registrar pagamentos."
-        return redirect(url_for("comandas"))
-
     comanda = db.get_command(cid)
     PAGAVEIS = ("aberta", "aguardando_pagamento", "pagamento_parcial", "agendado", "atrasada", "em_pagamento")
     if not comanda or comanda.get("status") not in PAGAVEIS:
+        return redirect(url_for("comandas"))
+
+    local_id = comanda.get("local_id") or LOCAL_PADRAO
+    try:
+        caixa_pagar = db.get_caixa_aberto(local_id)
+    except Exception:
+        caixa_pagar = None
+    if not caixa_pagar:
+        nome_local = next((l["nome"] for l in db.get_all_locais_estoque() if l["id"] == local_id), local_id)
+        session["erro_caixa"] = f"⚠️ Nenhum caixa aberto em {nome_local}. Abra o caixa antes de registrar pagamentos."
         return redirect(url_for("comandas"))
 
     if not comanda.get("itens") and not comanda.get("emprestimos"):
@@ -3463,17 +3470,19 @@ def comanda_fechar(cid):
     if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
         return redirect(url_for("vendas"))
 
-    try:
-        caixa_fechar = db.get_caixa_aberto()
-    except Exception:
-        caixa_fechar = None
-    if not caixa_fechar:
-        session["erro_caixa"] = "⚠️ Nenhum caixa aberto. Abra o caixa antes de quitar comandas."
-        return redirect(url_for("comandas"))
-
     comanda = db.get_command(cid)
     FECHAVEIS = ("aberta", "aguardando_pagamento", "em_pagamento", "pagamento_parcial", "agendado", "atrasada")
     if not comanda or comanda.get("status") not in FECHAVEIS:
+        return redirect(url_for("comandas"))
+
+    local_id = comanda.get("local_id") or LOCAL_PADRAO
+    try:
+        caixa_fechar = db.get_caixa_aberto(local_id)
+    except Exception:
+        caixa_fechar = None
+    if not caixa_fechar:
+        nome_local = next((l["nome"] for l in db.get_all_locais_estoque() if l["id"] == local_id), local_id)
+        session["erro_caixa"] = f"⚠️ Nenhum caixa aberto em {nome_local}. Abra o caixa antes de quitar comandas."
         return redirect(url_for("comandas"))
 
     if not comanda.get("itens") and not comanda.get("emprestimos"):
@@ -4052,8 +4061,11 @@ def _comandas_abertas_no_periodo(caixa: dict) -> list:
     else:
         fim = now_brt().strftime("%Y-%m-%d %H:%M")
 
+    caixa_local = caixa.get("local_id") or LOCAL_PADRAO
     resultado = []
     for c in db.get_all_commands():
+        if (c.get("local_id") or LOCAL_PADRAO) != caixa_local:
+            continue
         abertura_c = f"{c.get('data_abertura','')} {c.get('hora_abertura','')}"
         if inicio <= abertura_c <= fim:
             resultado.append(c)
@@ -4076,12 +4088,18 @@ def caixa_abrir():
     redir = _auth_caixa()
     if redir: return redir
 
-    caixa_aberto = db.get_caixa_aberto()
+    locais_estoque = db.get_all_locais_estoque()
+    local_id = (request.values.get("local") or request.form.get("local_id") or LOCAL_PADRAO).strip()
+    caixa_aberto = db.get_caixa_aberto(local_id)
+    caixas_por_local = {l["id"]: db.get_caixa_aberto(l["id"]) for l in locais_estoque}
     erro = ""
 
     if request.method == "POST":
+        local_id = (request.form.get("local_id") or LOCAL_PADRAO).strip()
+        caixa_aberto = db.get_caixa_aberto(local_id)
+        nome_local = next((l["nome"] for l in locais_estoque if l["id"] == local_id), local_id)
         if caixa_aberto:
-            erro = "Já existe um caixa aberto. Feche-o antes de abrir outro."
+            erro = f"Já existe um caixa aberto em {nome_local}. Feche-o antes de abrir outro."
         else:
             valor_raw = (request.form.get("valor_abertura") or "0").strip()
             valor = to_float(valor_raw)
@@ -4092,20 +4110,23 @@ def caixa_abrir():
                 "hora_abertura": now_brt().strftime("%H:%M"),
                 "operador_abertura": session.get("usuario", ""),
                 "valor_abertura": valor,
+                "local_id": local_id,
             }
             try:
                 db.insert_caixa(novo)
                 db.registrar_log(
                     session.get("usuario", ""), "caixa_aberto",
-                    f"Abriu caixa (valor inicial: R$ {valor:.2f})",
+                    f"Abriu caixa em {nome_local} (valor inicial: R$ {valor:.2f})",
                     now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
                 )
-                return redirect(url_for("caixa_turno"))
+                return redirect(url_for("caixa_turno", local=local_id))
             except RuntimeError as e:
                 erro = str(e)
 
     return render_template("caixa_abrir.html",
         caixa_aberto=caixa_aberto, erro=erro,
+        locais_estoque=locais_estoque, caixas_por_local=caixas_por_local,
+        local_padrao=LOCAL_PADRAO, local_atual=local_id,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
 
@@ -4114,9 +4135,10 @@ def caixa_turno():
     redir = _auth_caixa()
     if redir: return redir
 
-    caixa = db.get_caixa_aberto()
+    local_id = (request.args.get("local") or LOCAL_PADRAO).strip()
+    caixa = db.get_caixa_aberto(local_id)
     if not caixa:
-        return redirect(url_for("caixa_abrir"))
+        return redirect(url_for("caixa_abrir", local=local_id))
 
     movs = db.get_movimentacoes_caixa(caixa["id"])
     total_sangrias   = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "sangria")
@@ -4137,6 +4159,7 @@ def caixa_turno():
     comandas_periodo = _comandas_abertas_no_periodo(caixa)
     tempo_operacao = _tempo_operacao_str(caixa)
     hoje = now_brt().strftime("%Y-%m-%d")
+    locais_estoque = db.get_all_locais_estoque()
 
     return render_template("caixa_turno.html",
         caixa=caixa, movs=movs, totais=totais,
@@ -4145,6 +4168,9 @@ def caixa_turno():
         qtd_sangrias=qtd_sangrias, qtd_suprimentos=qtd_suprimentos, qtd_despesas=qtd_despesas,
         ultima_mov=ultima_mov, tempo_operacao=tempo_operacao, hoje=hoje,
         comandas_periodo=comandas_periodo,
+        locais_estoque=locais_estoque,
+        locais_nomes_map={l["id"]: l["nome"] for l in locais_estoque},
+        local_atual=local_id, local_padrao=LOCAL_PADRAO,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
 
@@ -4153,20 +4179,21 @@ def caixa_movimentacao():
     redir = _auth_caixa()
     if redir: return redir
 
-    caixa = db.get_caixa_aberto()
+    local_id = (request.form.get("local_id") or LOCAL_PADRAO).strip()
+    caixa = db.get_caixa_aberto(local_id)
     if not caixa:
-        return redirect(url_for("caixa_abrir"))
+        return redirect(url_for("caixa_abrir", local=local_id))
 
     tipo      = (request.form.get("tipo") or "").strip()
     valor_raw = (request.form.get("valor") or "0").strip()
     descricao = (request.form.get("descricao") or "").strip()
 
     if tipo not in ("sangria", "suprimento", "despesa"):
-        return redirect(url_for("caixa_turno"))
+        return redirect(url_for("caixa_turno", local=local_id))
 
     valor = to_float(valor_raw)
     if valor <= 0:
-        return redirect(url_for("caixa_turno"))
+        return redirect(url_for("caixa_turno", local=local_id))
 
     mov = {
         "id": uuid.uuid4().hex,
@@ -4182,7 +4209,7 @@ def caixa_movimentacao():
         db.insert_movimentacao(mov)
     except RuntimeError:
         pass
-    return redirect(url_for("caixa_turno"))
+    return redirect(url_for("caixa_turno", local=local_id))
 
 
 @app.route("/caixa/fechar", methods=["GET", "POST"])
@@ -4190,9 +4217,10 @@ def caixa_fechar():
     redir = _auth_caixa()
     if redir: return redir
 
-    caixa = db.get_caixa_aberto()
+    local_id = (request.values.get("local") or request.values.get("local_id") or LOCAL_PADRAO).strip()
+    caixa = db.get_caixa_aberto(local_id)
     if not caixa:
-        return redirect(url_for("caixa_abrir"))
+        return redirect(url_for("caixa_abrir", local=local_id))
 
     movs = db.get_movimentacoes_caixa(caixa["id"])
     total_sangrias    = round(sum(to_float(m["valor"]) for m in movs if m["tipo"] == "sangria"), 2)
@@ -4309,6 +4337,8 @@ def caixa_fechar():
             movs=movs, total_sangrias=total_sangrias,
             total_suprimentos=total_suprimentos, total_despesas=total_despesas,
             observacoes=observacoes, comandas_periodo=comandas_periodo,
+            locais_nomes_map={l["id"]: l["nome"] for l in db.get_all_locais_estoque()},
+            local_padrao=LOCAL_PADRAO,
             tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
     comandas_periodo = _comandas_abertas_no_periodo(caixa)
@@ -4320,6 +4350,8 @@ def caixa_fechar():
         produtos_vendidos=produtos_vendidos, ticket_medio=ticket_medio,
         pagamentos=pagamentos, tempo_operacao=tempo_operacao, agora=agora,
         comandas_periodo=comandas_periodo,
+        locais_nomes_map={l["id"]: l["nome"] for l in db.get_all_locais_estoque()},
+        local_padrao=LOCAL_PADRAO,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
 
@@ -4358,7 +4390,9 @@ def caixa_historico_novo():
         )
 
     sessoes_hoje = [s for s in sessoes if str(s.get("data_abertura", ""))[:10] == hoje]
-    caixa_aberto = db.get_caixa_aberto()
+    locais_estoque = db.get_all_locais_estoque()
+    caixas_por_local = {l["id"]: db.get_caixa_aberto(l["id"]) for l in locais_estoque}
+    caixa_aberto = next((c for c in caixas_por_local.values() if c), None)
     total_vendido_hoje  = sum(s.get("total_vendas", 0) or 0 for s in sessoes_hoje)
     total_dinheiro_hoje = sum(s.get("total_dinheiro", 0) or 0 for s in sessoes_hoje)
     diferenca_dia       = sum(s.get("diferenca_total", 0) for s in sessoes_hoje if s.get("status") == "fechado")
@@ -4373,9 +4407,15 @@ def caixa_historico_novo():
 
     sessoes_by_id = {str(s["id"]): s for s in sessoes}
 
+    locais_nomes_map = {l["id"]: l["nome"] for l in locais_estoque}
+
     return render_template("caixa_historico_novo.html",
         sessoes=sessoes,
         caixa_aberto=caixa_aberto,
+        locais_estoque=locais_estoque,
+        caixas_por_local=caixas_por_local,
+        locais_nomes_map=locais_nomes_map,
+        local_padrao=LOCAL_PADRAO,
         total_vendido_hoje=total_vendido_hoje,
         total_dinheiro_hoje=total_dinheiro_hoje,
         diferenca_dia=diferenca_dia,

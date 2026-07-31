@@ -24,7 +24,7 @@
 </style>
 
 <div class="cx-page">
-  <div class="cx-title">✅ Caixa Fechado com Sucesso</div>
+  <div class="cx-title">✅ Caixa de {{ locais_nomes_map.get(caixa.get('local_id') or local_padrao, caixa.get('local_id')) }} Fechado com Sucesso</div>
   <div class="cx-sub">Fechado em {{ caixa.data_fechamento | br_date }} às {{ caixa.hora_fechamento }} por {{ caixa.operador_fechamento }}</div>
 
   <!-- Resumo de vendas -->
@@ -94,7 +94,7 @@
 
   <div style="display:flex;gap:10px;">
     <a href="{{ url_for('caixa_historico_novo') }}" class="cx-btn cx-btn-sec">Ver Histórico</a>
-    <a href="{{ url_for('caixa_abrir') }}" class="cx-btn cx-btn-prim">Abrir Novo Caixa</a>
+    <a href="{{ url_for('caixa_abrir', local=(caixa.get('local_id') or local_padrao)) }}" class="cx-btn cx-btn-prim">Abrir Novo Caixa</a>
   </div>
 </div>
 {% endblock %}
