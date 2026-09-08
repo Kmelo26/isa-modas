@@ -43,12 +43,14 @@
       ✅ Já existe um caixa aberto em <strong>{{ (locais_estoque|selectattr('id','equalto',local_atual)|first).nome if locais_estoque else local_atual }}</strong> desde {{ caixa_aberto.hora_abertura }} por <strong>{{ caixa_aberto.operador_abertura }}</strong>.<br>
       <a href="{{ url_for('caixa_turno', local=local_atual) }}" style="color:#86efac;font-weight:bold;">Ver caixa ativo →</a>
     </div>
-    {% else %}
+    {% endif %}
+
+    {% if locais_disponiveis %}
     <form method="post" action="{{ url_for('caixa_abrir') }}">
       <label class="cx-label">Local</label>
       <select class="cx-input" name="local_id">
         {% for l in locais_estoque %}
-        <option value="{{ l.id }}" {% if l.id == local_atual %}selected{% endif %} {% if caixas_por_local.get(l.id) %}disabled{% endif %}>
+        <option value="{{ l.id }}" {% if l.id == local_sugerido %}selected{% endif %} {% if caixas_por_local.get(l.id) %}disabled{% endif %}>
           {{ l.nome }}{% if caixas_por_local.get(l.id) %} (já aberto){% endif %}
         </option>
         {% endfor %}
@@ -64,6 +66,8 @@
 
       <button type="submit" class="cx-btn">Abrir Caixa</button>
     </form>
+    {% elif not caixa_aberto %}
+    <div class="cx-erro">Todos os locais já têm caixa aberto.</div>
     {% endif %}
   </div>
 </div>

@@ -18,6 +18,9 @@
 .cx-mov-sangria{background:#2a0f0f;color:#f87171;}
 .cx-mov-suprimento{background:#052e16;color:#4ade80;}
 .cx-mov-despesa{background:#2a2000;color:#fbbf24;}
+.cx-cmd-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:bold;}
+.cx-cmd-quitada{background:#0d2e1a;color:#86efac;border:1px solid rgba(134,239,172,.3);}
+.cx-cmd-parcial{background:#2a2000;color:#fbbf24;border:1px solid rgba(251,191,36,.3);}
 </style>
 
 <div class="cx-page">
@@ -42,6 +45,26 @@
     <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_pix) }}</span></div>
     <div class="cx-row"><span class="cx-label">💳 Cartão Débito/Crédito</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_cartao_cred + sessao.total_cartao_deb) }}</span></div>
     <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(sessao.total_fiado) }}</span></div>
+  </div>
+
+  <!-- Comandas pagas neste caixa -->
+  <div class="cx-card">
+    <div class="cx-card-title">Comandas Pagas ({{ pagamentos_comanda_caixa|length }})</div>
+    {% if pagamentos_comanda_caixa %}
+      {% for p in pagamentos_comanda_caixa %}
+      <div class="cx-row">
+        <span class="cx-label">📋 {{ p.comanda_nome or 'Comanda' }} <span style="color:var(--text-muted);">· {{ p.hora }} · {{ 'Pix' if p.forma == 'pix' else 'Cartão' if p.forma == 'cartao' else 'Dinheiro' }}</span></span>
+        <span class="cx-val" style="display:flex;align-items:center;gap:8px;">
+          R$ {{ "%.2f"|format(p.valor) }}
+          {% if p.comanda_status == 'quitada' %}<span class="cx-cmd-badge cx-cmd-quitada">✅ Quitada</span>
+          {% elif p.comanda_status == 'pagamento_parcial' %}<span class="cx-cmd-badge cx-cmd-parcial">🟠 Parcial</span>
+          {% else %}<span class="cx-cmd-badge">{{ p.comanda_status }}</span>{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--text-muted);font-size:13px;margin:0;">Nenhum pagamento de comanda registrado neste caixa.</p>
+    {% endif %}
   </div>
 
   <!-- Movimentações -->

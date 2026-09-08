@@ -3,7 +3,7 @@
 
 <style>
 /* ── BASE ── */
-.v-wrap { max-width:1300px; margin:0 auto; padding:20px 20px 40px; }
+.v-wrap { width:100%; padding:20px 20px 40px; }
 
 /* ── HEADER ── */
 .v-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
@@ -40,10 +40,10 @@
 .v-filtros { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
   box-shadow:var(--shadow); padding:14px 16px; margin-bottom:12px; }
 .v-filtros-row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
-.v-filtros-row label { font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase;
-  letter-spacing:0.5px; display:block; margin-bottom:4px; }
+.v-filtros-row label { font-size:12px; font-weight:600; color:var(--text); text-transform:none;
+  letter-spacing:0; display:block; margin-bottom:5px; }
 .v-filtros-row input, .v-filtros-row select {
-  padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+  padding:8px 10px; border:1px solid var(--border); border-radius:10px;
   background:var(--input-bg); color:var(--text); font-size:13px; }
 .v-filtros-row input:focus, .v-filtros-row select:focus { outline:none; border-color:var(--accent); }
 .v-input-produto { position:relative; }
@@ -338,8 +338,8 @@
         </div>
         {% else %}
         <div class="vis-grid vis-grid-2" style="margin-top:12px;">
-          <div class="vis-field"><label>Preço unit.</label><div class="vis-val" id="vv-preco">—</div></div>
-          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vv-total">—</div></div>
+          <div class="vis-field"><label>Preço unit.</label><div class="vis-val" id="vv-preco-simples">—</div></div>
+          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vv-total-simples">—</div></div>
         </div>
         {% endif %}
       </div>
@@ -436,16 +436,12 @@
         <div class="vis-field" style="margin-top:12px;" id="vvg-origem-wrap">
           <label>Origem</label><div class="vis-val" id="vvg-origem">—</div>
         </div>
-        {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}
         <div class="vis-grid vis-grid-2" style="margin-top:12px;">
           <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vvg-total">—</div></div>
+          {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}
           <div class="vis-field"><label>Margem</label><div class="vis-val" id="vvg-margem">—</div></div>
+          {% endif %}
         </div>
-        {% else %}
-        <div class="vis-grid vis-grid-2" style="margin-top:12px;">
-          <div class="vis-field"><label>Total recebido</label><div class="vis-val destaque" id="vvg-total">—</div></div>
-        </div>
-        {% endif %}
       </div>
       <div class="vis-secao">
         <div class="vis-secao-titulo">2. Itens da Venda</div>
@@ -724,6 +720,16 @@
           <option value="quitada" {% if status_raw == 'quitada' %}selected{% endif %}>🟢 Quitada</option>
         </select>
       </div>
+      <div>
+        <label>Usuário</label>
+        <select name="usuario">
+          <option value="">Todos</option>
+          {% for uname, unome in usuarios_conhecidos %}
+          <option value="{{ uname }}" {% if usuario_raw == uname %}selected{% endif %}>{{ unome }}</option>
+          {% endfor %}
+          <option value="__sem__" {% if usuario_raw == '__sem__' %}selected{% endif %}>Usuário não identificado</option>
+        </select>
+      </div>
       {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
       <div>
         <label>Margem Mín. %</label>
@@ -748,9 +754,9 @@
       {% set q_ini = data_ini_raw or '' %}
       {% set q_fim = data_fim_raw or '' %}
       {% set hoje_str = '' %}
-      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
-      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
-      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
+      <a class="qbtn" href="/vendas?data_ini=hoje&data_fim=hoje&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&usuario={{ usuario_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Hoje</a>
+      <a class="qbtn" href="/vendas?data_ini=semana&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&usuario={{ usuario_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Esta semana</a>
+      <a class="qbtn" href="/vendas?data_ini=mes&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&usuario={{ usuario_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">Este mês</a>
     </div>
     <div class="v-sort-wrap">
       <label>Ordenar:</label>
@@ -775,6 +781,7 @@
         <tr>
           <th>Venda</th>
           <th>Data / Hora</th>
+          <th>Usuário</th>
           <th style="text-align:right;">Itens</th>
           <th>Pagamento</th>
           <th style="text-align:right;">Total</th>
@@ -798,6 +805,7 @@
                 {% if g.hora %}<span class="date-hora">{{ g.hora }}</span>{% endif %}
               </div>
             </td>
+            <td>{{ g.usuario or 'Não identificado' }}</td>
             <td style="text-align:right;" class="v-qtd-itens">{{ g.qtd_itens }}</td>
             <td>
               <div class="pgto-cell">{{ g.formas_pagamento|join(' + ') if g.formas_pagamento else '—' }}</div>
@@ -882,9 +890,14 @@
 <script type="application/json" id="data-nomes-vendas">{{ nomes_sugestoes | tojson }}</script>
 <script type="application/json" id="data-vendas-map">{{ vendas | map(attribute='itens') | sum(start=[]) | tojson }}</script>
 <script type="application/json" id="data-grupos-map">{{ vendas | tojson }}</script>
+<script type="application/json" id="data-flags-vendas">{{ {
+  "podeCancelar": (tipo == "admin" or "cancelar_vendas" in permissoes),
+  "podeVerLucro": (tipo == "admin" or "ver_lucro_venda" in permissoes)
+} | tojson }}</script>
 <script>
-const TEM_PERM_CANCELAR = {{ 'true' if tipo == "admin" or "cancelar_vendas" in permissoes else 'false' }};
-const TEM_PERM_LUCRO_VENDA = {{ 'true' if tipo == "admin" or "ver_lucro_venda" in permissoes else 'false' }};
+const FLAGS_VENDAS = JSON.parse(document.getElementById('data-flags-vendas').textContent);
+const TEM_PERM_CANCELAR = FLAGS_VENDAS.podeCancelar;
+const TEM_PERM_LUCRO_VENDA = FLAGS_VENDAS.podeVerLucro;
 const VENDAS_MAP = {};
 JSON.parse(document.getElementById('data-vendas-map').textContent).forEach(v => { VENDAS_MAP[v.uid] = v; });
 const GRUPOS_MAP = {};
@@ -1048,10 +1061,12 @@ function preencherVisualizar(v) {
   document.getElementById('vv-origem').textContent = v.comanda_id
     ? '📋 Comanda: ' + (v.comanda_nome || 'Comanda')
     : '🛒 Venda direta (balcão)';
-  document.getElementById('vv-preco').textContent = fmtR(preco);
+  const elPreco = document.getElementById('vv-preco') || document.getElementById('vv-preco-simples');
+  if (elPreco) elPreco.textContent = fmtR(preco);
   const elCusto = document.getElementById('vv-custo');
   if (elCusto) elCusto.textContent = fmtR(custo);
-  document.getElementById('vv-total').textContent = fmtR(total);
+  const elTotal = document.getElementById('vv-total') || document.getElementById('vv-total-simples');
+  if (elTotal) elTotal.textContent = fmtR(total);
   const elLucro = document.getElementById('vv-lucro');
   if (elLucro) elLucro.textContent = fmtR(lucro);
   const elMargem = document.getElementById('vv-margem');
@@ -1083,13 +1098,21 @@ window.fecharVisualizar = function() {
 };
 
 // ── Visualizar venda (grupo) ──
-const FORMA_LABEL_G = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro', fiado: 'Fiado' };
+const FORMA_LABEL_G = { pix: 'Pix', credito: 'Cartão', debito: 'Débito', dinheiro: 'Dinheiro', fiado: 'Fiado' };
 function preencherVisualizarGrupo(g) {
   if (!g) return;
   document.getElementById('vvg-id').textContent = g.id_display || '—';
   document.getElementById('vvg-data').textContent = fmtData(g.data);
   document.getElementById('vvg-hora').textContent = g.hora || '—';
-  document.getElementById('vvg-pgto').textContent = (g.formas_pagamento || []).map(f => FORMA_LABEL_G[f] || f).join(' + ') || '—';
+  const blocoPgto = document.getElementById('vvg-pgto');
+  if (g.pagamentos_breakdown && g.pagamentos_breakdown.length) {
+    const linhas = g.pagamentos_breakdown.map(p => (FORMA_LABEL_G[p.forma] || p.forma) + ': ' + fmtR(p.total));
+    const totalPago = g.pagamentos_breakdown.reduce((s, p) => s + p.total, 0);
+    linhas.push('<strong>Total: ' + fmtR(totalPago) + '</strong>');
+    blocoPgto.innerHTML = linhas.join('<br>');
+  } else {
+    blocoPgto.textContent = (g.formas_pagamento || []).map(f => FORMA_LABEL_G[f] || f).join(' + ') || '—';
+  }
   document.getElementById('vvg-qtd-itens').textContent = g.qtd_itens + (g.qtd_itens === 1 ? ' item' : ' itens');
   const STATUS_LABEL_G = {
     pendente:  '<span class="status-badge status-pendente">🟡 Pendente</span>',

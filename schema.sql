@@ -50,19 +50,22 @@ CREATE TABLE IF NOT EXISTS sales (
     comanda_id       TEXT,
     comanda_nome     TEXT,
     produto_tipo     TEXT DEFAULT 'estoque',
-    codigo           TEXT UNIQUE,
+    codigo           TEXT,
     codigo_produto   TEXT,
     hora             TEXT,
     usuario          TEXT,
+    caixa_id         TEXT,
     excluida         BOOLEAN NOT NULL DEFAULT FALSE,
     excluida_em      TEXT,
     excluida_por     TEXT
 );
 -- Se a tabela já existir, rodar no Supabase SQL Editor:
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS codigo TEXT UNIQUE;
+-- ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_codigo_key; -- código passou a ser 1 por venda inteira (id_venda/comanda_id), não 1 por item — precisa poder repetir entre linhas
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS codigo_produto TEXT;
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS hora TEXT;
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS usuario TEXT;
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS caixa_id TEXT;
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS excluida BOOLEAN NOT NULL DEFAULT FALSE;
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS excluida_em TEXT;
 -- ALTER TABLE sales ADD COLUMN IF NOT EXISTS excluida_por TEXT;
@@ -106,8 +109,11 @@ CREATE TABLE IF NOT EXISTS commands (
     forma_pagamento   TEXT,
     tipo_atendimento  TEXT DEFAULT 'avulso',
     cliente_id        TEXT,
-    historico         JSONB NOT NULL DEFAULT '[]'
+    historico         JSONB NOT NULL DEFAULT '[]',
+    codigo            TEXT UNIQUE
 );
+-- Se a tabela já existir, rodar no Supabase SQL Editor:
+-- ALTER TABLE commands ADD COLUMN IF NOT EXISTS codigo TEXT UNIQUE; -- gerado só na quitação, propagado pros itens em sales
 
 -- Caixa (fechamentos diários)
 -- vendas_uids é JSONB: ["uid1", "uid2", ...]
@@ -161,10 +167,24 @@ CREATE TABLE IF NOT EXISTS caixa_movimentacoes (
     usuario     TEXT NOT NULL
 );
 
+-- Divisão do pagamento de uma venda (id_venda) por forma — uma venda pode ser
+-- paga parte em dinheiro, parte em pix, etc. sales.forma_pagamento continua
+-- existindo só como rótulo textual de exibição (ex: "Dinheiro+Pix").
+CREATE TABLE IF NOT EXISTS venda_pagamentos (
+    id        TEXT PRIMARY KEY,
+    id_venda  TEXT NOT NULL,
+    forma     TEXT NOT NULL,
+    valor     NUMERIC(10,2) NOT NULL DEFAULT 0,
+    data      TEXT NOT NULL DEFAULT '',
+    hora      TEXT NOT NULL DEFAULT '',
+    usuario   TEXT NOT NULL DEFAULT ''
+);
+
 -- Índices para buscas frequentes
 CREATE INDEX IF NOT EXISTS idx_sales_data ON sales(data);
 CREATE INDEX IF NOT EXISTS idx_sales_fechado ON sales(fechado);
 CREATE INDEX IF NOT EXISTS idx_sales_caixa_dia ON sales(caixa_dia);
+CREATE INDEX IF NOT EXISTS idx_sales_caixa_id ON sales(caixa_id);
 CREATE INDEX IF NOT EXISTS idx_sales_codigo ON sales(codigo);
 CREATE INDEX IF NOT EXISTS idx_sales_produto_pid ON sales(produto_pid);
 CREATE INDEX IF NOT EXISTS idx_sales_codigo_produto ON sales(codigo_produto);
@@ -173,6 +193,7 @@ CREATE INDEX IF NOT EXISTS idx_cash_registers_dia ON cash_registers(dia);
 CREATE INDEX IF NOT EXISTS idx_commands_status ON commands(status);
 CREATE INDEX IF NOT EXISTS idx_caixas_status ON caixas(status);
 CREATE INDEX IF NOT EXISTS idx_caixa_mov_caixa_id ON caixa_movimentacoes(caixa_id);
+CREATE INDEX IF NOT EXISTS idx_venda_pagamentos_id_venda ON venda_pagamentos(id_venda);
 
 -- Seed: usuários iniciais (não sobrescreve se já existirem)
 INSERT INTO users (username, senha, tipo, permissoes)

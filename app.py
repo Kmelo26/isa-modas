@@ -104,7 +104,7 @@ PERMISSOES_TODAS = [
     # Críticas
     "excluir_vendas", "alterar_preco_venda", "alterar_custo_produto",
     "gerenciar_usuarios", "alterar_permissoes",
-    "ver_vendas_canceladas",
+    "ver_vendas_canceladas", "editar_pagamento_comanda",
     # Investidores
     "ver_investidores", "editar_investidores",
 ]
@@ -200,6 +200,21 @@ def normalizar_pagamento(forma):
     return "credito"
 
 
+def _distribuir_pagamentos(total_venda, valor_dinheiro, valor_pix, valor_cartao):
+    """Divide o total da venda entre as formas informadas, na ordem
+    dinheiro/pix/cartao, nunca somando mais do que o total (protege contra
+    troco em dinheiro ou valores adulterados nos campos ocultos)."""
+    restante = round(total_venda, 2)
+    pagamentos = []
+    for forma, valor in (("dinheiro", valor_dinheiro), ("pix", valor_pix), ("cartao", valor_cartao)):
+        if valor <= 0 or restante <= 0:
+            continue
+        usado = round(min(valor, restante), 2)
+        pagamentos.append({"forma": forma, "valor": usado})
+        restante = round(restante - usado, 2)
+    return pagamentos
+
+
 # ================== FIFO / LOTES ==================
 LOCAL_PADRAO = "loja"  # local assumido pra lotes/vendas antigos, sem local_id gravado
 
@@ -284,6 +299,7 @@ def consumir_fifo(produto, qtd_vender):
     if not isinstance(lotes, list):
         lotes = []
         produto["lotes"] = lotes
+    lotes.sort(key=lambda l: str(l.get("data", "")))
 
     estoque_total = sum(to_float(l.get("qtd", 0)) for l in lotes)
     if qtd_vender > estoque_total:
@@ -348,6 +364,7 @@ def consumir_fifo_local(produto, qtd_vender, local_id):
     if not isinstance(lotes, list):
         lotes = []
         produto["lotes"] = lotes
+    lotes.sort(key=lambda l: str(l.get("data", "")))
 
     disponivel_local = sum(to_float(_dist_lote(l).get(local_id, 0)) for l in lotes)
     if qtd_vender > disponivel_local:
@@ -760,8 +777,14 @@ def _grupo_key(v):
 
 
 def _id_display(v):
-    """Identificador de venda exibido pra usuário (mesmo pra toda linha do
-    mesmo carrinho/comanda): CMD-XXXXXXXX pra comanda, id_venda pra balcão."""
+    """Identificador de venda exibido pro usuário (mesmo pra toda linha do
+    mesmo carrinho/comanda): o código de rastreio compartilhado (V-XXXXX)
+    quando já existe — venda avulsa sempre tem, comanda só depois de
+    quitada. Sem código ainda (comanda aberta/pendente, ou venda antiga de
+    antes dessa mudança), cai pro identificador interno de sempre:
+    CMD-XXXXXXXX pra comanda, id_venda cru pra balcão."""
+    if v.get("codigo"):
+        return v["codigo"]
     comanda_id = v.get("comanda_id")
     if comanda_id:
         return "CMD-" + str(comanda_id)[:8].upper()
@@ -785,6 +808,7 @@ def vendas():
     codigo_raw = request.args.get("codigo", "").strip().upper()
     forma_pagamento_raw = request.args.get("forma_pagamento", "").strip()
     status_raw = request.args.get("status", "").strip()
+    usuario_raw = request.args.get("usuario", "").strip()
     margem_min_raw = request.args.get("margem_min", "").strip()
     margem_max_raw = request.args.get("margem_max", "").strip()
     ordenar_raw = request.args.get("ordenar", "data_desc").strip()
@@ -841,6 +865,12 @@ def vendas():
                 ok = False
         if status_raw and (v.get("status") or "quitada") != status_raw:
             ok = False
+        if usuario_raw:
+            valor_usuario = v.get("usuario") or ""
+            if usuario_raw == "__sem__":
+                ok = ok and not valor_usuario
+            elif valor_usuario != usuario_raw:
+                ok = False
         if margem_min_raw:
             try:
                 if margem_calc(v) < float(margem_min_raw):
@@ -861,6 +891,46 @@ def vendas():
     for v in vendas_filtradas:
         grupos_map[_grupo_key(v)].append(v)
 
+    ids_venda_lote = [itens[0].get("id_venda") for k, itens in grupos_map.items() if k.startswith("iv:") and itens[0].get("id_venda")]
+    cids_comanda = [itens[0].get("comanda_id") for k, itens in grupos_map.items() if k.startswith("cmd:") and itens[0].get("comanda_id")]
+
+    # As 3 buscas abaixo são independentes entre si — rodam em paralelo em
+    # vez de uma atrás da outra (mesma ideia já aplicada em financeiro()).
+    # commands_by_ids busca só as comandas que aparecem nas vendas já
+    # filtradas desta página, em vez de db.get_all_commands() (a tabela
+    # inteira — ~1.7s sozinha, contra uma fração disso pra um punhado de ids).
+    tarefas_vendas = {
+        "pagamentos_venda": lambda: db.get_pagamentos_por_id_vendas(ids_venda_lote),
+        "comandas": lambda: db.get_commands_by_ids(cids_comanda),
+        "usuarios_map": db.get_all_users,
+    }
+    with ThreadPoolExecutor(max_workers=len(tarefas_vendas)) as executor:
+        futuros_vendas = {nome: executor.submit(fn) for nome, fn in tarefas_vendas.items()}
+        resultados_vendas = {nome: fut.result() for nome, fut in futuros_vendas.items()}
+
+    pagamentos_map = defaultdict(list)
+    for p in resultados_vendas["pagamentos_venda"]:
+        pagamentos_map[p["id_venda"]].append(p)
+
+    # Pagamentos reais de comanda (forma + valor, podendo ter vários
+    # registros — ex: 2x Pix) — usados em _montar_grupo pra mostrar a forma
+    # de pagamento de verdade em "Visualizar Venda", em vez do
+    # forma_pagamento bruto de cada item (que hoje é sempre "fiado" até a
+    # comanda ser paga, e nunca é atualizado depois).
+    pagamentos_comanda_map = {
+        c["cid"]: (c.get("pagamentos") or [])
+        for c in resultados_vendas["comandas"] if isinstance(c, dict)
+    }
+
+    usuarios_map = resultados_vendas["usuarios_map"]
+
+    def _soma_por_forma(lista_pagamentos):
+        soma = defaultdict(float)
+        for p in lista_pagamentos:
+            f = normalizar_pagamento(p.get("forma", ""))
+            soma[f] += to_float(p.get("valor", 0))
+        return sorted(soma.items(), key=lambda x: x[1], reverse=True)
+
     def _montar_grupo(chave, itens_grupo):
         itens_ordenados = sorted(itens_grupo, key=lambda v: (v.get("data") or "", v.get("hora") or ""))
         primeiro = itens_ordenados[0]
@@ -868,11 +938,26 @@ def vendas():
         custo_total = sum(float(v.get("valor_investido") or 0) * float(v.get("quantidade") or 1) for v in itens_grupo)
         margem_grupo = ((valor_total - custo_total) / valor_total * 100) if valor_total > 0 else 0.0
 
-        formas = []
-        for v in itens_grupo:
-            f = normalizar_pagamento(v.get("forma_pagamento", "")) if v.get("forma_pagamento") else None
-            if f and f not in formas:
-                formas.append(f)
+        comanda_id_grupo = primeiro.get("comanda_id")
+        pagamentos_venda = pagamentos_map.get(primeiro.get("id_venda"), [])
+        pagamentos_comanda = pagamentos_comanda_map.get(comanda_id_grupo, []) if comanda_id_grupo else []
+
+        soma = _soma_por_forma(pagamentos_comanda) if pagamentos_comanda \
+            else _soma_por_forma(pagamentos_venda) if pagamentos_venda else None
+
+        if soma is not None:
+            formas = [f for f, _ in soma]
+            pagamentos_breakdown = [{"forma": f, "total": round(v, 2)} for f, v in soma]
+        else:
+            # Sem pagamento registrado ainda (comanda pendente, ou venda
+            # antiga sem split) — mesmo comportamento de sempre: pega o
+            # forma_pagamento bruto de cada item, sem valores.
+            formas = []
+            for v in itens_grupo:
+                f = normalizar_pagamento(v.get("forma_pagamento", "")) if v.get("forma_pagamento") else None
+                if f and f not in formas:
+                    formas.append(f)
+            pagamentos_breakdown = []
 
         statuses = set((v.get("status") or "quitada") for v in itens_grupo)
         if "pendente" in statuses:
@@ -884,13 +969,12 @@ def vendas():
         else:
             status_grupo = "quitada"
 
-        comanda_id = primeiro.get("comanda_id")
         id_display = _id_display(primeiro)
 
         return {
             "grupo_key": chave,
             "id_display": id_display,
-            "comanda_id": comanda_id,
+            "comanda_id": comanda_id_grupo,
             "comanda_nome": primeiro.get("comanda_nome"),
             "data": primeiro.get("data"),
             "hora": primeiro.get("hora"),
@@ -899,6 +983,8 @@ def vendas():
             "valor_total": round(valor_total, 2),
             "margem": round(margem_grupo, 2),
             "formas_pagamento": formas,
+            "pagamentos_breakdown": pagamentos_breakdown,
+            "usuario": primeiro.get("usuario") or "",
             "status": status_grupo,
             "pode_cancelar_inteira": status_grupo in ("quitada", "cancelada"),
             "itens": itens_ordenados,
@@ -966,6 +1052,10 @@ def vendas():
         if isinstance(v, dict) and v.get("nome", "").strip()
     ))
 
+    usuarios_conhecidos = [
+        (u, (dados.get("nome") or u)) for u, dados in sorted(usuarios_map.items())
+    ]
+
     return render_template(
         "vendas.html",
         vendas=vendas_pagina,
@@ -978,6 +1068,8 @@ def vendas():
         busca_codigo=codigo_raw,
         forma_pagamento_raw=forma_pagamento_raw,
         status_raw=status_raw,
+        usuario_raw=usuario_raw,
+        usuarios_conhecidos=usuarios_conhecidos,
         margem_min_raw=margem_min_raw,
         margem_max_raw=margem_max_raw,
         ordenar_raw=ordenar_raw,
@@ -1130,20 +1222,42 @@ def editar_venda(uid):
     if not usuario_logado():
         return redirect(url_for("login"))
 
-    if session.get("tipo") != "admin" and not tem_permissao("editar_vendas"):
-        return redirect(url_for("vendas"))
-
     venda = db.get_sale(uid)
     if not venda:
         return redirect(url_for("vendas"))
 
-    estoque = db.get_all_products()
+    # Produto travado: não dá mais pra trocar por outro aqui, só ajustar
+    # data/quantidade/forma de pagamento do mesmo produto/pacote já vendido.
+    # Resolve pelo tipo gravado na própria venda (bar_products não entra em
+    # db.get_all_products(), por isso é preciso ramificar).
+    produto_tipo_venda = venda.get("produto_tipo") or "estoque"
+    pid_venda = str(venda.get("produto_pid", "")).strip()
+    if produto_tipo_venda == "bar":
+        produto_atual = db.bar_get_product(pid_venda)
+        nome_produto_atual = (produto_atual or {}).get("name") or venda.get("nome", "")
+        preco_produto_atual = to_float((produto_atual or {}).get("sale_price", venda.get("valor_venda", 0)))
+        qtd_disponivel_atual = None  # pacote não tem um "disponível" único, depende de todos os componentes
+    else:
+        produto_atual = db.get_product(pid_venda)
+        nome_produto_atual = (produto_atual or {}).get("nome") or venda.get("nome", "")
+        preco_produto_atual = to_float((produto_atual or {}).get("valor_venda", venda.get("valor_venda", 0)))
+        qtd_disponivel_atual = (produto_atual or {}).get("quantidade")
+
+    id_venda = venda.get("id_venda") or ""
+    irmaos = [s for s in db.get_sales_by_id_venda(id_venda) if s["uid"] != uid] if id_venda else []
+    total_outros_itens = sum(to_float(s.get("valor_venda", 0)) * to_int(s.get("quantidade", 1)) for s in irmaos)
+    pagamentos_atuais = db.get_pagamentos_venda(id_venda) if id_venda else []
 
     if venda.get("fechado"):
         return render_template(
             "editar_vendas.html",
             venda=venda,
-            estoque=estoque,
+            nome_produto_atual=nome_produto_atual,
+            preco_produto_atual=preco_produto_atual,
+            produto_tipo_venda=produto_tipo_venda,
+            qtd_disponivel_atual=qtd_disponivel_atual,
+            total_outros_itens=total_outros_itens,
+            pagamentos_atuais=pagamentos_atuais,
             erro="Esta venda já foi fechada no caixa e não pode ser editada.",
             tipo=session.get("tipo"),
             permissoes=session.get("permissoes", [])
@@ -1152,68 +1266,152 @@ def editar_venda(uid):
     erro = ""
 
     if request.method == "POST":
+        redir = autorizar_acao("editar_vendas")
+        if redir:
+            return redir
+
         nova_data = normalizar_data_str(request.form.get("data", venda.get("data", "")))
 
-        fp_form = (request.form.get("forma_pagamento") or "").strip()
-        nova_forma_pagamento = normalizar_pagamento(fp_form) if fp_form else venda.get("forma_pagamento", "cartao")
+        valor_dinheiro = to_float(request.form.get("valor_dinheiro", "0"))
+        valor_pix = to_float(request.form.get("valor_pix", "0"))
+        valor_cartao = to_float(request.form.get("valor_cartao", "0"))
 
-        novo_pid = (request.form.get("produto_pid") or "").strip() or str(venda.get("produto_pid", "")).strip()
         nova_qtd = to_int(request.form.get("quantidade", venda.get("quantidade", 1)), 0)
+        qtd_antiga = to_int(venda.get("quantidade", 0))
 
         if nova_qtd <= 0:
             erro = "Quantidade inválida."
+        elif not produto_atual:
+            erro = "Pacote não encontrado." if produto_tipo_venda == "bar" else "Produto não encontrado no estoque."
 
-        produto_novo = next((p for p in estoque if str(p.get("pid", "")) == str(novo_pid)), None)
-        if not erro and not produto_novo:
-            erro = "Produto não encontrado no estoque."
-
+        total_venda_atual = 0.0
         if not erro:
-            pid_antigo = str(venda.get("produto_pid", "")).strip()
-            consumo_antigo = venda.get("consumo_lotes", [])
-            local_da_venda = venda.get("local_id")
+            total_venda_atual = round(total_outros_itens + preco_produto_atual * nova_qtd, 2)
+            if round(valor_dinheiro + valor_pix + valor_cartao, 2) + 0.01 < total_venda_atual:
+                erro = "A soma dos valores de pagamento é menor que o total da venda."
 
-            if pid_antigo == str(produto_novo.get("pid", "")):
-                produto_antigo = produto_novo
+        # Quantidade não mudou: não mexe em estoque nenhum, só nos campos
+        # abaixo (data/forma). Evita churn desnecessário no FIFO e resolve
+        # de graça o caso mais comum (só corrigir a data).
+        custo_unit_medio = to_float(venda.get("valor_investido", 0))
+        consumo_novo = venda.get("consumo_lotes", [])
+
+        if not erro and nova_qtd != qtd_antiga:
+            if produto_tipo_venda == "bar":
+                consumo_antigo = venda.get("consumo_lotes") or []
+                # Venda de pacote gravada antes desta atualização não tem o
+                # componente de cada item de consumo — não dá pra devolver
+                # com segurança, então só bloqueia a troca de quantidade
+                # (data/forma continuam editáveis, não passam por aqui).
+                sem_detalhe = any(not c.get("component_id") for c in consumo_antigo)
+                if consumo_antigo and sem_detalhe:
+                    erro = ("Esta venda de pacote é anterior a esta atualização e não tem o "
+                            "detalhamento necessário pra alterar a quantidade com segurança — "
+                            "edite apenas data e forma de pagamento.")
+                else:
+                    try:
+                        components = db.bar_get_components(pid_venda)
+                        if not components:
+                            raise ValueError("Este pacote não possui componentes cadastrados.")
+
+                        if consumo_antigo:
+                            por_componente = defaultdict(list)
+                            for c in consumo_antigo:
+                                por_componente[c.get("component_id")].append(c)
+                            devolver_bar_componentes([
+                                {"pid": comp_id, "consumo": lst} for comp_id, lst in por_componente.items()
+                            ])
+
+                        # Confere disponibilidade de cada componente pra nova
+                        # quantidade ANTES de consumir de verdade — bar_fifo_consume
+                        # não valida isso sozinho, então a checagem é feita aqui.
+                        faltando = []
+                        necessidades = []
+                        for comp in components:
+                            unidade_uso = (comp.get("unidade_uso") or "UN").strip()
+                            qtd_bruta = float(comp["quantity"]) * nova_qtd
+                            comp_pid = (comp.get("component_id") or "").replace("-", "")
+                            produto_comp = db.get_product(comp_pid)
+                            cv = float((produto_comp or {}).get("conteudo_valor") or 1)
+                            needed = qtd_bruta / cv if (cv > 1 and unidade_uso.upper() != "UN") else qtd_bruta
+                            necessidades.append((comp_pid, needed))
+                            disponivel = sum(to_float(l.get("qtd", 0)) for l in (produto_comp or {}).get("lotes", []))
+                            if needed > disponivel + 0.0001:
+                                faltando.append((comp.get("component") or {}).get("name") or comp_pid)
+
+                        if faltando:
+                            raise ValueError("Estoque insuficiente pra essa quantidade: " + ", ".join(faltando) + ".")
+
+                        total_cost = 0.0
+                        all_logs = []
+                        for comp_pid, needed in necessidades:
+                            cost, log = bar_fifo_consume(comp_pid, needed)
+                            total_cost += cost
+                            all_logs.extend(log)
+
+                        custo_unit_medio = round(total_cost / nova_qtd, 4) if nova_qtd else 0.0
+                        consumo_novo = all_logs
+                    except ValueError as e:
+                        erro = str(e)
             else:
-                produto_antigo = next((p for p in estoque if str(p.get("pid", "")) == pid_antigo), None)
+                consumo_antigo = venda.get("consumo_lotes", [])
+                local_da_venda = venda.get("local_id")
 
-            if produto_antigo and consumo_antigo:
-                if local_da_venda:
-                    devolver_fifo_local(produto_antigo, consumo_antigo, local_da_venda)
-                else:
-                    devolver_fifo(produto_antigo, consumo_antigo)
+                if consumo_antigo:
+                    if local_da_venda:
+                        devolver_fifo_local(produto_atual, consumo_antigo, local_da_venda)
+                    else:
+                        devolver_fifo(produto_atual, consumo_antigo)
 
-            try:
-                if local_da_venda:
-                    custo_total, consumo_novo = consumir_fifo_local(produto_novo, nova_qtd, local_da_venda)
-                else:
-                    custo_total, consumo_novo = consumir_fifo(produto_novo, nova_qtd)
-            except ValueError as e:
-                erro = str(e)
+                try:
+                    if local_da_venda:
+                        custo_total, consumo_novo = consumir_fifo_local(produto_atual, nova_qtd, local_da_venda)
+                    else:
+                        custo_total, consumo_novo = consumir_fifo(produto_atual, nova_qtd)
+                    custo_unit_medio = (custo_total / nova_qtd) if nova_qtd else 0.0
+                except ValueError as e:
+                    erro = str(e)
 
         if not erro:
-            custo_unit_medio = (custo_total / nova_qtd) if nova_qtd else 0.0
+            nomes_forma = {"dinheiro": "Dinheiro", "pix": "Pix", "cartao": "Cartão"}
+            pagamentos = _distribuir_pagamentos(total_venda_atual, valor_dinheiro, valor_pix, valor_cartao)
+            rotulo = "+".join(nomes_forma[p["forma"]] for p in pagamentos) or venda.get("forma_pagamento", "cartao")
 
             venda["data"] = nova_data
-            venda["forma_pagamento"] = nova_forma_pagamento
-            venda["produto_pid"] = produto_novo.get("pid")
-            venda["nome"] = produto_novo.get("nome", venda.get("nome", ""))
+            venda["forma_pagamento"] = rotulo
+            venda["nome"] = nome_produto_atual
             venda["quantidade"] = nova_qtd
-            venda["valor_venda"] = to_float(produto_novo.get("valor_venda", venda.get("valor_venda", 0)))
+            venda["valor_venda"] = preco_produto_atual
             venda["valor_investido"] = round(custo_unit_medio, 4)
             venda["consumo_lotes"] = consumo_novo
 
             db.update_sale(venda)
-            db.update_product(produto_novo)
-            if produto_antigo and produto_antigo is not produto_novo:
-                db.update_product(produto_antigo)
+            if produto_tipo_venda != "bar" and nova_qtd != qtd_antiga:
+                db.update_product(produto_atual)
+
+            if id_venda:
+                db.update_sales_forma_pagamento_by_id_venda(id_venda, rotulo, exclude_uid=uid)
+                db.delete_pagamentos_venda(id_venda)
+                agora_pg = now_brt()
+                for p in pagamentos:
+                    p.update({
+                        "id": uuid.uuid4().hex, "id_venda": id_venda,
+                        "data": agora_pg.strftime("%Y-%m-%d"), "hora": agora_pg.strftime("%H:%M"),
+                        "usuario": session.get("usuario", ""),
+                    })
+                db.insert_pagamentos_venda(pagamentos)
 
             return redirect(url_for("vendas"))
 
     return render_template(
         "editar_vendas.html",
         venda=venda,
-        estoque=estoque,
+        nome_produto_atual=nome_produto_atual,
+        preco_produto_atual=preco_produto_atual,
+        produto_tipo_venda=produto_tipo_venda,
+        qtd_disponivel_atual=qtd_disponivel_atual,
+        total_outros_itens=total_outros_itens,
+        pagamentos_atuais=pagamentos_atuais,
         erro=erro,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
@@ -1568,7 +1766,7 @@ def estoque():
         "pid", "data", "nome", "categoria", "tipo_controle", "unidade_venda",
         "quantidade", "estoque_minimo", "valor_investido", "valor_venda",
         "conteudo_valor", "conteudo_unidade", "validade", "fornecedor",
-        "tipo_conversao", "unidades_por_caixa", "observacoes",
+        "tipo_conversao", "unidades_por_caixa", "observacoes", "_qtd_por_local",
     )
     estoque_modal = [
         {campo: p.get(campo) for campo in CAMPOS_MODAL_VISUALIZAR_PRODUTO}
@@ -2277,8 +2475,10 @@ def cadastrar_venda():
             if not erro:
                 caixa_id_atual = caixa_aberto_cv["id"] if caixa_aberto_cv else None
                 try:
+                    codigo_venda = db.gerar_codigo_rastreio("V", data or now_brt().strftime("%Y-%m-%d"))
                     for venda in novas_vendas:
                         venda["caixa_id"] = caixa_id_atual
+                        venda["codigo"] = codigo_venda
                         db.insert_sale(venda)
                     for produto in produtos_modificados:
                         db.update_product(produto)
@@ -2341,6 +2541,9 @@ def cadastrar_venda_lote():
     if request.method == "POST":
         data = request.form.get("data", "")
         forma_pagamento = request.form.get("forma_pagamento", "")
+        valor_dinheiro = to_float(request.form.get("valor_dinheiro", "0"))
+        valor_pix = to_float(request.form.get("valor_pix", "0"))
+        valor_cartao = to_float(request.form.get("valor_cartao", "0"))
         local_id = (request.form.get("local_id") or LOCAL_PADRAO).strip()
 
         try:
@@ -2458,18 +2661,35 @@ def cadastrar_venda_lote():
             if not erro and not novas_vendas:
                 erro = "Adicione pelo menos 1 produto com quantidade válida."
 
+            total_venda = 0.0
+            if not erro:
+                total_venda = sum(to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 0)) for v in novas_vendas)
+                if round(valor_dinheiro + valor_pix + valor_cartao, 2) + 0.01 < total_venda:
+                    erro = "A soma dos valores de pagamento é menor que o total da venda."
+
             if not erro:
                 caixa_id_atual = caixa_aberto["id"] if caixa_aberto else None
                 try:
+                    codigo_venda = db.gerar_codigo_rastreio("V", now_brt().strftime("%Y-%m-%d"))
                     for venda in novas_vendas:
                         venda["caixa_id"] = caixa_id_atual
+                        venda["codigo"] = codigo_venda
                         db.insert_sale(venda)
                     for produto in produtos_modificados:
                         db.update_product(produto)
+
+                    pagamentos = _distribuir_pagamentos(total_venda, valor_dinheiro, valor_pix, valor_cartao)
+                    agora_pg = now_brt()
+                    for p in pagamentos:
+                        p.update({
+                            "id": uuid.uuid4().hex, "id_venda": id_venda,
+                            "data": agora_pg.strftime("%Y-%m-%d"), "hora": agora_pg.strftime("%H:%M"),
+                            "usuario": session.get("usuario", ""),
+                        })
+                    db.insert_pagamentos_venda(pagamentos)
                 except RuntimeError as e:
                     erro = str(e)
                 else:
-                    total_venda = sum(to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 0)) for v in novas_vendas)
                     desc = novas_vendas[0]["nome"] if len(novas_vendas) == 1 else f"{len(novas_vendas)} itens"
                     db.registrar_log(
                         session.get("usuario", ""), "venda_criada",
@@ -2541,7 +2761,19 @@ def comandas():
         return redirect(url_for("vendas"))
 
     hoje = now_brt().strftime("%Y-%m-%d")
-    todas = db.get_all_commands()
+
+    # As 3 buscas abaixo são independentes entre si — rodam em paralelo em
+    # vez de uma atrás da outra (mesma ideia já aplicada em financeiro()).
+    tarefas_comandas = {
+        "todas": db.get_all_commands,
+        "usuarios_map": db.get_all_users,
+        "locais_estoque": db.get_all_locais_estoque,
+    }
+    with ThreadPoolExecutor(max_workers=len(tarefas_comandas)) as executor:
+        futuros_comandas = {nome: executor.submit(fn) for nome, fn in tarefas_comandas.items()}
+        resultados_comandas = {nome: fut.result() for nome, fut in futuros_comandas.items()}
+
+    todas = resultados_comandas["todas"]
 
     def valor_pago(c):
         return sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
@@ -2572,6 +2804,11 @@ def comandas():
 
     erro_caixa = session.pop("erro_caixa", None)
 
+    usuarios_map = resultados_comandas["usuarios_map"]
+    usuarios_conhecidos = [
+        (u, (dados.get("nome") or u)) for u, dados in sorted(usuarios_map.items())
+    ]
+
     return render_template(
         "comandas.html",
         comandas=comandas_exibir,
@@ -2579,10 +2816,11 @@ def comandas():
         permissoes=session.get("permissoes", []),
         usuario=session.get("usuario", "Administrador"),
         nomes_sugestoes=nomes_sugestoes,
+        usuarios_conhecidos=usuarios_conhecidos,
         hoje=hoje,
         stats=stats,
         erro_caixa=erro_caixa,
-        locais_estoque=db.get_all_locais_estoque(),
+        locais_estoque=resultados_comandas["locais_estoque"],
         local_padrao=LOCAL_PADRAO,
     )
 
@@ -2920,6 +3158,7 @@ def comanda_adicionar(cid):
 
                 custo_unit = round(total_cost / qtd, 4) if qtd else 0.0
                 margem_ativa = comanda.get("margem_customizada")
+                local_id = comanda.get("local_id") or LOCAL_PADRAO
                 preco_unit = (
                     _preco_por_margem(custo_unit, margem_ativa)
                     if margem_ativa is not None
@@ -2928,6 +3167,7 @@ def comanda_adicionar(cid):
                 hoje_item = now_brt().strftime("%Y-%m-%d")
                 hora_item = now_brt().strftime("%H:%M")
                 sale_uid = uuid.uuid4().hex
+                caixa_aberto_item = db.get_caixa_aberto(local_id)
                 db.insert_sale({
                     "uid": sale_uid,
                     "comanda_id": comanda["cid"],
@@ -2941,8 +3181,11 @@ def comanda_adicionar(cid):
                     "valor_investido": custo_unit,
                     "quantidade": qtd,
                     "status": "pendente",
+                    "forma_pagamento": "fiado",
                     "consumo_lotes": all_logs,
                     "usuario": session.get("usuario", ""),
+                    "local_id": local_id,
+                    "caixa_id": caixa_aberto_item["id"] if caixa_aberto_item else None,
                 })
                 comanda["itens"].append({
                     "item_id": uuid.uuid4().hex,
@@ -2995,6 +3238,7 @@ def comanda_adicionar(cid):
                 hoje_item = now_brt().strftime("%Y-%m-%d")
                 hora_item = now_brt().strftime("%H:%M")
                 sale_uid = uuid.uuid4().hex
+                caixa_aberto_item = db.get_caixa_aberto(local_id)
                 db.insert_sale({
                     "uid": sale_uid,
                     "comanda_id": comanda["cid"],
@@ -3008,9 +3252,11 @@ def comanda_adicionar(cid):
                     "valor_investido": round(custo_unit_medio, 4),
                     "quantidade": qtd,
                     "status": "pendente",
+                    "forma_pagamento": "fiado",
                     "consumo_lotes": consumo,
                     "usuario": session.get("usuario", ""),
                     "local_id": local_id,
+                    "caixa_id": caixa_aberto_item["id"] if caixa_aberto_item else None,
                 })
                 comanda["itens"].append({
                     "item_id": uuid.uuid4().hex,
@@ -3338,6 +3584,15 @@ def _sincronizar_status_vendas_comanda(comanda: dict):
     except RuntimeError:
         pass
 
+    if novo_status == "quitada" and not comanda.get("codigo"):
+        try:
+            codigo = db.gerar_codigo_rastreio("V", now_brt().strftime("%Y-%m-%d"))
+            comanda["codigo"] = codigo
+            db.update_command(comanda)
+            db.update_sales_codigo_by_comanda(comanda["cid"], codigo)
+        except RuntimeError:
+            pass
+
 
 @app.route("/comandas/<cid>/aguardar", methods=["POST"])
 def comanda_aguardar(cid):
@@ -3372,6 +3627,7 @@ def comanda_pagar(cid):
     comanda = db.get_command(cid)
     PAGAVEIS = ("aberta", "aguardando_pagamento", "pagamento_parcial", "agendado", "atrasada", "em_pagamento")
     if not comanda or comanda.get("status") not in PAGAVEIS:
+        session["erro_caixa"] = "⚠️ Essa comanda não está mais disponível para pagamento."
         return redirect(url_for("comandas"))
 
     local_id = comanda.get("local_id") or LOCAL_PADRAO
@@ -3385,6 +3641,7 @@ def comanda_pagar(cid):
         return redirect(url_for("comandas"))
 
     if not comanda.get("itens") and not comanda.get("emprestimos"):
+        session["erro_caixa"] = "⚠️ Essa comanda não tem itens para pagar."
         return redirect(url_for("comandas"))
 
     valor_raw = (request.form.get("valor") or "0").strip()
@@ -3397,6 +3654,7 @@ def comanda_pagar(cid):
     saldo = round(total - pago_antes, 2)
 
     if valor <= 0 or valor > saldo + 0.005:
+        session["erro_caixa"] = f"⚠️ Valor inválido: informe um valor entre R$ 0,01 e R$ {saldo:.2f}".replace(".", ",") + " (saldo devedor da comanda)."
         return redirect(url_for("comandas"))
 
     hoje = now_brt().strftime("%Y-%m-%d")
@@ -3430,8 +3688,69 @@ def comanda_pagar(cid):
         _sincronizar_status_vendas_comanda(comanda)
         desc = f"Quitou comanda: {comanda.get('nome', '')}" if comanda["status"] == "quitada" else f"Registrou pagamento na comanda {comanda.get('nome', '')} (R$ {valor:.2f})"
         db.registrar_log(usuario, "pagamento_comanda", desc, hoje, hora)
-    except RuntimeError:
-        pass
+    except RuntimeError as e:
+        session["erro_caixa"] = f"⚠️ Não foi possível registrar o pagamento: {e}"
+    return redirect(url_for("comandas"))
+
+
+@app.route("/comandas/<cid>/pagamento/<pid>/editar", methods=["POST"])
+def comanda_editar_pagamento(cid, pid):
+    if not usuario_logado():
+        return redirect(url_for("login"))
+
+    redir = autorizar_acao("editar_pagamento_comanda")
+    if redir:
+        return redir
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") == "cancelada":
+        session["erro_caixa"] = "⚠️ Essa comanda não está disponível para edição de pagamentos."
+        return redirect(url_for("comandas"))
+
+    pagamentos = comanda.get("pagamentos") or []
+    pagamento = next((p for p in pagamentos if str(p.get("uid")) == str(pid)), None)
+    if not pagamento:
+        session["erro_caixa"] = "⚠️ Pagamento não encontrado."
+        return redirect(url_for("comandas"))
+
+    novo_valor = to_float((request.form.get("valor") or "0").strip())
+    nova_obs = (request.form.get("obs") or "").strip()
+
+    total = _total_comanda(comanda)
+    outros_pagos = sum(to_float(p.get("valor", 0)) for p in pagamentos if p is not pagamento)
+    saldo_max = round(total - outros_pagos, 2)
+
+    if novo_valor <= 0 or novo_valor > saldo_max + 0.005:
+        session["erro_caixa"] = f"⚠️ Valor inválido: informe um valor entre R$ 0,01 e R$ {saldo_max:.2f}".replace(".", ",") + " (considerando os outros pagamentos já registrados)."
+        return redirect(url_for("comandas"))
+
+    valor_anterior = to_float(pagamento.get("valor"))
+    pagamento["valor"] = round(novo_valor, 2)
+    pagamento["obs"] = nova_obs
+    pagamento["editado_por"] = session.get("usuario", "")
+    pagamento["editado_em"] = now_brt().strftime("%Y-%m-%d %H:%M")
+
+    pago_total = round(outros_pagos + novo_valor, 2)
+    status_anterior = comanda.get("status", "aberta")
+    if pago_total >= total - 0.005:
+        comanda["status"] = "quitada"
+        if not comanda.get("data_quitada"):
+            comanda["data_quitada"] = now_brt().strftime("%Y-%m-%d")
+    else:
+        comanda["status"] = "pagamento_parcial"
+    _registrar_historico(comanda, status_anterior)
+
+    try:
+        db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
+        db.registrar_log(
+            session.get("usuario", ""), "pagamento_comanda_editado",
+            f"Editou pagamento da comanda {comanda.get('nome', '')}: R$ {valor_anterior:.2f} para R$ {novo_valor:.2f}",
+            now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+        )
+    except RuntimeError as e:
+        session["erro_caixa"] = f"⚠️ Não foi possível salvar a edição do pagamento: {e}"
+
     return redirect(url_for("comandas"))
 
 
@@ -3586,29 +3905,73 @@ _CACHE_RESULTADOS_LOTES_TTL = 60
 _cache_resultados_lotes = {"dados": None, "ts": 0.0}
 
 
-def _calcular_resultados_lotes_todos() -> dict:
-    """Varre as vendas não canceladas uma única vez e calcula, por lote_id
-    (de TODOS os lotes ativos), receita/custo/lucro REALIZADOS (só a fração
-    já paga pelo cliente, mesmo princípio do "Venda ≠ Recebimento ≠ Lucro"
-    do Financeiro) e quantidade vendida. Também acumula
-    receita_pendente/lucro_pendente — o complemento (fração ainda não paga)
-    de cada venda, pra dar visibilidade ao que está "na fila" sem contar
-    como realizado. Quando uma venda consumiu de mais de um lote (ex:
-    pacote do bar com vários componentes), rateia proporcionalmente ao
-    custo que cada lote contribuiu pra aquela venda."""
+def _calcular_resultados_lotes_todos(data_ini: str | None = None, data_fim: str | None = None) -> dict:
+    """Varre as vendas não canceladas e calcula, por lote_id (de TODOS os
+    lotes ativos), custo/qtd_vendida (baixa de estoque) e
+    receita_pendente/lucro_pendente (fração de cada venda ainda não paga,
+    pelo status atual — não depende de quando o pagamento vai acontecer).
+    Quando uma venda consumiu de mais de um lote (ex: pacote do bar com
+    vários componentes), rateia proporcionalmente ao custo que cada lote
+    contribuiu pra aquela venda. Também monta, por lote, o histórico
+    "vendas" (todo consumo daquele lote, independente de pagamento).
+
+    receita/lucro (as colunas REALIZADAS) usam regime de caixa — contam na
+    data em que o dinheiro de fato entrou, não na data de consumo: venda
+    avulsa é sempre paga na hora (mesma data), então sai direto da mesma
+    passada acima; venda de comanda vem de uma 2ª passada sobre os
+    pagamentos de cada comanda (cada um com sua própria data), ratando o
+    valor de cada pagamento entre os lotes que a comanda inteira consumiu,
+    proporcional ao custo de cada lote no custo total da comanda — mesmo
+    princípio de rateio por custo usado na 1ª passada, só agregado na
+    comanda inteira em vez de por venda.
+
+    Se data_ini/data_fim forem informados (strings "YYYY-MM-DD"), a 1ª
+    passada considera só vendas cuja própria data cai nesse período (mesmo
+    comportamento de sempre) e a 2ª passada considera só pagamentos cuja
+    própria data cai nesse período — usado por investidor_detalhe quando há
+    filtro de período ativo. Sem argumentos, comportamento idêntico ao de
+    sempre (usado pelo cache global de _obter_todos_resultados_lotes)."""
     # As 3 buscas abaixo são independentes entre si — rodam em paralelo em
     # vez de uma atrás da outra (mesma ideia já aplicada no Financeiro).
+    # todas_comandas substitui a busca própria que _fracao_paga_por_comanda
+    # fazia (mesma tabela, evita buscar commands duas vezes) — também
+    # alimenta a 2ª passada (pagamentos por data).
     with ThreadPoolExecutor(max_workers=3) as executor:
         fut_lotes = executor.submit(db.get_all_lote_investimentos)
-        fut_fracao = executor.submit(_fracao_paga_por_comanda)
+        fut_comandas = executor.submit(db.get_all_commands)
         fut_vendas = executor.submit(db.get_all_sales)
         lote_ids = {l["id"] for l in fut_lotes.result()}
-        fracao_paga_comanda = fut_fracao.result()
+        todas_comandas = fut_comandas.result()
         vendas = fut_vendas.result()
 
-    resultado = {lid: dict(_RESULTADO_LOTE_VAZIO) for lid in lote_ids}
+    fracao_paga_comanda = {}
+    for c in todas_comandas:
+        if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
+            continue
+        total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
+        pago_c = sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
+        fracao_paga_comanda[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
 
+    resultado = {lid: {**_RESULTADO_LOTE_VAZIO, "vendas": []} for lid in lote_ids}
+
+    # Pré-agrupa vendas por comanda_id — usado na 2ª passada pra não varrer
+    # a lista de vendas inteira de novo pra cada comanda.
+    vendas_por_comanda = defaultdict(list)
     for v in vendas:
+        cid_v = v.get("comanda_id")
+        if cid_v:
+            vendas_por_comanda[cid_v].append(v)
+
+    # 1ª passada: custo/qtd_vendida/receita_pendente/lucro_pendente/vendas
+    # (histórico de consumo) de toda venda — e receita/lucro realizados só
+    # das vendas AVULSAS (comanda usa a 2ª passada, abaixo).
+    for v in vendas:
+        if data_ini or data_fim:
+            d = str(v.get("data") or "")
+            if data_ini and d < data_ini:
+                continue
+            if data_fim and d > data_fim:
+                continue
         consumo = v.get("consumo_lotes") or []
         if not consumo:
             continue
@@ -3643,12 +4006,66 @@ def _calcular_resultados_lotes_todos() -> dict:
             qtd_c = to_float(c.get("qtd", c.get("qty", 0)))
             custo_c = to_float(c.get("custo_unit", c.get("unit_cost", 0))) * qtd_c
             fatia = custo_c / custo_total_venda
-            resultado[lid]["receita"] += receita_total_venda * fatia * fracao
             resultado[lid]["custo"]   += custo_c
-            resultado[lid]["lucro"]   += lucro_total_venda * fatia * fracao
             resultado[lid]["qtd_vendida"] += qtd_c
             resultado[lid]["receita_pendente"] += receita_total_venda * fatia * (1 - fracao)
             resultado[lid]["lucro_pendente"]   += lucro_total_venda * fatia * (1 - fracao)
+            resultado[lid]["vendas"].append({
+                "uid": v.get("uid"), "data": v.get("data"), "hora": v.get("hora"),
+                "qtd": qtd_c, "receita": receita_total_venda * fatia,
+                "lucro": lucro_total_venda * fatia, "status": v.get("status") or "quitada",
+                "comanda_id": v.get("comanda_id"),
+                "comanda_nome": v.get("comanda_nome"),
+                "id_display": _id_display(v),
+                "usuario": v.get("usuario"),
+            })
+            if not comanda_id:
+                resultado[lid]["receita"] += receita_total_venda * fatia
+                resultado[lid]["lucro"]   += lucro_total_venda * fatia
+
+    # 2ª passada: receita/lucro realizados de vendas de COMANDA — cada
+    # pagamento conta na sua própria data, ratando entre os lotes que a
+    # comanda inteira consumiu.
+    for c in todas_comandas:
+        if not isinstance(c, dict):
+            continue
+        pagamentos_c = c.get("pagamentos") or []
+        if not pagamentos_c:
+            continue
+        vendas_c = vendas_por_comanda.get(c.get("cid"), [])
+        if not vendas_c:
+            continue
+
+        custo_por_lote = defaultdict(float)
+        custo_total_comanda = 0.0
+        receita_total_comanda = 0.0
+        for v in vendas_c:
+            qtd_venda = to_float(v.get("quantidade", 0))
+            valor_unit = to_float(v.get("valor_venda", 0))
+            receita_total_comanda += valor_unit * qtd_venda
+            for cc in (v.get("consumo_lotes") or []):
+                lid = cc.get("lote_id")
+                custo_c = to_float(cc.get("custo_unit", cc.get("unit_cost", 0))) * to_float(cc.get("qtd", cc.get("qty", 0)))
+                custo_por_lote[lid] += custo_c
+                custo_total_comanda += custo_c
+
+        if custo_total_comanda <= 0 or receita_total_comanda <= 0:
+            continue
+        margem_comanda = (receita_total_comanda - custo_total_comanda) / receita_total_comanda
+
+        for p in pagamentos_c:
+            d = str(p.get("data") or "")
+            if data_ini and d < data_ini:
+                continue
+            if data_fim and d > data_fim:
+                continue
+            valor_p = to_float(p.get("valor", 0))
+            for lid, custo_l in custo_por_lote.items():
+                if lid not in resultado:
+                    continue
+                fatia_l = custo_l / custo_total_comanda
+                resultado[lid]["receita"] += valor_p * fatia_l
+                resultado[lid]["lucro"]   += valor_p * fatia_l * margem_comanda
 
     return resultado
 
@@ -3900,24 +4317,42 @@ def investidor_detalhe(iid):
 
     editar = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
 
+    data_ini_raw = (request.args.get("data_ini") or "").strip()
+    data_fim_raw = (request.args.get("data_fim") or "").strip()
+    tem_filtro = bool(data_ini_raw or data_fim_raw)
+
     # As 4 buscas abaixo são independentes entre si (o cálculo de resultados
     # busca seu próprio universo de lotes por baixo) — rodam em paralelo em
     # vez de uma atrás da outra, mesma ideia já aplicada no Financeiro.
     with ThreadPoolExecutor(max_workers=4) as executor:
         fut_lotes = executor.submit(db.get_all_lote_investimentos)
         fut_produtos = executor.submit(db.get_all_products)
-        fut_todos_resultados = executor.submit(_obter_todos_resultados_lotes)
+        fut_todos_resultados = (
+            executor.submit(_calcular_resultados_lotes_todos, data_ini_raw, data_fim_raw)
+            if tem_filtro else executor.submit(_obter_todos_resultados_lotes)
+        )
         fut_pagamentos = executor.submit(db.get_pagamentos_investidor, iid)
+
         lotes = [
             li for li in fut_lotes.result()
             if any(p.get("investidor_id") == iid for p in li.get("participantes", []))
         ]
+        if data_ini_raw:
+            lotes = [li for li in lotes if str(li.get("data_entrada") or "") >= data_ini_raw]
+        if data_fim_raw:
+            lotes = [li for li in lotes if str(li.get("data_entrada") or "") <= data_fim_raw]
+
         produtos_map = {p["pid"]: p for p in fut_produtos.result()}
         todos_resultados = fut_todos_resultados.result()
+
         pagamentos = fut_pagamentos.result()
+        if data_ini_raw:
+            pagamentos = [p for p in pagamentos if str(p.get("data") or "") >= data_ini_raw]
+        if data_fim_raw:
+            pagamentos = [p for p in pagamentos if str(p.get("data") or "") <= data_fim_raw]
 
     resultados = {
-        lid: todos_resultados.get(lid, dict(_RESULTADO_LOTE_VAZIO))
+        lid: todos_resultados.get(lid, {**_RESULTADO_LOTE_VAZIO, "vendas": []})
         for lid in {l["id"] for l in lotes}
     }
 
@@ -3930,7 +4365,7 @@ def investidor_detalhe(iid):
     linhas = []
     for li in lotes:
         pct = next((to_float(p["percentual"]) for p in li["participantes"] if p["investidor_id"] == iid), 0.0) / 100.0
-        r = resultados.get(li["id"], {"receita": 0.0, "lucro": 0.0, "qtd_vendida": 0.0, "receita_pendente": 0.0, "lucro_pendente": 0.0})
+        r = resultados.get(li["id"], {"receita": 0.0, "lucro": 0.0, "qtd_vendida": 0.0, "receita_pendente": 0.0, "lucro_pendente": 0.0, "vendas": []})
         produto = produtos_map.get(li["pid"], {})
         qtd_restante = sum(to_float(l.get("qtd", 0)) for l in produto.get("lotes", []) if l.get("id") == li["id"])
         valor_restante = qtd_restante * to_float(li["custo_unit"])
@@ -3942,11 +4377,22 @@ def investidor_detalhe(iid):
         receita_pendente_investidor += r["receita_pendente"] * pct
         lucro_pendente_investidor += r["lucro_pendente"] * pct
 
+        vendas_lote = [
+            {
+                "uid": vd.get("uid"), "data": vd.get("data"), "hora": vd.get("hora"),
+                "qtd": vd.get("qtd", 0), "receita": vd.get("receita", 0) * pct,
+                "lucro": vd.get("lucro", 0) * pct, "status": vd.get("status"),
+                "comanda_id": vd.get("comanda_id"), "comanda_nome": vd.get("comanda_nome"),
+                "id_display": vd.get("id_display"), "usuario": vd.get("usuario"),
+            }
+            for vd in r.get("vendas", [])
+        ]
         linhas.append({
             "lote": li, "produto_nome": li["produto_nome"], "percentual": pct * 100,
             "valor_lote": li["valor_total"], "sua_fatia": li["valor_total"] * pct,
             "qtd_restante": qtd_restante, "lucro_gerado": r["lucro"] * pct,
             "lucro_pendente": r["lucro_pendente"] * pct,
+            "vendas": vendas_lote,
         })
 
     valor_recebido = sum(to_float(p["valor"]) for p in pagamentos)
@@ -3968,6 +4414,8 @@ def investidor_detalhe(iid):
         receita_pendente=round(receita_pendente_investidor, 2),
         lucro_pendente=round(lucro_pendente_investidor, 2),
         hoje=today_brt().isoformat(),
+        data_ini_raw=data_ini_raw,
+        data_fim_raw=data_fim_raw,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
     )
@@ -4023,25 +4471,44 @@ def _auth_caixa_ver():
     return None
 
 
-def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None) -> dict:
+def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None, todas_comandas: list | None = None) -> dict:
     """Soma as vendas diretas do caixa por forma de pagamento, mais os
     pagamentos de comanda feitos enquanto esse caixa estava aberto (cada
     pagamento de comanda já carrega o caixa_id de quando foi registrado,
-    então isso funciona igual pra caixa aberto ou já fechado)."""
+    então isso funciona igual pra caixa aberto ou já fechado).
+
+    `todas_comandas`, se informado, é repassado pra
+    db.get_pagamentos_comanda_por_caixa() em vez dela buscar de novo — evita
+    varredura repetida da tabela commands quando o chamador já buscou essa
+    lista pra outra coisa na mesma requisição (ver caixa_turno())."""
     if vendas_ids is not None:
         vendas = db.get_sales_by_uids(vendas_ids) if vendas_ids else []
     else:
         vendas = db.get_sales_open_by_caixa(caixa_id)
 
+    ids_venda = list({v["id_venda"] for v in vendas if v.get("id_venda")})
+    pagamentos_map = defaultdict(list)
+    for p in db.get_pagamentos_por_id_vendas(ids_venda):
+        pagamentos_map[p["id_venda"]].append(p)
+
     totais = {"dinheiro": 0.0, "pix": 0.0, "credito": 0.0, "debito": 0.0, "fiado": 0.0, "total": 0.0, "qtd": 0}
+    vendas_ja_contadas = set()  # evita somar 2x quando vários itens da mesma id_venda têm pagamentos na tabela nova
     for v in vendas:
         valor = to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 1))
-        forma = normalizar_pagamento(v.get("forma_pagamento", ""))
-        totais[forma] = totais.get(forma, 0.0) + valor
         totais["total"] += valor
         totais["qtd"] += 1
+        id_venda = v.get("id_venda")
+        if id_venda and id_venda in pagamentos_map:
+            if id_venda not in vendas_ja_contadas:
+                vendas_ja_contadas.add(id_venda)
+                for p in pagamentos_map[id_venda]:
+                    forma = normalizar_pagamento(p.get("forma", ""))
+                    totais[forma] = totais.get(forma, 0.0) + to_float(p.get("valor", 0))
+        else:
+            forma = normalizar_pagamento(v.get("forma_pagamento", ""))  # fallback: dado antigo, sem venda_pagamentos
+            totais[forma] = totais.get(forma, 0.0) + valor
 
-    for p in db.get_pagamentos_comanda_por_caixa(caixa_id):
+    for p in db.get_pagamentos_comanda_por_caixa(caixa_id, todas_comandas=todas_comandas):
         valor = to_float(p.get("valor", 0))
         forma = normalizar_pagamento(p.get("forma", ""))
         totais[forma] = totais.get(forma, 0.0) + valor
@@ -4051,10 +4518,13 @@ def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None) -> dic
     return totais
 
 
-def _comandas_abertas_no_periodo(caixa: dict) -> list:
+def _comandas_abertas_no_periodo(caixa: dict, todas_comandas: list | None = None) -> list:
     """Comandas cuja abertura (data_abertura + hora_abertura) caiu dentro do
     período em que este caixa esteve aberto — do momento da abertura do
-    caixa até agora (ou até o fechamento, se já fechado)."""
+    caixa até agora (ou até o fechamento, se já fechado).
+
+    `todas_comandas`, se informado, é usado em vez de buscar a tabela de
+    novo (ver caixa_turno())."""
     inicio = f"{caixa.get('data_abertura','')} {caixa.get('hora_abertura','')}"
     if caixa.get("status") == "fechado" and caixa.get("data_fechamento"):
         fim = f"{caixa['data_fechamento']} {caixa.get('hora_fechamento','23:59')}"
@@ -4063,7 +4533,7 @@ def _comandas_abertas_no_periodo(caixa: dict) -> list:
 
     caixa_local = caixa.get("local_id") or LOCAL_PADRAO
     resultado = []
-    for c in db.get_all_commands():
+    for c in (todas_comandas if todas_comandas is not None else db.get_all_commands()):
         if (c.get("local_id") or LOCAL_PADRAO) != caixa_local:
             continue
         abertura_c = f"{c.get('data_abertura','')} {c.get('hora_abertura','')}"
@@ -4092,6 +4562,9 @@ def caixa_abrir():
     local_id = (request.values.get("local") or request.form.get("local_id") or LOCAL_PADRAO).strip()
     caixa_aberto = db.get_caixa_aberto(local_id)
     caixas_por_local = {l["id"]: db.get_caixa_aberto(l["id"]) for l in locais_estoque}
+    locais_disponiveis = [l for l in locais_estoque if not caixas_por_local.get(l["id"])]
+    local_sugerido = local_id if not caixas_por_local.get(local_id) else (
+        locais_disponiveis[0]["id"] if locais_disponiveis else local_id)
     erro = ""
 
     if request.method == "POST":
@@ -4126,6 +4599,7 @@ def caixa_abrir():
     return render_template("caixa_abrir.html",
         caixa_aberto=caixa_aberto, erro=erro,
         locais_estoque=locais_estoque, caixas_por_local=caixas_por_local,
+        locais_disponiveis=locais_disponiveis, local_sugerido=local_sugerido,
         local_padrao=LOCAL_PADRAO, local_atual=local_id,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
@@ -4140,7 +4614,29 @@ def caixa_turno():
     if not caixa:
         return redirect(url_for("caixa_abrir", local=local_id))
 
-    movs = db.get_movimentacoes_caixa(caixa["id"])
+    # As 5 buscas abaixo são independentes entre si — rodam em paralelo em
+    # vez de uma atrás da outra (mesma ideia já aplicada em financeiro()).
+    # todas_comandas é buscada aqui uma única vez e repassada pra
+    # _calcular_totais_caixa/_comandas_abertas_no_periodo/pagamentos_comanda_caixa
+    # logo abaixo, evitando 3 varreduras separadas da tabela commands (cada
+    # uma custava ~1.7s sozinha) na mesma requisição.
+    tarefas_turno = {
+        "movs": lambda: db.get_movimentacoes_caixa(caixa["id"]),
+        "todas_comandas": db.get_all_commands,
+        "locais_estoque": db.get_all_locais_estoque,
+        "vendas_caixa": lambda: db.get_sales_open_by_caixa(caixa["id"]),
+        "usuarios_map": db.get_all_users,
+    }
+    with ThreadPoolExecutor(max_workers=len(tarefas_turno)) as executor:
+        futuros_turno = {nome: executor.submit(fn) for nome, fn in tarefas_turno.items()}
+        resultados_turno = {nome: fut.result() for nome, fut in futuros_turno.items()}
+
+    movs = resultados_turno["movs"]
+    todas_comandas = resultados_turno["todas_comandas"]
+    locais_estoque = resultados_turno["locais_estoque"]
+    vendas_caixa = resultados_turno["vendas_caixa"]
+    usuarios_map = resultados_turno["usuarios_map"]
+
     total_sangrias   = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "sangria")
     total_suprimentos = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "suprimento")
     total_despesas   = sum(to_float(m["valor"]) for m in movs if m["tipo"] == "despesa")
@@ -4150,16 +4646,74 @@ def caixa_turno():
     ultima_mov = movs[-1] if movs else None
 
     # vendas diretas + pagamentos de comanda vinculados a este caixa
-    totais = _calcular_totais_caixa(caixa["id"])
+    totais = _calcular_totais_caixa(caixa["id"], todas_comandas=todas_comandas)
 
     dinheiro_esperado = round(
         to_float(caixa["valor_abertura"]) + totais["dinheiro"]
         + total_suprimentos - total_sangrias - total_despesas, 2)
 
-    comandas_periodo = _comandas_abertas_no_periodo(caixa)
+    comandas_periodo = _comandas_abertas_no_periodo(caixa, todas_comandas=todas_comandas)
     tempo_operacao = _tempo_operacao_str(caixa)
     hoje = now_brt().strftime("%Y-%m-%d")
-    locais_estoque = db.get_all_locais_estoque()
+
+    # Pagamentos de comanda feitos com este caixa aberto (total ou parcial) —
+    # mesma função já usada em _calcular_totais_caixa pra somar o total, só
+    # que aqui guardamos a lista pra exibir linha a linha.
+    pagamentos_comanda_caixa = sorted(
+        db.get_pagamentos_comanda_por_caixa(caixa["id"], todas_comandas=todas_comandas),
+        key=lambda p: (p.get("data") or "", p.get("hora") or ""),
+        reverse=True,
+    )
+
+    # vendas por usuário (quem lançou cada venda deste caixa) — agrupa por
+    # "venda" (carrinho/comanda), mesmo critério de _grupo_key usado em /vendas,
+    # não por linha de item, senão um carrinho de 3 produtos contaria como 3 vendas.
+    grupos_caixa = defaultdict(list)
+    for v in vendas_caixa:
+        grupos_caixa[_grupo_key(v)].append(v)
+    agrup_usuario = defaultdict(lambda: {"qtd": 0, "total": 0.0, "vendas": []})
+    for chave_grupo, itens in grupos_caixa.items():
+        itens_ordenados = sorted(itens, key=lambda v: (v.get("data") or "", v.get("hora") or ""))
+        primeiro = itens_ordenados[0]
+        valor_total_grupo = sum(to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 1)) for v in itens)
+        formas = []
+        for v in itens:
+            f = normalizar_pagamento(v.get("forma_pagamento", "")) if v.get("forma_pagamento") else None
+            if f and f not in formas:
+                formas.append(f)
+        statuses = set((v.get("status") or "quitada") for v in itens)
+        if "pendente" in statuses:
+            status_grupo = "pendente"
+        elif "parcial" in statuses:
+            status_grupo = "parcial"
+        elif statuses == {"cancelada"}:
+            status_grupo = "cancelada"
+        else:
+            status_grupo = "quitada"
+
+        chave_usuario = primeiro.get("usuario") or "__sem__"
+        agrup_usuario[chave_usuario]["qtd"] += 1
+        agrup_usuario[chave_usuario]["total"] += valor_total_grupo
+        agrup_usuario[chave_usuario]["vendas"].append({
+            "id_display": _id_display(primeiro),
+            "data": primeiro.get("data"),
+            "hora": primeiro.get("hora"),
+            "qtd_itens": len(itens),
+            "formas_pagamento": formas,
+            "valor_total": round(valor_total_grupo, 2),
+            "status": status_grupo,
+        })
+
+    vendas_por_usuario = []
+    for chave, dados in agrup_usuario.items():
+        nome = "Usuário não identificado" if chave == "__sem__" else (usuarios_map.get(chave, {}).get("nome") or chave)
+        vendas_do_usuario = sorted(dados["vendas"], key=lambda v: (v.get("data") or "", v.get("hora") or ""), reverse=True)
+        vendas_por_usuario.append({
+            "chave": chave, "nome": nome,
+            "qtd": dados["qtd"], "total": round(dados["total"], 2),
+            "vendas": vendas_do_usuario,
+        })
+    vendas_por_usuario.sort(key=lambda u: u["total"], reverse=True)
 
     return render_template("caixa_turno.html",
         caixa=caixa, movs=movs, totais=totais,
@@ -4168,6 +4722,8 @@ def caixa_turno():
         qtd_sangrias=qtd_sangrias, qtd_suprimentos=qtd_suprimentos, qtd_despesas=qtd_despesas,
         ultima_mov=ultima_mov, tempo_operacao=tempo_operacao, hoje=hoje,
         comandas_periodo=comandas_periodo,
+        pagamentos_comanda_caixa=pagamentos_comanda_caixa,
+        vendas_por_usuario=vendas_por_usuario,
         locais_estoque=locais_estoque,
         locais_nomes_map={l["id"]: l["nome"] for l in locais_estoque},
         local_atual=local_id, local_padrao=LOCAL_PADRAO,
@@ -4436,8 +4992,13 @@ def caixa_detalhe(cid):
         return redirect(url_for("caixa_historico_novo"))
 
     movs = db.get_movimentacoes_caixa(cid)
+    pagamentos_comanda_caixa = sorted(
+        db.get_pagamentos_comanda_por_caixa(cid),
+        key=lambda p: (p.get("data") or "", p.get("hora") or ""),
+        reverse=True,
+    )
     return render_template("caixa_detalhe.html",
-        sessao=sessao, movs=movs,
+        sessao=sessao, movs=movs, pagamentos_comanda_caixa=pagamentos_comanda_caixa,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
 
 
@@ -4754,10 +5315,13 @@ def financeiro():
         fracao_paga_comanda[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
 
     total_vendido = 0.0
+    total_vendido_comandas = 0.0
     total_investido = 0.0
-    valor_recebido = 0.0
     lucro_total = 0.0
-    lucro_realizado = 0.0
+    total_a_receber = 0.0
+    lucro_pendente = 0.0
+    investimento_pendente_periodo = 0.0
+    qtd_itens_nao_pagos = 0
 
     produto_stats = defaultdict(lambda: {"qtd": 0, "lucro": 0.0})
 
@@ -4769,6 +5333,11 @@ def financeiro():
         total_vendido += valor_linha
         total_investido += custo_linha
         lucro_total += lucro_linha
+        if v.get("comanda_id"):
+            # Valor total de comandas no período — mesma base de "Vendas
+            # Totais" (data de consumo, inclusive não recebido ainda), só
+            # filtrado pra linhas que vieram de comanda.
+            total_vendido_comandas += valor_linha
 
         status_v = v.get("status") or "quitada"
         if status_v == "quitada":
@@ -4778,22 +5347,31 @@ def financeiro():
         else:  # pendente
             fracao = 0.0
 
-        recebido_linha = valor_linha * fracao
-        lucro_realizado_linha = lucro_linha * fracao
-        valor_recebido += recebido_linha
-        lucro_realizado += lucro_realizado_linha
+        # Pendente é sempre pelo status atual (não depende de quando o
+        # pagamento vai acontecer) — continua calculado direto aqui, só
+        # deixou de vir por subtração no final: "recebido"/"realizado" agora
+        # tem uma base de data diferente (data do pagamento, não do consumo
+        # — ver mais abaixo), então a subtração deixaria de bater.
+        total_a_receber += valor_linha * (1 - fracao)
+        lucro_pendente += lucro_linha * (1 - fracao)
+        investimento_pendente_periodo += custo_linha * (1 - fracao)
+        if fracao < 0.999:
+            qtd_itens_nao_pagos += 1
 
         nome = v.get("nome", "").strip() or "Sem nome"
         produto_stats[nome]["qtd"] += qtd
-        produto_stats[nome]["lucro"] += lucro_realizado_linha
+        # Ranking por produto continua no regime de competência (fração pelo
+        # status atual) — ratear pagamento por pagamento num ranking de
+        # produto teria complexidade desproporcional pro benefício.
+        produto_stats[nome]["lucro"] += lucro_linha * fracao
 
     total_vendido = round(total_vendido, 2)
+    total_vendido_comandas = round(total_vendido_comandas, 2)
     total_investido = round(total_investido, 2)
     lucro_total = round(lucro_total, 2)
-    valor_recebido = round(valor_recebido, 2)
-    lucro_realizado = round(lucro_realizado, 2)
-    total_a_receber = round(total_vendido - valor_recebido, 2)
-    lucro_pendente = round(lucro_total - lucro_realizado, 2)
+    total_a_receber = round(total_a_receber, 2)
+    lucro_pendente = round(lucro_pendente, 2)
+    investimento_pendente_periodo = round(investimento_pendente_periodo, 2)
 
     # Top produtos por lucro já efetivamente realizado (não conta lucro sobre
     # venda ainda não recebida no ranking).
@@ -4803,9 +5381,15 @@ def financeiro():
         key=lambda x: x["lucro"], reverse=True
     )[:5]
 
-    # Pagamentos por forma — vendas diretas (sempre quitadas na hora) contam
-    # pelo valor da venda; vendas de comanda contam pelo pagamento individual
-    # de fato registrado no período (cada pagamento no seu próprio dia/forma).
+    # Valor Recebido / Lucro Realizado — regime de caixa: contam na data em
+    # que o dinheiro de fato entrou, não na data em que o item foi consumido.
+    # Venda avulsa é sempre quitada na hora (consumo = pagamento), então
+    # continua vindo direto de vendas_filtradas. Venda de comanda vem dos
+    # pagamentos individuais da própria comanda, cada um na sua data real —
+    # aplica a margem média dos itens da comanda em cima do valor de cada
+    # pagamento. Aproveita o mesmo laço que já monta "Pagamentos por forma"
+    # por data de pagamento (perto do que essa seção já fazia só pra formas
+    # de pagamento), evitando passar pelas mesmas comandas duas vezes.
     LABEL_FORMA_PAGAMENTO = {
         "pix": "Pix",
         "dinheiro": "Dinheiro",
@@ -4813,21 +5397,46 @@ def financeiro():
         "debito": "Débito",
         "fiado": "Fiado",
     }
+    # valor_recebido_vendas/valor_recebido_comandas separados porque são de
+    # natureza diferente: venda avulsa é sempre paga na hora (mesma data do
+    # consumo), enquanto pagamento de comanda pode acontecer dias/meses
+    # depois do consumo — misturar os dois num só número escondia de onde
+    # vinha o dinheiro. valor_recebido continua existindo como a soma dos
+    # dois, pra não quebrar nada que já lê essa variável.
+    valor_recebido_vendas = 0.0
+    valor_recebido_comandas = 0.0
+    lucro_realizado = 0.0
     pag_totais = defaultdict(float)
     for v in vendas_filtradas:
         if v.get("comanda_id"):
             continue
+        qtd = to_int(v.get("quantidade", 0))
+        valor_linha = to_float(v.get("valor_venda", 0)) * qtd
+        custo_linha = to_float(v.get("valor_investido", 0)) * qtd
+        valor_recebido_vendas += valor_linha
+        lucro_realizado += valor_linha - custo_linha
         forma = normalizar_pagamento(v.get("forma_pagamento", ""))
-        pag_totais[forma] += to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 0))
+        pag_totais[forma] += valor_linha
     for c in todas_comandas:
         if not isinstance(c, dict):
             continue
+        itens_c = c.get("itens", [])
+        receita_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in itens_c)
+        custo_c = sum(to_float(i.get("valor_investido", 0)) * to_int(i.get("quantidade", 0)) for i in itens_c)
+        margem_c = (receita_c - custo_c) / receita_c if receita_c > 0 else 0.0
         for p in c.get("pagamentos", []):
             d = parse_date_input(p.get("data", ""))
             if not d or (data_de and d < data_de) or (data_ate and d > data_ate):
                 continue
+            valor_p = to_float(p.get("valor", 0))
+            valor_recebido_comandas += valor_p
+            lucro_realizado += valor_p * margem_c
             forma = normalizar_pagamento(p.get("forma", ""))
-            pag_totais[forma] += to_float(p.get("valor", 0))
+            pag_totais[forma] += valor_p
+    valor_recebido = round(valor_recebido_vendas + valor_recebido_comandas, 2)
+    valor_recebido_vendas = round(valor_recebido_vendas, 2)
+    valor_recebido_comandas = round(valor_recebido_comandas, 2)
+    lucro_realizado = round(lucro_realizado, 2)
     pagamentos = []
     for forma, total in sorted(pag_totais.items(), key=lambda x: x[1], reverse=True):
         pct = round(total / valor_recebido * 100) if valor_recebido > 0 else 0
@@ -4942,6 +5551,9 @@ def financeiro():
         "financeiro.html",
         vendas=vendas_filtradas,
         total_vendido=total_vendido,
+        total_vendido_comandas=total_vendido_comandas,
+        investimento_pendente_periodo=investimento_pendente_periodo,
+        qtd_itens_nao_pagos=qtd_itens_nao_pagos,
         total_investido=total_investido,
         lucro_total=lucro_total,
         lucro_realizado=lucro_realizado,
@@ -4952,6 +5564,8 @@ def financeiro():
         num_comandas_parciais=num_comandas_parciais,
         num_comandas_quitadas=num_comandas_quitadas,
         valor_recebido=valor_recebido,
+        valor_recebido_vendas=valor_recebido_vendas,
+        valor_recebido_comandas=valor_recebido_comandas,
         total_sobra_falta=total_sobra_falta,
         num_vendas=len(vendas_filtradas),
         data_ini_raw=data_ini_raw,
@@ -5269,6 +5883,7 @@ def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
     produto = db.get_product(product_id)
     if produto:
         lotes = produto.get("lotes", [])
+        lotes.sort(key=lambda l: str(l.get("data", "")))
         remaining = qty_needed
         total_cost = 0.0
         log = []
@@ -5279,7 +5894,7 @@ def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
             custo_unit = to_float(lote.get("custo_unit", 0))
             consume = min(avail, remaining)
             total_cost += consume * custo_unit
-            log.append({"data_lote": lote.get("data"), "qty": round(consume, 6), "unit_cost": custo_unit, "lote_id": lote.get("id")})
+            log.append({"data_lote": lote.get("data"), "qty": round(consume, 6), "unit_cost": custo_unit, "lote_id": lote.get("id"), "component_id": product_id})
             novo_qtd = round(avail - consume, 6)
             lote["qtd"] = novo_qtd
             if novo_qtd <= 0:
@@ -5303,7 +5918,7 @@ def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
         unit_cost = float(b["total_cost"]) / float(b["quantity_total"])
         consume = min(avail, remaining)
         total_cost += consume * unit_cost
-        log.append({"batch_id": b["id"], "qty": consume, "unit_cost": unit_cost})
+        log.append({"batch_id": b["id"], "qty": consume, "unit_cost": unit_cost, "component_id": product_id})
         db.bar_update_batch_remaining(b["id"], round(avail - consume, 6))
         remaining -= consume
     return round(total_cost, 4), log

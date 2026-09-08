@@ -22,6 +22,27 @@ input[readonly] { background:#242424; color:var(--text-muted); }
 }
 .linha-botoes{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
 .obs{ font-size:12px; color:#666; margin-top:-6px; }
+
+/* ── PAGAMENTO DIVIDIDO ── */
+.pgd-total { font-size:12px; color:var(--text-muted); margin-top:-4px; }
+.pgd-total b { color:var(--text); font-size:15px; }
+.pgd-formas { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.pgd-forma-btn { background:var(--input-bg); border:1px solid var(--border); border-radius:8px;
+  padding:10px 6px; cursor:pointer; color:var(--text-muted); font-size:12px; font-weight:bold; text-align:center; }
+.pgd-forma-btn.ativo { background:#052e16; border-color:#16a34a; color:#4ade80; }
+.pgd-valor-row { display:grid; grid-template-columns:1fr 100px; gap:12px; align-items:end; }
+.pgd-vlabel { font-size:11px; font-weight:bold; color:var(--text-muted); text-transform:uppercase; margin-bottom:5px; }
+.pgd-troco { font-size:15px; font-weight:bold; color:var(--text-muted); padding:9px 0; }
+.pgd-troco.ok { color:#4ade80; }
+.pgd-aviso { background:#2d1e00; border:1px solid #854d0e; border-radius:8px; padding:9px 12px;
+  font-size:12px; color:#fbbf24; display:none; }
+.pgd-aviso.show { display:block; }
+.pgd-sec2 { border-top:1px solid var(--border); padding-top:12px; margin-top:2px; display:none; }
+.pgd-sec2.show { display:block; }
+.pgd-formas2 { display:flex; gap:8px; margin-bottom:10px; }
+.pgd-forma2-btn { flex:1; background:var(--input-bg); border:1px solid var(--border); border-radius:8px;
+  padding:9px 6px; cursor:pointer; color:var(--text-muted); font-size:12px; font-weight:bold; text-align:center; }
+.pgd-forma2-btn.ativo { background:#052e16; border-color:#16a34a; color:#4ade80; }
 </style>
 
 <div class="container">
@@ -31,69 +52,68 @@ input[readonly] { background:#242424; color:var(--text-muted); }
     <div class="erro">{{ erro }}</div>
   {% endif %}
 
-  <form method="post">
+  <form method="post" id="form-editar-venda">
     <label>Data</label>
     <input type="date" name="data" value="{{ venda.data|replace('/','-') }}" required>
 
     <label>Produto</label>
-    <select id="produtoSelect" name="produto_pid" required>
-      <option value="">-- Selecione um produto --</option>
+    <input type="text" readonly value="{{ nome_produto_atual }}{{ ' (pacote)' if produto_tipo_venda == 'bar' else '' }}">
+    <input type="hidden" name="produto_pid" value="{{ venda.produto_pid }}">
 
-      {% for p in estoque %}
-        <option
-          value="{{ p.pid }}"
-          data-preco="{{ p.valor_venda }}"
-          data-qtd="{{ p.quantidade }}"
-          {% if p.pid == venda.produto_pid %}selected{% endif %}
-        >
-          {{ p.nome }}
-        </option>
-      {% endfor %}
-    </select>
-
-    <div class="obs">Selecione o produto cadastrado no estoque.</div>
+    <div class="obs">O produto da venda não pode ser trocado por aqui — só data, quantidade e forma de pagamento.</div>
 
     <label>Preço de Venda</label>
-    <input id="precoVenda" type="text" readonly value="R$ {{ '%.2f'|format(venda.valor_venda) }}">
+    <input id="precoVenda" type="text" readonly value="R$ {{ '%.2f'|format(preco_produto_atual) }}">
 
+    {% if produto_tipo_venda != 'bar' %}
     <label>Quantidade disponível</label>
-    <input id="qtdDisponivel" type="text" readonly>
+    <input id="qtdDisponivel" type="text" readonly value="{{ qtd_disponivel_atual if qtd_disponivel_atual is not none else '' }}">
+    {% endif %}
 
     <label>Quantidade</label>
     <input type="number" name="quantidade" value="{{ venda.quantidade }}" min="1" required>
 
 <label>Forma de Pagamento</label>
+<div class="pgd-total">Total da venda: <b id="pgd-total-txt">R$ 0,00</b></div>
 
-{% set fp_raw = (venda.forma_pagamento or '') %}
-{% set fp = fp_raw|lower %}
+<div class="pgd-formas">
+  <button type="button" class="pgd-forma-btn" id="pgd-bt-dinheiro" onclick="pgdSelecionarForma1('dinheiro')">💵 DINHEIRO</button>
+  <button type="button" class="pgd-forma-btn" id="pgd-bt-pix" onclick="pgdSelecionarForma1('pix')">⚡ PIX</button>
+  <button type="button" class="pgd-forma-btn" id="pgd-bt-cartao" onclick="pgdSelecionarForma1('cartao')">💳 CARTÃO</button>
+</div>
 
-<select name="forma_pagamento">
+<div class="pgd-valor-row">
+  <div>
+    <div class="pgd-vlabel">Valor pago</div>
+    <input id="pgd-valor1" type="number" step="0.01" min="0" placeholder="0,00" oninput="pgdCalcular()">
+  </div>
+  <div>
+    <div class="pgd-vlabel">Troco</div>
+    <div class="pgd-troco" id="pgd-troco">R$ 0,00</div>
+  </div>
+</div>
 
-  {# Se já existir algo salvo diferente das opções, mantém visível #}
-  {% if fp_raw and fp not in ['pix','dinheiro','cartao','cartão'] %}
-    <option value="{{ fp_raw }}" selected>{{ fp_raw }}</option>
-  {% endif %}
+<div class="pgd-aviso" id="pgd-aviso"></div>
 
-  <option value="" {% if not fp_raw %}selected{% endif %}>
-    -- Manter como está --
-  </option>
+<div class="pgd-sec2" id="pgd-sec2">
+  <div class="pgd-vlabel">Complemento — forma de pagamento</div>
+  <div class="pgd-formas2">
+    <button type="button" class="pgd-forma2-btn" id="pgd-bt2-dinheiro" onclick="pgdSelecionarForma2('dinheiro')">💵 Dinheiro</button>
+    <button type="button" class="pgd-forma2-btn" id="pgd-bt2-pix" onclick="pgdSelecionarForma2('pix')">⚡ Pix</button>
+    <button type="button" class="pgd-forma2-btn" id="pgd-bt2-cartao" onclick="pgdSelecionarForma2('cartao')">💳 Cartão</button>
+  </div>
+  <div class="pgd-vlabel">Valor</div>
+  <input id="pgd-valor2" type="number" step="0.01" min="0" placeholder="0,00" oninput="pgdCalcular()">
+</div>
 
-  <option value="pix" {{ 'selected' if fp == 'pix' else '' }}>
-    Pix
-  </option>
-
-  <option value="dinheiro" {{ 'selected' if fp == 'dinheiro' else '' }}>
-    Dinheiro
-  </option>
-
-  <option value="cartao" {{ 'selected' if fp in ['cartao','cartão'] else '' }}>
-    Cartão
-  </option>
-
-</select>
+<input type="hidden" name="valor_dinheiro" id="pgd-h-dinheiro" value="0">
+<input type="hidden" name="valor_pix" id="pgd-h-pix" value="0">
+<input type="hidden" name="valor_cartao" id="pgd-h-cartao" value="0">
+<input type="hidden" name="autorizador_usuario" id="editar-venda-autorizador-usuario">
+<input type="hidden" name="autorizador_pin" id="editar-venda-autorizador-pin">
 
 <div class="obs">
-Se não quiser alterar, deixe “Manter como está”.
+Escolha a forma de pagamento e o valor. Se o valor pago for menor que o total, informe o complemento numa forma diferente.
 </div>
 
     <div class="linha-botoes">
@@ -103,26 +123,116 @@ Se não quiser alterar, deixe “Manter como está”.
   </form>
 </div>
 
+<script type="application/json" id="json-pagamentos-atuais">{{ pagamentos_atuais | tojson }}</script>
 <script>
   function formatBRL(n) {
     const num = Number(n);
     if (Number.isNaN(num)) return "";
     return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
+  function fmt2(n){ return (Math.round(n*100)/100).toFixed(2); }
 
-  function atualizarInfoProduto() {
-    const select = document.getElementById("produtoSelect");
-    const opt = select.options[select.selectedIndex];
+  const PRECO_PRODUTO_ATUAL = {{ preco_produto_atual }};
+  const TOTAL_OUTROS_ITENS = {{ total_outros_itens or 0 }};
+  const TEM_PERM_EDITAR_VENDA = {{ (tipo == "admin" or "editar_vendas" in permissoes)|tojson }};
 
-    const preco = opt?.dataset?.preco ?? "";
-    const qtd = opt?.dataset?.qtd ?? "";
+  /* ── PIN de autorização (mesmo padrão de vendas.html/comandas.html) ── */
+  document.getElementById('form-editar-venda').addEventListener('submit', function(e){
+    if (TEM_PERM_EDITAR_VENDA) return;
+    e.preventDefault();
+    const form = this;
+    showPinPrompt('Autorização necessária', 'Você não tem permissão para editar vendas. Informe o usuário e o PIN de alguém autorizado.', function(usuarioAut, pin){
+      document.getElementById('editar-venda-autorizador-usuario').value = usuarioAut;
+      document.getElementById('editar-venda-autorizador-pin').value = pin;
+      form.submit();
+    });
+  });
 
-    document.getElementById("precoVenda").value = preco !== "" ? formatBRL(preco) : "";
-    document.getElementById("qtdDisponivel").value = qtd !== "" ? qtd : "";
+  /* ── PAGAMENTO DIVIDIDO (mesma lógica de cadastrar_venda_lote.html, adaptada) ── */
+  let pgdForma1 = null, pgdForma2 = null;
+
+  function pgdTotalAtual() {
+    const qtd = parseInt(document.querySelector('input[name="quantidade"]').value) || 0;
+    return Math.round((TOTAL_OUTROS_ITENS + PRECO_PRODUTO_ATUAL * qtd) * 100) / 100;
   }
 
-  document.getElementById("produtoSelect").addEventListener("change", atualizarInfoProduto);
-  atualizarInfoProduto();
+  function pgdSelecionarForma1(forma){
+    pgdForma1 = forma;
+    ['dinheiro','pix','cartao'].forEach(f => document.getElementById('pgd-bt-'+f).classList.toggle('ativo', f===forma));
+    ['dinheiro','pix','cartao'].forEach(f => {
+      document.getElementById('pgd-bt2-'+f).style.display = f===forma ? 'none' : 'flex';
+      document.getElementById('pgd-bt2-'+f).classList.remove('ativo');
+    });
+    pgdForma2 = null;
+    document.getElementById('pgd-valor2').value = '';
+    pgdCalcular();
+  }
+
+  function pgdSelecionarForma2(forma){
+    pgdForma2 = forma;
+    ['dinheiro','pix','cartao'].forEach(f => {
+      const el = document.getElementById('pgd-bt2-'+f);
+      if (el.style.display !== 'none') el.classList.toggle('ativo', f===forma);
+    });
+    const total = pgdTotalAtual();
+    const v1 = parseFloat(document.getElementById('pgd-valor1').value) || 0;
+    document.getElementById('pgd-valor2').value = fmt2(Math.max(total - v1, 0));
+    pgdCalcular();
+  }
+
+  function pgdCalcular(){
+    const total = pgdTotalAtual();
+    document.getElementById('pgd-total-txt').textContent = formatBRL(total);
+
+    document.getElementById('pgd-h-dinheiro').value = 0;
+    document.getElementById('pgd-h-pix').value = 0;
+    document.getElementById('pgd-h-cartao').value = 0;
+    if (!pgdForma1) return;
+
+    const v1 = parseFloat(document.getElementById('pgd-valor1').value) || 0;
+    const v2 = pgdForma2 ? (parseFloat(document.getElementById('pgd-valor2').value) || 0) : 0;
+    const totalPago = v1 + v2;
+    const falta = Math.max(total - v1, 0);
+    const troco = Math.max(totalPago - total, 0);
+
+    const trocoEl = document.getElementById('pgd-troco');
+    trocoEl.textContent = formatBRL(troco);
+    trocoEl.className = 'pgd-troco' + (troco > 0.005 ? ' ok' : '');
+
+    const aviso = document.getElementById('pgd-aviso');
+    const sec2 = document.getElementById('pgd-sec2');
+    if (v1 > 0 && falta > 0.005) {
+      aviso.classList.add('show');
+      aviso.textContent = `Faltam ${formatBRL(falta)} para completar o valor da venda.`;
+      sec2.classList.add('show');
+    } else {
+      aviso.classList.remove('show');
+      if (falta <= 0.005) { sec2.classList.remove('show'); pgdForma2 = null; }
+    }
+
+    const totais = { dinheiro: 0, pix: 0, cartao: 0 };
+    totais[pgdForma1] += Math.min(v1, total);
+    if (pgdForma2) totais[pgdForma2] += Math.max(Math.min(v2, total - Math.min(v1, total)), 0);
+    document.getElementById('pgd-h-dinheiro').value = fmt2(totais.dinheiro);
+    document.getElementById('pgd-h-pix').value = fmt2(totais.pix);
+    document.getElementById('pgd-h-cartao').value = fmt2(totais.cartao);
+  }
+
+  document.querySelector('input[name="quantidade"]').addEventListener('input', pgdCalcular);
+
+  /* Pré-preenche com a divisão já salva pra essa venda (se houver) */
+  (function(){
+    const atuais = JSON.parse(document.getElementById('json-pagamentos-atuais').textContent);
+    if (atuais && atuais.length) {
+      pgdSelecionarForma1(atuais[0].forma);
+      document.getElementById('pgd-valor1').value = fmt2(parseFloat(atuais[0].valor) || 0);
+      if (atuais.length > 1) {
+        pgdSelecionarForma2(atuais[1].forma);
+        document.getElementById('pgd-valor2').value = fmt2(parseFloat(atuais[1].valor) || 0);
+      }
+    }
+    pgdCalcular();
+  })();
 </script>
 
 {% endblock %}

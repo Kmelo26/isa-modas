@@ -3,7 +3,7 @@
 
 <style>
 *{box-sizing:border-box}
-.est{max-width:1300px;margin:0 auto;padding:24px 20px}
+.est{width:100%;padding:24px 20px}
 
 /* HEADER */
 .est-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
@@ -17,22 +17,23 @@
 .est-btn-primary:hover{opacity:.9;color:#000}
 
 /* FILTER BAR */
-.est-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.est-filters{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  box-shadow:var(--shadow);padding:14px 16px;margin-bottom:20px}
+.est-filters label{font-size:12px;font-weight:600;color:var(--text);display:block;margin-bottom:5px}
+.est-filter-field{display:flex;flex-direction:column}
 .est-search-wrap{position:relative;flex:1}
-.est-search-wrap input{width:100%;padding:9px 36px 9px 12px;border-radius:8px;
+.est-search-wrap input{width:100%;padding:9px 36px 9px 12px;border-radius:10px;
   border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:.88rem;outline:none}
 .est-search-wrap input:focus{border-color:var(--accent)}
 .est-search-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);
   color:var(--text-muted,#888);pointer-events:none}
-.est-select{padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+.est-select{padding:9px 12px;border-radius:10px;border:1px solid var(--border);
   background:var(--input-bg);color:var(--text);font-size:.88rem;cursor:pointer;outline:none;
   appearance:none;-webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 10px center;padding-right:32px}
 .est-select:focus{border-color:var(--accent)}
-.est-filter-row1{display:flex;gap:8px;align-items:center}
-.est-filter-row2{display:flex;gap:8px}
-.est-filter-row2 .est-select{flex:1}
+.est-filters-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .est-filter-btns{display:flex;gap:8px}
 
 /* SUGESTÕES */
@@ -43,12 +44,9 @@
   max-height:220px;overflow-y:auto}
 
 /* KPI CARDS */
-.est-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
-  background:var(--border);border:1px solid var(--border);border-radius:12px;
-  overflow:hidden;margin-bottom:24px}
-@media(max-width:800px){.est-kpis{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:480px){.est-kpis{grid-template-columns:1fr}}
-.est-kpi{background:var(--card-bg);padding:20px 24px;position:relative}
+.est-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.est-kpi{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;box-shadow:var(--shadow);position:relative}
 .est-kpi-label{font-size:.7rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
 .est-kpi-val{font-size:1.7rem;font-weight:800;color:var(--text);line-height:1;transition:filter .3s}
 .est-kpi-val.oculto{filter:blur(8px);user-select:none}
@@ -68,7 +66,7 @@
 /* TABLE WRAP */
 .est-table-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 .est-table-wrap{overflow-x:auto}
-.est-table{width:100%;border-collapse:collapse;min-width:900px}
+.est-table{width:100%;border-collapse:collapse}
 .est-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
   letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);
   border-right:1px solid var(--border);
@@ -226,6 +224,7 @@
           <div class="vis-field"><label>Quantidade atual</label><div class="vis-val destaque" id="v-quantidade">—</div></div>
           <div class="vis-field"><label>Estoque mínimo</label><div class="vis-val" id="v-estoque-minimo">—</div></div>
         </div>
+        <div class="vis-grid vis-grid-2" id="v-locais-wrap" style="margin-top:10px;"></div>
       </div>
       {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
       <div class="vis-secao">
@@ -290,58 +289,6 @@
     </div>
   </div>
 
-  <!-- FILTER BAR -->
-  <form id="formBusca" method="get" action="{{ url_for('estoque') }}">
-    <div class="est-filters">
-      <div class="est-filter-row1">
-        <div class="est-search-wrap">
-          <svg class="est-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="buscaProduto" type="text" name="q" value="{{ q or '' }}"
-                 placeholder="Buscar produto..." autocomplete="off">
-          <ul id="sugestoes"></ul>
-        </div>
-        <div class="est-search-wrap" style="max-width:180px;">
-          <input type="text" name="codigo" value="{{ codigo_filtro or '' }}"
-                 placeholder="Pesquisar código..." autocomplete="off"
-                 style="text-transform:uppercase;font-family:monospace;letter-spacing:1px;">
-        </div>
-        <div class="est-filter-btns">
-          <button type="submit" class="est-btn est-btn-primary">Pesquisar</button>
-          <a href="{{ url_for('estoque') }}" class="est-btn">Limpar</a>
-        </div>
-      </div>
-
-      <div class="est-filter-row2">
-        <select name="categoria" class="est-select">
-          <option value="">Categoria</option>
-          {% for cat in categorias %}
-          <option value="{{ cat }}" {% if cat_filtro == cat %}selected{% endif %}>{{ cat }}</option>
-          {% endfor %}
-        </select>
-
-        <select name="status" class="est-select">
-          <option value="">Todos os status</option>
-          <option value="OK"       {% if status_filtro == 'OK' %}selected{% endif %}>OK</option>
-          <option value="BAIXO"    {% if status_filtro == 'BAIXO' %}selected{% endif %}>Baixo</option>
-          <option value="CRÍTICO"  {% if status_filtro == 'CRÍTICO' %}selected{% endif %}>Crítico</option>
-        </select>
-      </div>
-
-      {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
-      <div class="est-filter-row2" style="margin-top:4px;">
-        <input type="number" name="margem_min" class="est-select"
-          placeholder="Margem mín. %" step="1" min="0" max="100"
-          value="{{ margem_min_raw or '' }}"
-          style="max-width:160px">
-        <input type="number" name="margem_max" class="est-select"
-          placeholder="Margem máx. %" step="1" min="0" max="100"
-          value="{{ margem_max_raw or '' }}"
-          style="max-width:160px">
-      </div>
-      {% endif %}
-    </div>
-  </form>
-
   <!-- KPI CARDS -->
   <div class="est-kpis">
     <div class="est-kpi">
@@ -385,6 +332,67 @@
     {% endif %}
   </div>
 
+  <!-- FILTER BAR -->
+  <form id="formBusca" method="get" action="{{ url_for('estoque') }}">
+    <div class="est-filters">
+      <div class="est-filters-row">
+        <div class="est-filter-field" style="flex:1;min-width:220px;">
+          <label for="buscaProduto">Produto</label>
+          <div class="est-search-wrap">
+            <svg class="est-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="buscaProduto" type="text" name="q" value="{{ q or '' }}"
+                   placeholder="Buscar produto..." autocomplete="off">
+            <ul id="sugestoes"></ul>
+          </div>
+        </div>
+        <div class="est-filter-field" style="max-width:180px;">
+          <label for="filtroCodigo">Código</label>
+          <div class="est-search-wrap">
+            <input id="filtroCodigo" type="text" name="codigo" value="{{ codigo_filtro or '' }}"
+                   placeholder="Pesquisar código..." autocomplete="off"
+                   style="text-transform:uppercase;font-family:monospace;letter-spacing:1px;">
+          </div>
+        </div>
+        <div class="est-filter-field">
+          <label for="filtroCategoria">Categoria</label>
+          <select id="filtroCategoria" name="categoria" class="est-select">
+            <option value="">Todas</option>
+            {% for cat in categorias %}
+            <option value="{{ cat }}" {% if cat_filtro == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="est-filter-field">
+          <label for="filtroStatus">Status</label>
+          <select id="filtroStatus" name="status" class="est-select">
+            <option value="">Todos os status</option>
+            <option value="OK"       {% if status_filtro == 'OK' %}selected{% endif %}>OK</option>
+            <option value="BAIXO"    {% if status_filtro == 'BAIXO' %}selected{% endif %}>Baixo</option>
+            <option value="CRÍTICO"  {% if status_filtro == 'CRÍTICO' %}selected{% endif %}>Crítico</option>
+          </select>
+        </div>
+        {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
+        <div class="est-filter-field" style="max-width:160px;">
+          <label for="margemMin">Margem mín. %</label>
+          <input id="margemMin" type="number" name="margem_min" class="est-select"
+            placeholder="ex: 30" step="1" min="0" max="100"
+            value="{{ margem_min_raw or '' }}">
+        </div>
+        <div class="est-filter-field" style="max-width:160px;">
+          <label for="margemMax">Margem máx. %</label>
+          <input id="margemMax" type="number" name="margem_max" class="est-select"
+            placeholder="ex: 80" step="1" min="0" max="100"
+            value="{{ margem_max_raw or '' }}">
+        </div>
+        {% endif %}
+        <div class="est-filter-btns">
+          <button type="submit" class="est-btn est-btn-primary">Pesquisar</button>
+          <a href="{{ url_for('estoque') }}" class="est-btn">Limpar</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
   <!-- TABLE -->
   {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
@@ -402,9 +410,6 @@
             <th style="text-align:left">Produto</th>
             <th style="text-align:center">Código</th>
             <th style="text-align:center">Categoria</th>
-            {% for l in locais_estoque %}
-            <th>{{ l.nome }}</th>
-            {% endfor %}
             <th>Total</th>
             <th>Est. mínimo</th>
             {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
@@ -429,9 +434,6 @@
             <td class="td-nome">{{ p.nome }}</td>
             <td style="text-align:center;font-family:monospace;font-weight:700;color:var(--accent);">{{ p.codigo or '—' }}</td>
             <td style="text-align:center">{{ p.categoria or '—' }}</td>
-            {% for l in locais_estoque %}
-            <td>{{ (p._qtd_por_local.get(l.id, 0)) | round(3) }} un.</td>
-            {% endfor %}
             <td>{{ qty }} un.</td>
             <td>{{ (p.estoque_minimo | int) if p.estoque_minimo else '—' }} {% if p.estoque_minimo %}un.{% endif %}</td>
             {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
@@ -651,6 +653,7 @@ renderPag();
 
   /* ── VISUALIZAR ── */
   const ESTOQUE = JSON.parse(document.getElementById("data-estoque-full").textContent);
+  const LOCAIS = {{ locais_estoque | tojson }};
   function set(id, v, fmt){
     const el=document.getElementById(id); if(!el) return;
     const txt=(v===null||v===undefined||String(v).trim()===''||(v===0 && id!=="v-quantidade"&&id!=="v-estoque-minimo"&&id!=="v-custo"&&id!=="v-venda"))
@@ -672,6 +675,10 @@ renderPag();
     set("v-unidade-venda", p.unidade_venda);
     set("v-quantidade",    p.quantidade, v=>String(Math.floor(Number(v)))+" un.");
     set("v-estoque-minimo",p.estoque_minimo, v=>String(v)+" un.");
+    document.getElementById("v-locais-wrap").innerHTML = LOCAIS.map(l=>{
+      const qtd=(p._qtd_por_local&&p._qtd_por_local[l.id])||0;
+      return '<div class="vis-field"><label>'+l.nome+'</label><div class="vis-val">'+qtd+' un.</div></div>';
+    }).join("");
     set("v-custo",         custo, fmtR);
     set("v-venda",         venda, fmtR);
     document.getElementById("v-margem").textContent=margem;

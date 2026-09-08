@@ -196,6 +196,43 @@
     {% endif %}
   </div>
 
+  <!-- Comandas pagas neste caixa -->
+  <div class="cx-card" style="margin-bottom:20px;">
+    <div class="cx-card-title">Comandas Pagas neste Caixa ({{ pagamentos_comanda_caixa|length }})</div>
+    {% if pagamentos_comanda_caixa %}
+      {% for p in pagamentos_comanda_caixa %}
+      <div class="cx-row">
+        <span class="cx-label">📋 {{ p.comanda_nome or 'Comanda' }}
+          <span style="color:var(--text-muted);">· {{ p.hora }} · {{ 'Pix' if p.forma == 'pix' else 'Cartão' if p.forma == 'cartao' else 'Dinheiro' }}</span>
+        </span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          R$ {{ "%.2f"|format(p.valor) }}
+          {% if p.comanda_status == 'quitada' %}<span class="cx-cmd-badge cx-cmd-quitada">✅ Quitada</span>
+          {% elif p.comanda_status == 'pagamento_parcial' %}<span class="cx-cmd-badge cx-cmd-parcial">🟠 Parcial</span>
+          {% else %}<span class="cx-cmd-badge">{{ p.comanda_status }}</span>{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--text-muted);font-size:13px;">Nenhum pagamento de comanda registrado neste caixa.</p>
+    {% endif %}
+  </div>
+
+  <!-- Vendas por Usuário -->
+  <div class="cx-card" style="margin-bottom:20px;">
+    <div class="cx-card-title">Vendas por Usuário</div>
+    {% if vendas_por_usuario %}
+      {% for u in vendas_por_usuario %}
+      <div class="cx-row" style="cursor:pointer;" onclick="abrirVendasUsuario('{{ u.chave }}')">
+        <span class="cx-label">👤 {{ u.nome }} <span style="color:var(--text-muted);">· {{ u.qtd }} venda{{ 's' if u.qtd != 1 else '' }}</span></span>
+        <span class="cx-val">R$ {{ "%.2f"|format(u.total) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--text-muted);font-size:13px;">Nenhuma venda registrada neste caixa ainda.</p>
+    {% endif %}
+  </div>
+
   <!-- Registrar movimentação -->
   <div class="cx-card" style="margin-bottom:20px;">
     <div class="cx-card-title">Registrar Movimentação</div>
@@ -273,6 +310,21 @@
   </div>
 </div>
 
+<!-- Modal Vendas por Usuário -->
+<div class="cx-modal-overlay" id="vendas-usuario-overlay" onclick="if(event.target===this) fecharVendasUsuario()">
+  <div class="cx-modal">
+    <div class="cx-modal-header">
+      <span id="vu-titulo">Vendas do usuário</span>
+      <button type="button" class="cx-modal-close" onclick="fecharVendasUsuario()">✕</button>
+    </div>
+    <div class="cx-modal-body" id="vu-corpo"></div>
+    <div class="cx-modal-footer">
+      <button type="button" class="cx-btn cx-btn-conferir" onclick="fecharVendasUsuario()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="json-vendas-por-usuario">{{ vendas_por_usuario | tojson }}</script>
 <script>
 function selecionarTipoMov(tipo) {
   const sel = document.querySelector('select[name="tipo"]');
@@ -285,6 +337,39 @@ function abrirConferir() {
 }
 function fecharConferir() {
   document.getElementById('conferir-overlay').classList.remove('open');
+}
+
+const VENDAS_POR_USUARIO = JSON.parse(document.getElementById('json-vendas-por-usuario').textContent);
+const VU_FORMA_LABEL = { pix: '⚡ Pix', credito: '💳 Crédito', debito: '💳 Débito', dinheiro: '💵 Dinheiro', fiado: '📒 Fiado' };
+const VU_STATUS_LABEL = { pendente: '🟡 Pendente', parcial: '🟠 Parcial', quitada: '🟢 Quitada', cancelada: '🔴 Cancelada' };
+
+function vuFmtData(d) {
+  if (!d || d.length !== 10) return d || '';
+  const partes = d.split('-');
+  return partes[2] + '/' + partes[1];
+}
+
+function abrirVendasUsuario(chave) {
+  const u = VENDAS_POR_USUARIO.find(x => x.chave === chave);
+  if (!u) return;
+  document.getElementById('vu-titulo').textContent =
+    u.nome + ' — ' + u.qtd + ' venda' + (u.qtd !== 1 ? 's' : '') + ' — R$ ' + u.total.toFixed(2).replace('.', ',');
+
+  const linhas = u.vendas.map(v => `
+    <div class="cx-row">
+      <span class="cx-label">
+        <span style="font-family:monospace;color:var(--accent);">${v.id_display}</span>
+        · ${vuFmtData(v.data)} ${v.hora || ''} · ${v.qtd_itens} item${v.qtd_itens !== 1 ? 's' : ''}
+        · ${(v.formas_pagamento || []).map(f => VU_FORMA_LABEL[f] || f).join(' + ') || '—'}
+      </span>
+      <span class="cx-val">R$ ${Number(v.valor_total).toFixed(2).replace('.', ',')} &nbsp; ${VU_STATUS_LABEL[v.status] || v.status}</span>
+    </div>
+  `).join('');
+  document.getElementById('vu-corpo').innerHTML = linhas || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma venda.</p>';
+  document.getElementById('vendas-usuario-overlay').classList.add('open');
+}
+function fecharVendasUsuario() {
+  document.getElementById('vendas-usuario-overlay').classList.remove('open');
 }
 </script>
 {% endblock %}

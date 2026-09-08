@@ -295,6 +295,20 @@
         <div class="kpi-sub">tudo que foi vendido (inclusive não recebido)</div>
       </div>
     </div>
+
+    <div class="kpi">
+      <div class="kpi-icon roxo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Valor Total das Comandas</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido_comandas)|replace(".", ",") }}</div>
+        <div class="kpi-sub">consumido em comanda no período (inclusive não recebido)</div>
+      </div>
+    </div>
     {% endif %}
 
     {% if tipo == "admin" or "ver_faturamento_diario" in permissoes %}
@@ -310,6 +324,34 @@
         <div class="kpi-sub">dinheiro que já entrou de fato</div>
       </div>
     </div>
+
+    <div class="kpi">
+      <div class="kpi-icon verde">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Recebido de Vendas Avulsas</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(valor_recebido_vendas)|replace(".", ",") }}</div>
+        <div class="kpi-sub">pagas na hora, fora de comanda</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-icon roxo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Recebido de Comandas</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(valor_recebido_comandas)|replace(".", ",") }}</div>
+        <div class="kpi-sub">pagamentos de comanda no período (pode ser de consumo de dias/meses antes)</div>
+      </div>
+    </div>
     {% endif %}
 
     {% if tipo == "admin" or "ver_valor_comandas" in permissoes %}
@@ -323,14 +365,14 @@
       <div class="kpi-info">
         <div class="kpi-label">Valor a Receber</div>
         <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_a_receber)|replace(".", ",") }}</div>
-        <div class="kpi-sub">vendido menos recebido</div>
+        <div class="kpi-sub">do vendido no período, ainda não pago · {{ qtd_itens_nao_pagos }} ite{{ 'm' if qtd_itens_nao_pagos == 1 else 'ns' }}</div>
       </div>
     </div>
     {% endif %}
   </div>
 
   {% if tipo == "admin" or "ver_lucro_liquido" in permissoes %}
-  <div class="fin-panel-title">Lucro</div>
+  <div class="fin-panel-title">Investimento</div>
   <div class="fin-kpis">
     <div class="kpi">
       <div class="kpi-icon vermelho">
@@ -348,6 +390,23 @@
       </div>
     </div>
 
+    <div class="kpi">
+      <div class="kpi-icon laranja">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Investimento Pendente no Período</div>
+        <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(investimento_pendente_periodo)|replace(".", ",") }}</div>
+        <div class="kpi-sub">custo da mercadoria vendida no período, ainda não pago</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fin-panel-title" style="margin-top:12px;">Lucro</div>
+  <div class="fin-kpis">
     <div class="kpi">
       <div class="kpi-icon roxo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

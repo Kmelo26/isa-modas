@@ -17,14 +17,9 @@
 .cx-btn-prim:hover{opacity:.9;color:#000}
 
 /* KPI CARDS */
-.cx-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;
-  background:var(--border);border:1px solid var(--border);border-radius:12px;
-  overflow:hidden;margin-bottom:20px}
-@media(max-width:1100px){.cx-kpis{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:700px){.cx-kpis{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:420px){.cx-kpis{grid-template-columns:1fr}}
-.kpi{background:var(--card-bg);padding:16px 18px;
-  display:flex;align-items:center;gap:14px}
+.cx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
+  padding:16px 18px;display:flex;align-items:center;gap:14px}
 .kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .kpi-icon svg{width:22px;height:22px;color:#fff}
 .kpi-icon.azul{background:#2563eb}.kpi-icon.verde{background:#16a34a}
@@ -57,6 +52,17 @@
 
 /* TABELA */
 .cx-table-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px}
+.cx-footer { display:flex; justify-content:space-between; align-items:center;
+  padding:14px 16px; border-top:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+.cx-footer-info { font-size:12px; color:var(--text-muted); }
+.cx-pag-btns { display:flex; gap:4px; align-items:center; }
+.pag-btn { display:inline-flex; align-items:center; justify-content:center;
+  min-width:32px; height:32px; padding:0 8px; border:1px solid var(--border); border-radius:8px;
+  font-size:13px; font-weight:600; color:var(--text-muted); background:var(--card-bg);
+  cursor:pointer; transition:all 0.15s; }
+.pag-btn:hover { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
+.pag-btn.current { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); cursor:default; }
+.pag-btn.disabled { opacity:0.35; pointer-events:none; }
 .cx-table{width:100%;border-collapse:collapse}
 .cx-table th{background:#1a1a1a;color:var(--text-muted);font-size:.68rem;text-transform:uppercase;
   letter-spacing:.7px;padding:10px 12px;text-align:left;font-weight:700;white-space:nowrap;
@@ -336,6 +342,10 @@
       </tbody>
     </table>
     <div id="sem-resultados" style="display:none" class="cx-empty">Nenhum resultado encontrado para os filtros aplicados.</div>
+    <div class="cx-footer">
+      <span class="cx-footer-info" id="hist-pag-info"></span>
+      <div class="cx-pag-btns" id="hist-pag-btns"></div>
+    </div>
   </div>
   {% else %}
   <div class="cx-table-wrap">
@@ -377,8 +387,12 @@ const HOJE    = "{{ hoje }}";
 let modoQuick = 'todos';
 let cidAtivo = null;
 let btnAtivo = null;
+let paginaAtualHist = 1;
+const POR_PAGINA_HIST = 20;
+let filtradasHist = [];
 
 document.getElementById('filtro-data').addEventListener('input', aplicarFiltros);
+aplicarFiltros();
 
 function setQuick(btn, modo) {
   modoQuick = modo;
@@ -402,7 +416,7 @@ function aplicarFiltros() {
   inicioSemana.setDate(agora.getDate() - diaSemana);
   const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
 
-  let visiveis = 0;
+  filtradasHist = [];
   document.querySelectorAll('#tabela-caixas tbody tr').forEach(tr => {
     const d       = tr.dataset.date;
     const op      = tr.dataset.operador;
@@ -423,11 +437,60 @@ function aplicarFiltros() {
       if (rangeAte && d > rangeAte) ok = false;
     }
 
-    tr.style.display = ok ? '' : 'none';
-    if (ok) visiveis++;
+    if (ok) filtradasHist.push(tr);
   });
 
-  document.getElementById('sem-resultados').style.display = visiveis === 0 ? '' : 'none';
+  paginaAtualHist = 1;
+  renderPaginaHist();
+}
+
+// ----------- PAGINAÇÃO -----------
+function renderPaginaHist() {
+  document.querySelectorAll('#tabela-caixas tbody tr').forEach(tr => { tr.style.display = 'none'; });
+
+  const total = filtradasHist.length;
+  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA_HIST));
+  if (paginaAtualHist > totalPaginas) paginaAtualHist = totalPaginas;
+  if (paginaAtualHist < 1) paginaAtualHist = 1;
+
+  const inicio = (paginaAtualHist - 1) * POR_PAGINA_HIST;
+  filtradasHist.slice(inicio, inicio + POR_PAGINA_HIST).forEach(tr => { tr.style.display = ''; });
+
+  document.getElementById('sem-resultados').style.display = total === 0 ? '' : 'none';
+  montarPaginacaoHist(total, totalPaginas);
+}
+
+function irParaPaginaHist(p) {
+  paginaAtualHist = p;
+  renderPaginaHist();
+}
+
+function montarPaginacaoHist(total, totalPaginas) {
+  const info = document.getElementById('hist-pag-info');
+  const wrap = document.getElementById('hist-pag-btns');
+  const inicio = total ? (paginaAtualHist - 1) * POR_PAGINA_HIST + 1 : 0;
+  const fim = Math.min(paginaAtualHist * POR_PAGINA_HIST, total);
+  info.textContent = total ? ('Mostrando ' + inicio + ' a ' + fim + ' de ' + total + ' sess' + (total !== 1 ? 'ões' : 'ão')) : '';
+
+  wrap.innerHTML = '';
+  if (totalPaginas <= 1) return;
+
+  function mkBtn(label, page, current, disabled) {
+    const el = document.createElement(current || disabled ? 'span' : 'button');
+    if (!current && !disabled) el.type = 'button';
+    el.className = 'pag-btn' + (current ? ' current' : '') + (disabled ? ' disabled' : '');
+    el.textContent = label;
+    if (!current && !disabled) el.onclick = function () { irParaPaginaHist(page); };
+    return el;
+  }
+
+  wrap.appendChild(mkBtn('←', paginaAtualHist - 1, false, paginaAtualHist === 1));
+  const de = Math.max(1, paginaAtualHist - 2);
+  const ate = Math.min(totalPaginas, paginaAtualHist + 2);
+  for (let p = de; p <= ate; p++) {
+    wrap.appendChild(mkBtn(String(p), p, p === paginaAtualHist, false));
+  }
+  wrap.appendChild(mkBtn('→', paginaAtualHist + 1, false, paginaAtualHist === totalPaginas));
 }
 
 // ----------- DETALHE -----------

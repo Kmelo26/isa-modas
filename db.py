@@ -459,6 +459,70 @@ def update_sales_status_by_comanda(comanda_id: str, status: str):
         raise RuntimeError(f"Erro ao sincronizar status das vendas da comanda: {e}") from e
 
 
+def update_sales_codigo_by_comanda(comanda_id: str, codigo: str):
+    """Código de rastreio é gerado 1x na quitação da comanda e propagado
+    pra todos os itens ativos ligados a ela — mesma venda inteira, mesmo
+    código, igual já acontece com o status."""
+    try:
+        _sb().table("sales").update({"codigo": codigo}) \
+            .eq("comanda_id", comanda_id).eq("excluida", False).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao sincronizar código de rastreio da comanda: {e}") from e
+
+
+def update_sales_forma_pagamento_by_id_venda(id_venda: str, forma_pagamento: str, exclude_uid: str | None = None):
+    """Forma de pagamento (rótulo textual) é uma propriedade da venda inteira,
+    não do item — propaga pra todos os uids do mesmo id_venda."""
+    try:
+        q = _sb().table("sales").update({"forma_pagamento": forma_pagamento}) \
+            .eq("id_venda", id_venda).eq("excluida", False)
+        if exclude_uid:
+            q = q.neq("uid", exclude_uid)
+        q.execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao sincronizar forma de pagamento da venda: {e}") from e
+
+
+def get_sales_by_id_venda(id_venda: str) -> list:
+    rows = _sb().table("sales").select("*").eq("id_venda", id_venda).eq("excluida", False).execute().data or []
+    return [_fix_sale(s) for s in rows]
+
+
+def get_pagamentos_venda(id_venda: str) -> list:
+    """Leitura tolerante: se a tabela venda_pagamentos ainda não existir
+    (migração não rodada) ou der erro transitório, cai pro comportamento
+    antigo (sem divisão) em vez de derrubar a página."""
+    try:
+        return _sb().table("venda_pagamentos").select("*").eq("id_venda", id_venda).execute().data or []
+    except Exception:
+        return []
+
+
+def get_pagamentos_por_id_vendas(ids_venda: list) -> list:
+    if not ids_venda:
+        return []
+    try:
+        return _sb().table("venda_pagamentos").select("*").in_("id_venda", ids_venda).execute().data or []
+    except Exception:
+        return []
+
+
+def insert_pagamentos_venda(rows: list):
+    if not rows:
+        return
+    try:
+        _sb().table("venda_pagamentos").insert(rows).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao registrar pagamento da venda: {e}") from e
+
+
+def delete_pagamentos_venda(id_venda: str):
+    try:
+        _sb().table("venda_pagamentos").delete().eq("id_venda", id_venda).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao limpar pagamentos da venda: {e}") from e
+
+
 def update_sales_comanda_nome(comanda_id: str, novo_nome: str):
     """Propaga o nome corrigido da comanda pra todas as vendas (inclusive já
     canceladas) ligadas a ela, pra não ficar um nome na comanda e outro nas
@@ -470,19 +534,31 @@ def update_sales_comanda_nome(comanda_id: str, novo_nome: str):
         raise RuntimeError(f"Erro ao sincronizar nome da comanda nas vendas: {e}") from e
 
 
-def get_pagamentos_comanda_por_caixa(caixa_id: str) -> list:
+def get_pagamentos_comanda_por_caixa(caixa_id: str, todas_comandas: list | None = None) -> list:
     """Varre todas as comandas e retorna os pagamentos (com dados da comanda
     anexados) cujo caixa_id bate com o caixa informado — usado na conciliação
     de caixa, já que pagamentos de comanda ficam dentro do JSON da comanda,
-    não numa tabela própria."""
+    não numa tabela própria.
+
+    Se `todas_comandas` for informado (lista já buscada, ex: via
+    get_all_commands()), reaproveita em vez de buscar de novo — evita
+    varredura repetida da tabela inteira quando o chamador já tem os dados
+    em mãos (ex: caixa_turno(), que precisa dessa mesma lista pra mais de
+    uma coisa na mesma requisição)."""
     if not caixa_id:
         return []
-    comandas = _sb().table("commands").select("cid,nome,pagamentos").execute().data or []
+    comandas = (
+        todas_comandas if todas_comandas is not None
+        else (_sb().table("commands").select("cid,nome,status,pagamentos").execute().data or [])
+    )
     pagamentos = []
     for c in comandas:
         for p in (c.get("pagamentos") or []):
             if p.get("caixa_id") == caixa_id:
-                pagamentos.append({**p, "comanda_id": c.get("cid"), "comanda_nome": c.get("nome")})
+                pagamentos.append({
+                    **p, "comanda_id": c.get("cid"), "comanda_nome": c.get("nome"),
+                    "comanda_status": c.get("status"),
+                })
     return pagamentos
 
 
@@ -547,6 +623,7 @@ def _fix_command(c: dict) -> dict:
         if not isinstance(c.get("emprestimos"), list):
             c["emprestimos"] = []
         c.setdefault("margem_customizada", None)
+        c.setdefault("codigo", None)
     return c
 
 
@@ -555,9 +632,20 @@ def get_all_commands() -> list:
     return [_fix_command(c) for c in rows]
 
 
+def get_commands_by_ids(cids: list) -> list:
+    """Busca várias comandas de uma vez por cid (1 chamada), em vez de
+    db.get_all_commands() inteiro — mesma ideia de get_products_by_pids().
+    Usado onde só um subconjunto pequeno de comandas é necessário (ex: as
+    que aparecem nas vendas já filtradas de uma página)."""
+    if not cids:
+        return []
+    rows = _sb().table("commands").select("*").in_("cid", cids).execute().data or []
+    return [_fix_command(c) for c in rows]
+
+
 def get_command(cid: str) -> dict | None:
     r = _sb().table("commands").select("*").eq("cid", cid).maybe_single().execute()
-    return _fix_command(r.data) if r.data else None
+    return _fix_command(r.data) if r and r.data else None
 
 
 def insert_command(command: dict):

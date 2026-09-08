@@ -3,7 +3,7 @@
 
 <style>
 /* ── Wrapper ── */
-.cmd-wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 60px; }
+.cmd-wrap { width: 100%; padding: 20px 16px 60px; }
 
 /* ── Top bar ── */
 .cmd-topbar {
@@ -70,12 +70,13 @@
 .cmd-toolbar {
   background: var(--card-bg); border: 1px solid var(--border);
   border-radius: 12px; padding: 12px 14px;
-  display: flex; gap: 10px; align-items: center;
+  display: flex; gap: 10px; align-items: flex-end;
   margin-bottom: 12px;
 }
+.cmd-toolbar label { font-size: 12px; font-weight: 600; color: var(--text); display: block; margin-bottom: 5px; }
 .cmd-search-wrap { position: relative; flex: 1; }
 .cmd-search {
-  width: 100%; padding: 9px 12px; border-radius: 8px;
+  width: 100%; padding: 9px 12px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--input-bg);
   color: var(--text); font-size: 13px; outline: none; box-sizing: border-box;
 }
@@ -85,7 +86,7 @@
   color: var(--text-muted); pointer-events: none;
 }
 .cmd-sort-sel {
-  padding: 9px 12px; border-radius: 8px;
+  padding: 9px 12px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--input-bg);
   color: var(--text); font-size: 13px; outline: none; cursor: pointer;
   white-space: nowrap;
@@ -297,6 +298,15 @@
 .hist-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .hist-obs { font-size: 11px; color: var(--accent); margin-top: 2px; font-style: italic; }
 .hist-empty { text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; }
+.hist-edit-btn { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:14px; padding:4px; border-radius:6px; flex-shrink:0; }
+.hist-edit-btn:hover { color:var(--accent); }
+.hist-item-edit { flex-direction:column; align-items:stretch; }
+.hist-edit-label { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin:6px 0 3px; display:block; }
+.hist-edit-input { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--input-bg); color:var(--text); font-size:13px; }
+.hist-edit-btns { display:flex; gap:8px; margin-top:8px; }
+.hist-edit-cancel, .hist-edit-save { flex:1; padding:7px 0; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid var(--border); }
+.hist-edit-cancel { background:var(--card-bg); color:var(--text); }
+.hist-edit-save { background:var(--accent); border-color:var(--accent); color:#000; }
 
 /* Vencimento/agendado info */
 .venc-box {
@@ -761,29 +771,47 @@
 
       <!-- Toolbar -->
       <div class="cmd-toolbar">
-        <div class="cmd-search-wrap">
-          <input type="text" id="cmd-search" class="cmd-search"
-            placeholder="Buscar por mesa ou cliente..." autocomplete="off"
-            oninput="renderTabela()">
-          <ul id="cmd-sugestoes" class="cmd-sugestoes"></ul>
-          <span class="cmd-search-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </span>
+        <div style="flex:1;">
+          <label for="cmd-search">Buscar comanda</label>
+          <div class="cmd-search-wrap">
+            <input type="text" id="cmd-search" class="cmd-search"
+              placeholder="Buscar por mesa ou cliente..." autocomplete="off"
+              oninput="renderTabela()">
+            <ul id="cmd-sugestoes" class="cmd-sugestoes"></ul>
+            <span class="cmd-search-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+          </div>
         </div>
-        <select class="cmd-sort-sel" id="cmd-sort" onchange="renderTabela()">
-          <option value="recentes">Ordenar: Mais recentes</option>
-          <option value="antigas">Mais antigas</option>
-          <option value="maior">Maior valor</option>
-          <option value="menor">Menor valor</option>
-          <option value="nome">Nome A-Z</option>
-          <option value="saldo">Maior saldo</option>
-        </select>
-        <select class="cmd-sort-sel" id="cmd-local-filtro" onchange="paginaAtual=1;renderTabela();">
-          <option value="">Todos os locais</option>
-          {% for l in locais_estoque %}
-          <option value="{{ l.id }}">{{ l.nome }}</option>
-          {% endfor %}
-        </select>
+        <div>
+          <label for="cmd-sort">Ordenar por</label>
+          <select class="cmd-sort-sel" id="cmd-sort" onchange="renderTabela()">
+            <option value="recentes">Mais recentes</option>
+            <option value="antigas">Mais antigas</option>
+            <option value="maior">Maior valor</option>
+            <option value="menor">Menor valor</option>
+            <option value="nome">Nome A-Z</option>
+            <option value="saldo">Maior saldo</option>
+          </select>
+        </div>
+        <div>
+          <label for="cmd-local-filtro">Local</label>
+          <select class="cmd-sort-sel" id="cmd-local-filtro" onchange="paginaAtual=1;renderTabela();">
+            <option value="">Todos os locais</option>
+            {% for l in locais_estoque %}
+            <option value="{{ l.id }}">{{ l.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="cmd-usuario-filtro">Usuário</label>
+          <select class="cmd-sort-sel" id="cmd-usuario-filtro" onchange="paginaAtual=1;renderTabela();">
+            <option value="">Todos</option>
+            {% for uname, unome in usuarios_conhecidos %}
+            <option value="{{ uname }}">{{ unome }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
       <!-- Filtro de status -->
@@ -939,6 +967,14 @@
   </div>
 </div>
 
+<!-- FORM: Editar pagamento de comanda (usado por salvarEdicaoPagamento) -->
+<form id="form-editar-pagamento" method="post" style="display:none;">
+  <input type="hidden" name="valor" id="editar-pagamento-valor">
+  <input type="hidden" name="obs" id="editar-pagamento-obs">
+  <input type="hidden" name="autorizador_usuario" id="editar-pagamento-autorizador-usuario">
+  <input type="hidden" name="autorizador_pin" id="editar-pagamento-autorizador-pin">
+</form>
+
 <!-- Embedded data -->
 <script type="application/json" id="data-nomes-cmds">{{ nomes_sugestoes | tojson }}</script>
 <script type="application/json" id="data-cmd">
@@ -976,6 +1012,8 @@ const POR_PAGINA = 10;
 let cidSelecionado = null;
 let statusFiltro = 'aberta';
 const verValorCmd = {{ (tipo == "admin" or "ver_valor_comandas" in permissoes)|tojson }};
+const PODE_EDITAR_PAGAMENTO = {{ (tipo == "admin" or "editar_pagamento_comanda" in permissoes)|tojson }};
+let editandoPagamentoUid = null;
 let abaPanel = 'itens';
 
 function setStatus(btn) {
@@ -1068,11 +1106,13 @@ function filtrados() {
   const termo = normaliza(document.getElementById('cmd-search').value);
   const sort  = document.getElementById('cmd-sort').value;
   const local = document.getElementById('cmd-local-filtro').value;
+  const usuario = document.getElementById('cmd-usuario-filtro').value;
 
   let lista = TODAS_CMDS.filter(c =>
     (!termo || normaliza(c.nome).includes(termo) || normaliza(c.mesa || '').includes(termo)) &&
     (statusFiltro === 'todas' || c._status_display === statusFiltro) &&
-    (!local || c.local_id === local)
+    (!local || c.local_id === local) &&
+    (!usuario || c.criado_por === usuario)
   );
 
   if (sort === 'recentes')    lista.sort((a,b) => (b.data_abertura+b.hora_abertura).localeCompare(a.data_abertura+a.hora_abertura));
@@ -1171,7 +1211,9 @@ function renderPaginacao(total, pages) {
   prev.onclick = () => { paginaAtual--; renderTabela(); };
   pages_el.appendChild(prev);
 
-  for (let p = 1; p <= pages; p++) {
+  const de  = Math.max(1, paginaAtual - 2);
+  const ate = Math.min(pages, paginaAtual + 2);
+  for (let p = de; p <= ate; p++) {
     const btn = document.createElement('button');
     btn.className = 'cmd-pag-btn' + (p === paginaAtual ? ' active' : '');
     btn.textContent = p;
@@ -1411,7 +1453,24 @@ function renderHistorico(c) {
     list.innerHTML = '<div class="hist-empty">Nenhum pagamento registrado.</div>';
     return;
   }
-  list.innerHTML = c.pagamentos.map(p => `
+  list.innerHTML = c.pagamentos.map(p => {
+    if (editandoPagamentoUid === p.uid) {
+      return `
+      <div class="hist-item hist-item-edit">
+        <div class="hist-icon">${formaIcon(p.forma)}</div>
+        <div class="hist-body">
+          <label class="hist-edit-label">Valor (R$)</label>
+          <input type="number" step="0.01" min="0.01" class="hist-edit-input" id="hist-edit-valor-${p.uid}" value="${p.valor}">
+          <label class="hist-edit-label">Observação</label>
+          <input type="text" class="hist-edit-input" id="hist-edit-obs-${p.uid}" value="${(p.obs || '').replace(/"/g, '&quot;')}">
+          <div class="hist-edit-btns">
+            <button type="button" class="hist-edit-cancel" onclick="cancelarEdicaoPagamento('${c.cid}')">Cancelar</button>
+            <button type="button" class="hist-edit-save" onclick="salvarEdicaoPagamento('${c.cid}','${p.uid}')">Salvar</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `
     <div class="hist-item">
       <div class="hist-icon">${formaIcon(p.forma)}</div>
       <div class="hist-body">
@@ -1419,7 +1478,43 @@ function renderHistorico(c) {
         <div class="hist-meta">${p.forma === 'pix' ? 'Pix' : p.forma === 'cartao' ? 'Cartão' : 'Dinheiro'} · ${fmtData(p.data)} ${p.hora || ''} · ${p.usuario || ''}</div>
         ${p.obs ? '<div class="hist-obs">' + p.obs + '</div>' : ''}
       </div>
-    </div>`).join('');
+      <button type="button" class="hist-edit-btn" title="Editar pagamento" onclick="iniciarEdicaoPagamento('${c.cid}','${p.uid}')">✏️</button>
+    </div>`;
+  }).join('');
+}
+
+function iniciarEdicaoPagamento(cid, uid) {
+  editandoPagamentoUid = uid;
+  const c = TODAS_CMDS.find(x => x.cid === cid);
+  if (c) renderHistorico(c);
+}
+function cancelarEdicaoPagamento(cid) {
+  editandoPagamentoUid = null;
+  const c = TODAS_CMDS.find(x => x.cid === cid);
+  if (c) renderHistorico(c);
+}
+function salvarEdicaoPagamento(cid, uid) {
+  const valor = document.getElementById('hist-edit-valor-' + uid).value;
+  const obs = document.getElementById('hist-edit-obs-' + uid).value;
+  const form = document.getElementById('form-editar-pagamento');
+  form.action = '/comandas/' + cid + '/pagamento/' + uid + '/editar';
+  document.getElementById('editar-pagamento-valor').value = valor;
+  document.getElementById('editar-pagamento-obs').value = obs;
+
+  function submitAgora() {
+    document.getElementById('editar-pagamento-autorizador-usuario').value = '';
+    document.getElementById('editar-pagamento-autorizador-pin').value = '';
+    form.submit();
+  }
+  if (PODE_EDITAR_PAGAMENTO) {
+    submitAgora();
+  } else {
+    showPinPrompt('Autorização necessária', 'Você não tem permissão para editar pagamentos de comanda. Informe o usuário e o PIN de alguém autorizado.', function(usuarioAut, pin){
+      document.getElementById('editar-pagamento-autorizador-usuario').value = usuarioAut;
+      document.getElementById('editar-pagamento-autorizador-pin').value = pin;
+      form.submit();
+    });
+  }
 }
 
 function fmtStatus(s) {
