@@ -275,6 +275,12 @@
     </h1>
     <div class="est-header-btns">
       <a href="{{ url_for('bar_produtos') }}" class="est-btn">Pacotes</a>
+      {% if tipo == "admin" or "cadastrar_produto" in permissoes %}
+      <a href="{{ url_for('estoque_categorias') }}" class="est-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Categorias
+      </a>
+      {% endif %}
       <a href="{{ url_for('estoque_transferencia') }}" class="est-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         Transferência

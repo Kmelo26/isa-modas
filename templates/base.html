@@ -185,6 +185,97 @@ body {
     opacity: 0.7;
 }
 
+/* Configurações (grupo expansível, acima do Sair) */
+.sidebar-config {
+    padding: 6px 8px 0;
+    flex-shrink: 0;
+}
+
+.config-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 9px 10px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.config-toggle:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.config-toggle .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; }
+.config-toggle:hover .nav-icon { opacity: 1; }
+.config-toggle .nav-label { flex: 1; text-align: left; }
+
+.config-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.5;
+    transform: rotate(90deg);
+    transition: transform 0.15s;
+}
+
+.config-toggle.aberto .config-chevron { transform: rotate(-90deg); }
+
+.config-sub {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 0 4px 12px;
+}
+
+.config-sub.aberto { display: flex; }
+
+.config-sub a {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 8px 10px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.config-sub a:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.config-sub .nav-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.6; }
+.config-sub a:hover .nav-icon { opacity: 1; }
+
+/* Menu recolhido (só ícones): Configurações some junto com os labels, mas os
+   itens de dentro continuam sempre acessíveis (não dependem do toggle) */
+.sidebar.collapsed .config-toggle .nav-label,
+.sidebar.collapsed .config-chevron {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+.sidebar.collapsed .config-toggle { justify-content: center; padding: 9px 0; cursor: default; }
+.sidebar.collapsed .config-sub { display: flex; padding-left: 0; }
+.sidebar.collapsed .config-sub a { justify-content: center; padding: 9px 0; }
+.sidebar.collapsed .config-sub .nav-label { opacity: 0; width: 0; pointer-events: none; }
+
 /* Separador antes do Sair */
 .sidebar-footer {
     padding: 10px 8px 16px;
@@ -234,6 +325,8 @@ body {
     padding: 20px;
     overflow-y: auto;
     background: var(--bg);
+    display: flex;
+    flex-direction: column;
 }
 
 /* Header com perfil */
@@ -436,15 +529,6 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" or ("ver_investidores" in permissoes) %}
-        <a href="{{ url_for('investidores_home') }}">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <span class="nav-label">Investidores</span>
-        </a>
-        {% endif %}
-
         {% if tipo == "admin" or ("ver_historico_caixa" in permissoes) %}
         <a href="{{ url_for('caixa_historico_novo') }}">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -454,16 +538,41 @@ form select:focus {
         </a>
         {% endif %}
 
-        {% if tipo == "admin" or ("alterar_permissoes" in permissoes) %}
-        <a href="{{ url_for('permissoes') }}">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <span class="nav-label">Usuários e Permissões</span>
-        </a>
-        {% endif %}
-
     </div>
+
+    {% if tipo == "admin" or ("alterar_permissoes" in permissoes) or ("ver_investidores" in permissoes) %}
+    <!-- Configurações (agrupa Usuários e Permissões / Investidores) -->
+    <div class="sidebar-config">
+        <button type="button" class="config-toggle" onclick="toggleConfigMenu(this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span class="nav-label">Configurações</span>
+            <svg class="config-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </button>
+        <div class="config-sub" id="config-sub">
+            {% if tipo == "admin" or ("alterar_permissoes" in permissoes) %}
+            <a href="{{ url_for('permissoes') }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <span class="nav-label">Usuários e Permissões</span>
+            </a>
+            {% endif %}
+
+            {% if tipo == "admin" or ("ver_investidores" in permissoes) %}
+            <a href="{{ url_for('investidores_home') }}">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <span class="nav-label">Investidores</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Rodapé sidebar (Sair) -->
     <div class="sidebar-footer">
@@ -713,6 +822,12 @@ document.getElementById('g-pin-valor').addEventListener('keydown', function(e){
             sidebar.classList.contains('collapsed') ? '1' : '0');
     });
 })();
+
+function toggleConfigMenu(btn){
+    if (document.getElementById('sidebar').classList.contains('collapsed')) return;
+    btn.classList.toggle('aberto');
+    document.getElementById('config-sub').classList.toggle('aberto');
+}
 </script>
 
 {% if erro_autorizacao %}

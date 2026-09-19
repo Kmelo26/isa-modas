@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, session, url_for, s
 import os
 import time
 import uuid
+import json
 import calendar
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
@@ -748,6 +749,15 @@ def login():
         return render_template("login.html", erro="Usuário ou senha inválidos")
 
     return render_template("login.html", sessao_encerrada=sessao_encerrada)
+
+
+@app.route("/recuperar-senha")
+def recuperar_senha():
+    """Tela de 'Esqueci minha senha' — só a página, sem envio de e-mail de
+    verdade (o sistema não tem nenhum serviço de e-mail configurado ainda).
+    Reset de senha continua sendo feito manualmente pelo admin no painel de
+    Permissões."""
+    return render_template("recuperar_senha.html")
 
 
 @app.route("/logout")
@@ -2077,10 +2087,7 @@ def estoque_novo():
             if not erro:
                 return redirect(url_for("estoque"))
 
-    categorias_extra = [
-        c for c in _categorias_existentes(db.get_all_products())
-        if c.strip().lower() not in ("bebida", "comida", "insumo")
-    ]
+    categorias = db.get_all_categorias()
     permite_investidores = session.get("tipo") == "admin" or tem_permissao("editar_investidores")
     investidores_ativos = [i for i in db.get_all_investidores() if i.get("status") == "ativo"] if permite_investidores else []
 
@@ -2089,11 +2096,97 @@ def estoque_novo():
         erro=erro,
         hoje=today_brt().isoformat(),
         fornecedores=[],
-        categorias_extra=categorias_extra,
+        categorias=categorias,
         permite_investidores=permite_investidores,
         investidores_ativos=investidores_ativos,
         locais_estoque=db.get_all_locais_estoque(),
         local_padrao=LOCAL_PADRAO,
+        tipo=session.get("tipo"),
+        permissoes=session.get("permissoes", []),
+    )
+
+
+# ================== CATEGORIAS DE PRODUTO ==================
+TIPOS_CATEGORIA = ("bebida", "comida", "insumo")
+TIPOS_CATEGORIA_LABEL = {"bebida": "Bebida", "comida": "Comida", "insumo": "Insumo"}
+
+
+@app.route("/estoque/categorias", methods=["GET", "POST"])
+def estoque_categorias():
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if not tem_permissao("cadastrar_produto"):
+        return redirect(url_for("vendas"))
+
+    erro = ""
+
+    if request.method == "POST":
+        acao = (request.form.get("acao") or "").strip()
+        nome = (request.form.get("nome") or "").strip()
+        tipo = (request.form.get("tipo") or "").strip()
+        hoje = now_brt().strftime("%Y-%m-%d")
+        hora = now_brt().strftime("%H:%M")
+
+        categorias_atuais = db.get_all_categorias()
+
+        if acao == "criar":
+            if not nome or tipo not in TIPOS_CATEGORIA:
+                erro = "Preencha o nome e escolha um tipo válido."
+            elif any(c.get("nome", "").strip().lower() == nome.lower() for c in categorias_atuais):
+                erro = "Já existe uma categoria com esse nome."
+            else:
+                try:
+                    db.insert_categoria(nome, tipo)
+                    db.registrar_log(
+                        session.get("usuario", ""), "categoria_criada",
+                        f"Criou categoria: {nome} ({TIPOS_CATEGORIA_LABEL.get(tipo, tipo)})", hoje, hora,
+                    )
+                except RuntimeError as e:
+                    erro = str(e)
+
+        elif acao == "editar_tipo":
+            if not nome or tipo not in TIPOS_CATEGORIA:
+                erro = "Dados inválidos para atualizar a categoria."
+            else:
+                try:
+                    db.update_categoria_tipo(nome, tipo)
+                    db.registrar_log(
+                        session.get("usuario", ""), "categoria_editada",
+                        f"Alterou tipo da categoria {nome} para {TIPOS_CATEGORIA_LABEL.get(tipo, tipo)}", hoje, hora,
+                    )
+                except RuntimeError as e:
+                    erro = str(e)
+
+        elif acao == "excluir":
+            if not nome:
+                erro = "Categoria inválida."
+            else:
+                try:
+                    db.delete_categoria(nome)
+                    db.registrar_log(
+                        session.get("usuario", ""), "categoria_excluida",
+                        f"Excluiu categoria: {nome}", hoje, hora,
+                    )
+                except RuntimeError as e:
+                    erro = str(e)
+
+        if not erro:
+            return redirect(url_for("estoque_categorias") + "?salvo=1")
+
+    categorias = sorted(db.get_all_categorias(), key=lambda c: (c.get("nome") or "").lower())
+    contagem = defaultdict(int)
+    for p in db.get_all_products():
+        c = (p.get("categoria") or "").strip()
+        if c:
+            contagem[c] += 1
+
+    return render_template(
+        "estoque_categorias.html",
+        categorias=categorias,
+        contagem=contagem,
+        tipos_categoria=TIPOS_CATEGORIA,
+        tipos_categoria_label=TIPOS_CATEGORIA_LABEL,
+        erro=erro,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
     )
@@ -2159,16 +2252,13 @@ def editar_produto(pid):
             )
             return redirect(url_for("estoque"))
 
-    categorias_extra = [
-        c for c in _categorias_existentes(db.get_all_products())
-        if c.strip().lower() not in ("bebida", "comida", "insumo")
-    ]
+    categorias = db.get_all_categorias()
 
     return render_template(
         "editar_produto.html",
         produto=produto,
         erro=erro,
-        categorias_extra=categorias_extra,
+        categorias=categorias,
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", [])
     )
@@ -2479,7 +2569,7 @@ def cadastrar_venda():
                     for venda in novas_vendas:
                         venda["caixa_id"] = caixa_id_atual
                         venda["codigo"] = codigo_venda
-                        db.insert_sale(venda)
+                    db.insert_sales(novas_vendas)
                     for produto in produtos_modificados:
                         db.update_product(produto)
                 except RuntimeError as e:
@@ -2526,7 +2616,8 @@ def cadastrar_venda_lote():
             continue
         comps = comps_por_produto.get(d["id"], [])
         d["componentes"] = [
-            {"nome": c.get("component", {}).get("name", "?"),
+            {"component_id": c.get("component", {}).get("id", ""),
+             "nome": c.get("component", {}).get("name", "?"),
              "quantidade": c.get("quantity", 0),
              "unidade_uso": c.get("unidade_uso") or "UN"}
             for c in comps
@@ -2554,19 +2645,25 @@ def cadastrar_venda_lote():
             nome_local = next((l["nome"] for l in db.get_all_locais_estoque() if l["id"] == local_id), local_id)
             erro = f"⚠️ Nenhum caixa aberto em {nome_local}. Abra o caixa antes de registrar vendas."
 
-        pids   = request.form.getlist("produto_pid[]")
-        qtds   = request.form.getlist("quantidade[]")
-        tipos  = request.form.getlist("produto_tipo[]")
-        vpcs   = request.form.getlist("vender_por_conteudo[]")
-        precos = request.form.getlist("preco_venda[]")
+        pids            = request.form.getlist("produto_pid[]")
+        qtds            = request.form.getlist("quantidade[]")
+        tipos           = request.form.getlist("produto_tipo[]")
+        vpcs            = request.form.getlist("vender_por_conteudo[]")
+        precos          = request.form.getlist("preco_venda[]")
+        substituicoes   = request.form.getlist("substituicoes[]")
+        ignorar_estoque = request.form.getlist("ignorar_estoque[]")
 
-        # garante que tipos, vpcs e precos têm o mesmo tamanho que pids
+        # garante que tipos, vpcs, precos, substituicoes e ignorar_estoque têm o mesmo tamanho que pids
         while len(tipos) < len(pids):
             tipos.append("estoque")
         while len(vpcs) < len(pids):
             vpcs.append("0")
         while len(precos) < len(pids):
             precos.append("")
+        while len(substituicoes) < len(pids):
+            substituicoes.append("")
+        while len(ignorar_estoque) < len(pids):
+            ignorar_estoque.append("0")
 
         # desconto/preço manual só vale se o usuário tiver a permissão — sem
         # ela, o preço submetido é ignorado e usamos sempre o preço de catálogo.
@@ -2588,7 +2685,7 @@ def cadastrar_venda_lote():
             novas_vendas = []
             produtos_modificados = []
 
-            for pid, qtd_raw, tipo, vpc_flag, preco_raw in zip(pids, qtds, tipos, vpcs, precos):
+            for pid, qtd_raw, tipo, vpc_flag, preco_raw, subst_raw, ignorar_raw in zip(pids, qtds, tipos, vpcs, precos, substituicoes, ignorar_estoque):
                 pid = (pid or "").strip()
                 qtd = to_int(qtd_raw, 0)
                 vpc = vpc_flag == "1"
@@ -2600,8 +2697,20 @@ def cadastrar_venda_lote():
                     if not bar_prod:
                         erro = f"Drink '{pid}' não encontrado."
                         break
+                    # Receita customizada só nessa venda (ex: trocou o gin do
+                    # combo) — vem como JSON de [{component_id, quantity,
+                    # unidade_uso}], montado em cadastrar_venda_lote.html.
+                    componentes_override = None
+                    if subst_raw:
+                        try:
+                            componentes_override = json.loads(subst_raw)
+                        except (ValueError, TypeError):
+                            componentes_override = None
                     try:
-                        custo_total, consumo = bar_calc_drink_cost(pid, qtd)
+                        custo_total, consumo = bar_calc_drink_cost(
+                            pid, qtd, componentes_override=componentes_override,
+                            ignorar_falta=(ignorar_raw == "1"),
+                        )
                     except Exception as e:
                         erro = str(e)
                         break
@@ -2674,7 +2783,7 @@ def cadastrar_venda_lote():
                     for venda in novas_vendas:
                         venda["caixa_id"] = caixa_id_atual
                         venda["codigo"] = codigo_venda
-                        db.insert_sale(venda)
+                    db.insert_sales(novas_vendas)
                     for produto in produtos_modificados:
                         db.update_product(produto)
 
@@ -2699,10 +2808,20 @@ def cadastrar_venda_lote():
                     return redirect(url_for("cadastrar_venda_lote") + "?sucesso=1")
 
     hoje = now_brt().strftime("%Y-%m-%d")
+    categorias = sorted(set(_categorias_existentes(estoque)) | {
+        (d.get("category") or "").strip() for d in drinks if d.get("category")
+    })
+    comandas_abertas = [
+        {"cid": c["cid"], "nome": c.get("nome", ""), "mesa": c.get("mesa", ""),
+         "status": c.get("status"), "local_id": c.get("local_id") or LOCAL_PADRAO}
+        for c in db.get_all_commands() if c.get("status") in ("aberta", "parcial")
+    ]
     return render_template(
         "cadastrar_venda_lote.html",
         estoque=estoque,
         drinks=drinks,
+        categorias=categorias,
+        comandas_abertas=comandas_abertas,
         erro=erro,
         hoje=hoje,
         caixa_aberto=caixa_aberto,
@@ -3302,6 +3421,196 @@ def comanda_adicionar(cid):
         )
 
     return redirect(url_for("comanda_detalhe", cid=cid))
+
+
+@app.route("/comandas/<cid>/adicionar_lote", methods=["POST"])
+def comanda_adicionar_lote(cid):
+    """Envia o carrinho inteiro montado em /cadastrar_venda_lote pra uma
+    comanda de uma vez só (em vez de 1 item por request, como
+    comanda_adicionar acima). Mesma lógica de consumo/custo daquela rota,
+    só que em lote e sempre usando o local_id da própria comanda."""
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if not tem_permissao("criar_vendas"):
+        return redirect(url_for("vendas"))
+
+    comanda = db.get_command(cid)
+    if not comanda or comanda.get("status") not in ("aberta", "parcial"):
+        return redirect(url_for("cadastrar_venda_lote", comanda_erro="Essa comanda não está mais disponível para receber itens."))
+
+    pids            = request.form.getlist("produto_pid[]")
+    qtds            = request.form.getlist("quantidade[]")
+    tipos           = request.form.getlist("produto_tipo[]")
+    vpcs            = request.form.getlist("vender_por_conteudo[]")
+    substituicoes   = request.form.getlist("substituicoes[]")
+    ignorar_estoque = request.form.getlist("ignorar_estoque[]")
+    while len(tipos) < len(pids):
+        tipos.append("estoque")
+    while len(vpcs) < len(pids):
+        vpcs.append("0")
+    while len(substituicoes) < len(pids):
+        substituicoes.append("")
+    while len(ignorar_estoque) < len(pids):
+        ignorar_estoque.append("0")
+
+    if not pids or not qtds or len(pids) != len(qtds):
+        return redirect(url_for("cadastrar_venda_lote", comanda_erro="Carrinho vazio — nada para enviar."))
+
+    local_id = comanda.get("local_id") or LOCAL_PADRAO
+    margem_ativa = comanda.get("margem_customizada")
+    caixa_aberto_item = db.get_caixa_aberto(local_id)
+    hoje_item = now_brt().strftime("%Y-%m-%d")
+    hora_item = now_brt().strftime("%H:%M")
+
+    erro = ""
+    novos_itens = []
+    novas_vendas = []
+    produtos_modificados = []
+
+    for pid, qtd_raw, tipo, vpc_flag, subst_raw, ignorar_raw in zip(pids, qtds, tipos, vpcs, substituicoes, ignorar_estoque):
+        pid = (pid or "").strip()
+        qtd = to_int(qtd_raw, 0)
+        vpc = vpc_flag == "1"
+        if not pid or qtd <= 0:
+            continue
+
+        if tipo == "bar":
+            bar_prod = db.bar_get_product(pid)
+            if not bar_prod:
+                erro = "Pacote não encontrado."
+                break
+            try:
+                # Receita customizada só nessa venda (trocou ingrediente/qtd
+                # no "Ver itens" antes de enviar pra comanda) — mesmo formato
+                # usado em cadastrar_venda_lote().
+                components = None
+                if subst_raw:
+                    try:
+                        components = json.loads(subst_raw)
+                    except (ValueError, TypeError):
+                        components = None
+                if not components:
+                    components = db.bar_get_components(pid)
+                if not components:
+                    raise ValueError(f"O pacote '{bar_prod.get('name', '')}' não possui componentes cadastrados.")
+                ignorar_falta = ignorar_raw == "1"
+                components_consumo = []
+                total_cost = 0.0
+                all_logs = []
+                for comp in components:
+                    comp_pid = (comp.get("component_id") or "").replace("-", "")
+                    qtd_por_unidade = to_float(comp.get("quantity"), 0)
+                    if not comp_pid or qtd_por_unidade <= 0:
+                        continue
+                    unidade_uso = (comp.get("unidade_uso") or "UN").strip()
+                    qtd_bruta = qtd_por_unidade * qtd
+                    produto_comp = db.get_product(comp_pid)
+                    cv = float((produto_comp or {}).get("conteudo_valor") or 1)
+                    needed = qtd_bruta / cv if (cv > 1 and unidade_uso.upper() != "UN") else qtd_bruta
+                    cost, log = bar_fifo_consume(comp_pid, needed, ignorar_falta=ignorar_falta)
+                    total_cost += cost
+                    all_logs.extend(log)
+                    components_consumo.append({"pid": comp_pid, "consumo": log})
+            except (ValueError, RuntimeError) as e:
+                erro = str(e)
+                break
+
+            custo_unit = round(total_cost / qtd, 4) if qtd else 0.0
+            preco_unit = (
+                _preco_por_margem(custo_unit, margem_ativa)
+                if margem_ativa is not None
+                else to_float(bar_prod.get("sale_price", 0))
+            )
+            sale_uid = uuid.uuid4().hex
+            novas_vendas.append({
+                "uid": sale_uid, "comanda_id": comanda["cid"], "comanda_nome": comanda["nome"],
+                "data": hoje_item, "hora": hora_item, "produto_pid": pid, "produto_tipo": "bar",
+                "nome": bar_prod["name"], "valor_venda": round(preco_unit, 4),
+                "valor_investido": custo_unit, "quantidade": qtd, "status": "pendente",
+                "forma_pagamento": "fiado", "consumo_lotes": all_logs,
+                "usuario": session.get("usuario", ""), "local_id": local_id,
+                "caixa_id": caixa_aberto_item["id"] if caixa_aberto_item else None,
+            })
+            novos_itens.append({
+                "item_id": uuid.uuid4().hex, "sale_uid": sale_uid, "produto_pid": pid,
+                "produto_tipo": "bar", "nome": bar_prod["name"], "quantidade": qtd,
+                "valor_venda": round(preco_unit, 4), "valor_investido": custo_unit,
+                "consumo_lotes": all_logs, "bar_consumo_components": components_consumo,
+                "data": hoje_item, "hora": hora_item,
+            })
+        else:
+            produto = db.get_product(pid)
+            if not produto:
+                erro = "Produto não encontrado no estoque."
+                break
+            try:
+                cv = float((produto or {}).get("conteudo_valor") or 1)
+                if vpc and cv > 1:
+                    qtd_estoque = qtd / cv
+                    custo_total, consumo = consumir_fifo_local(produto, qtd_estoque, local_id)
+                    custo_unit_medio = (custo_total / qtd) if qtd else 0.0
+                    preco_catalogo = to_float(produto.get("valor_venda", 0)) / cv
+                else:
+                    custo_total, consumo = consumir_fifo_local(produto, qtd, local_id)
+                    custo_unit_medio = (custo_total / qtd) if qtd else 0.0
+                    preco_catalogo = to_float(produto.get("valor_venda", 0))
+                produtos_modificados.append(produto)
+            except ValueError as e:
+                erro = str(e)
+                break
+
+            preco_unit = (
+                _preco_por_margem(custo_unit_medio, margem_ativa)
+                if margem_ativa is not None
+                else preco_catalogo
+            )
+            sale_uid = uuid.uuid4().hex
+            novas_vendas.append({
+                "uid": sale_uid, "comanda_id": comanda["cid"], "comanda_nome": comanda["nome"],
+                "data": hoje_item, "hora": hora_item, "produto_pid": produto.get("pid"),
+                "produto_tipo": "estoque", "nome": produto.get("nome", ""),
+                "valor_venda": round(preco_unit, 4), "valor_investido": round(custo_unit_medio, 4),
+                "quantidade": qtd, "status": "pendente", "forma_pagamento": "fiado",
+                "consumo_lotes": consumo, "usuario": session.get("usuario", ""),
+                "local_id": local_id, "caixa_id": caixa_aberto_item["id"] if caixa_aberto_item else None,
+            })
+            novos_itens.append({
+                "item_id": uuid.uuid4().hex, "sale_uid": sale_uid, "produto_pid": produto.get("pid"),
+                "produto_tipo": "estoque", "vender_por_conteudo": vpc and cv > 1,
+                "nome": produto.get("nome", ""), "quantidade": qtd,
+                "valor_venda": round(preco_unit, 4), "valor_investido": round(custo_unit_medio, 4),
+                "consumo_lotes": consumo, "local_id": local_id,
+                "data": hoje_item, "hora": hora_item,
+            })
+
+    if not erro and not novos_itens:
+        erro = "Nenhum item válido para enviar."
+
+    if erro:
+        return redirect(url_for("cadastrar_venda_lote", comanda_erro=erro))
+
+    # Só grava depois que o lote inteiro validou (itens de estoque ficam só
+    # em memória em `produtos_modificados`/`novas_vendas` até aqui — nada
+    # foi escrito ainda pra eles). Itens de pacote do bar já consomem os
+    # ingredientes na hora (bar_fifo_consume grava direto), mesma limitação
+    # que a venda avulsa em lote já tem hoje.
+    for produto in produtos_modificados:
+        db.update_product(produto)
+    for venda in novas_vendas:
+        db.insert_sale(venda)
+    comanda["itens"].extend(novos_itens)
+    db.update_command(comanda)
+
+    total_enviado = sum(to_float(i["valor_venda"]) * to_int(i["quantidade"]) for i in novos_itens)
+    db.registrar_log(
+        session.get("usuario", ""), "comanda_itens_recebidos",
+        f"Enviou {len(novos_itens)} item(ns) (R$ {total_enviado:.2f}) da tela de venda pra comanda: {comanda.get('nome', '')}",
+        hoje_item, hora_item,
+    )
+    label = comanda.get("nome") or "comanda"
+    if comanda.get("mesa"):
+        label += f" — Mesa {comanda['mesa']}"
+    return redirect(url_for("cadastrar_venda_lote", comanda_ok=1, comanda_label=label, comanda_qtd=len(novos_itens)))
 
 
 @app.route("/comandas/<cid>/margem", methods=["POST"])
@@ -4799,7 +5108,12 @@ def caixa_fechar():
         uids.append(v["uid"])
 
     # + pagamentos de comanda registrados enquanto este caixa estava aberto
-    for p in db.get_pagamentos_comanda_por_caixa(caixa["id"]):
+    pagamentos_comanda_caixa = sorted(
+        db.get_pagamentos_comanda_por_caixa(caixa["id"]),
+        key=lambda p: (p.get("data") or "", p.get("hora") or ""),
+        reverse=True,
+    )
+    for p in pagamentos_comanda_caixa:
         valor = to_float(p.get("valor", 0))
         forma = normalizar_pagamento(p.get("forma", ""))
         totais[forma] = totais.get(forma, 0.0) + valor
@@ -4893,6 +5207,7 @@ def caixa_fechar():
             movs=movs, total_sangrias=total_sangrias,
             total_suprimentos=total_suprimentos, total_despesas=total_despesas,
             observacoes=observacoes, comandas_periodo=comandas_periodo,
+            pagamentos_comanda_caixa=pagamentos_comanda_caixa,
             locais_nomes_map={l["id"]: l["nome"] for l in db.get_all_locais_estoque()},
             local_padrao=LOCAL_PADRAO,
             tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
@@ -4906,6 +5221,7 @@ def caixa_fechar():
         produtos_vendidos=produtos_vendidos, ticket_medio=ticket_medio,
         pagamentos=pagamentos, tempo_operacao=tempo_operacao, agora=agora,
         comandas_periodo=comandas_periodo,
+        pagamentos_comanda_caixa=pagamentos_comanda_caixa,
         locais_nomes_map={l["id"]: l["nome"] for l in db.get_all_locais_estoque()},
         local_padrao=LOCAL_PADRAO,
         tipo=session.get("tipo"), permissoes=session.get("permissoes", []))
@@ -5877,13 +6193,25 @@ def _pid_to_uuid(pid: str) -> str:
     return pid
 
 
-def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
+def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = False) -> tuple[float, list]:
     """Consume qty_needed do estoque principal (products) via FIFO.
-    Se o produto não existir no estoque principal, usa bar_stock_batches como fallback."""
+    Se o produto não existir no estoque principal, usa bar_stock_batches como fallback.
+
+    Antes só parava de consumir quando os lotes acabavam, sem avisar — dava
+    pra vender um pacote com ingrediente zerado sem erro nenhum. Agora, se
+    não tiver estoque suficiente, lança ValueError (igual consumir_fifo_local
+    já faz pros produtos "normais"), a menos que ignorar_falta=True (usuário
+    confirmou "continuar mesmo assim" na tela de venda)."""
     produto = db.get_product(product_id)
     if produto:
         lotes = produto.get("lotes", [])
         lotes.sort(key=lambda l: str(l.get("data", "")))
+        disponivel = sum(to_float(l.get("qtd", 0)) for l in lotes)
+        if qty_needed > disponivel and not ignorar_falta:
+            raise ValueError(
+                f"Estoque insuficiente de \"{produto.get('nome', product_id)}\": "
+                f"tem {disponivel}, precisa de {round(qty_needed, 3)}."
+            )
         remaining = qty_needed
         total_cost = 0.0
         log = []
@@ -5908,6 +6236,11 @@ def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
 
     # Fallback: bar_stock_batches (ingredientes cadastrados apenas no bar)
     batches = db.bar_get_available_batches(product_id)
+    disponivel_batches = sum(float(b["quantity_remaining"]) for b in batches)
+    if qty_needed > disponivel_batches and not ignorar_falta:
+        raise ValueError(
+            f"Estoque insuficiente do ingrediente: tem {disponivel_batches}, precisa de {round(qty_needed, 3)}."
+        )
     remaining = qty_needed
     total_cost = 0.0
     log = []
@@ -5924,24 +6257,36 @@ def bar_fifo_consume(product_id: str, qty_needed: float) -> tuple[float, list]:
     return round(total_cost, 4), log
 
 
-def bar_calc_drink_cost(product_id: str, quantity: float) -> tuple[float, list]:
-    """Calculate cost and consume stock for a composite or simple product."""
+def bar_calc_drink_cost(product_id: str, quantity: float, componentes_override: list | None = None, ignorar_falta: bool = False) -> tuple[float, list]:
+    """Calculate cost and consume stock for a composite or simple product.
+
+    componentes_override: quando informado (lista de {"component_id",
+    "quantity", "unidade_uso"}), substitui a receita oficial do pacote só
+    pra essa chamada — usado quando o usuário troca um ingrediente/quantidade
+    na hora de registrar a venda, sem alterar a receita cadastrada.
+
+    ignorar_falta: repassado pra bar_fifo_consume — quando True, deixa vender
+    mesmo sem estoque suficiente de algum ingrediente (usuário confirmou
+    "continuar mesmo assim" na tela)."""
     product = db.bar_get_product(product_id)
     if not product:
         return 0.0, []
 
     if product["type"] == "composite":
-        components = db.bar_get_components(product_id)
+        components = componentes_override if componentes_override is not None else db.bar_get_components(product_id)
         total_cost = 0.0
         all_logs = []
         for comp in components:
+            comp_pid_inner = (comp.get("component_id") or "").replace("-", "")
+            qtd_por_unidade = to_float(comp.get("quantity"), 0)
+            if not comp_pid_inner or qtd_por_unidade <= 0:
+                continue
             unidade_uso = (comp.get("unidade_uso") or "UN").strip()
-            qtd_bruta = float(comp["quantity"]) * quantity
-            comp_pid_inner = (comp["component_id"] or "").replace("-", "")
+            qtd_bruta = qtd_por_unidade * quantity
             produto_comp = db.get_product(comp_pid_inner)
             cv = float((produto_comp or {}).get("conteudo_valor") or 1)
             needed = qtd_bruta / cv if (cv > 1 and unidade_uso.upper() != "UN") else qtd_bruta
-            cost, log = bar_fifo_consume(comp_pid_inner, needed)
+            cost, log = bar_fifo_consume(comp_pid_inner, needed, ignorar_falta=ignorar_falta)
             if cost == 0 and produto_comp:
                 vi = float(produto_comp.get("valor_investido", 0) or 0)
                 cost = needed * vi
@@ -5949,7 +6294,7 @@ def bar_calc_drink_cost(product_id: str, quantity: float) -> tuple[float, list]:
             all_logs.extend(log)
         return round(total_cost, 4), all_logs
     else:
-        return bar_fifo_consume(product_id, quantity)
+        return bar_fifo_consume(product_id, quantity, ignorar_falta=ignorar_falta)
 
 
 # ── Produtos (drinks) ──
@@ -6006,32 +6351,33 @@ def bar_produto_novo():
         if not name:
             erro = "Nome obrigatório."
         else:
-            pid = db.bar_insert_product({
-                "name": name, "category": category, "unit": "un",
-                "type": "composite", "sale_price": price
-            })
-            comp_ids   = request.form.getlist("component_id[]")
-            comp_qtys  = request.form.getlist("component_qty[]")
-            comp_units = request.form.getlist("unidade_uso[]")
-            while len(comp_units) < len(comp_ids):
-                comp_units.append("UN")
-            for cid, qty_s, unit in zip(comp_ids, comp_qtys, comp_units):
-                qty = to_float(qty_s)
-                if cid and qty > 0:
-                    db.bar_insert_component({"product_id": pid, "component_id": _pid_to_uuid(cid), "quantity": qty, "unidade_uso": unit or "UN"})
-            return redirect(url_for("bar_produtos"))
+            try:
+                pid = db.bar_insert_product({
+                    "name": name, "category": category, "unit": "un",
+                    "type": "composite", "sale_price": price
+                })
+                comp_ids   = request.form.getlist("component_id[]")
+                comp_qtys  = request.form.getlist("component_qty[]")
+                comp_units = request.form.getlist("unidade_uso[]")
+                while len(comp_units) < len(comp_ids):
+                    comp_units.append("UN")
+                for cid, qty_s, unit in zip(comp_ids, comp_qtys, comp_units):
+                    qty = to_float(qty_s)
+                    if cid and qty > 0:
+                        db.bar_insert_component({"product_id": pid, "component_id": _pid_to_uuid(cid), "quantity": qty, "unidade_uso": unit or "UN"})
+            except Exception as e:
+                erro = f"Não foi possível salvar o pacote: {e}"
+            if not erro:
+                return redirect(url_for("bar_produtos"))
 
     insumos = [{"id": p["pid"], "name": p["nome"], "unit": p.get("unit", "UN"),
                 "cost": p.get("valor_investido", 0), "stock": p.get("quantidade", 0),
                 "conteudo_valor": p.get("conteudo_valor") or 0,
                 "conteudo_unidade": p.get("conteudo_unidade") or ""}
                for p in db.get_all_products()]
-    categorias_extra = [
-        c for c in _categorias_existentes(db.bar_get_all_products(), campo="category")
-        if c.strip().lower() not in ("drink", "combo", "porcao")
-    ]
+    categorias = db.get_all_categorias()
     return render_template("bar_produto_form.html", produto=None, components=[], insumos=insumos, erro=erro,
-        categorias_extra=categorias_extra,
+        categorias=categorias,
         tipo=session.get("tipo"), usuario=session.get("usuario", ""), permissoes=session.get("permissoes", []))
 
 
@@ -6052,18 +6398,22 @@ def bar_produto_editar(pid):
         if not name:
             erro = "Nome obrigatório."
         else:
-            db.bar_update_product(pid, {"name": name, "sale_price": price, "category": category})
-            db.bar_delete_all_components(pid)
-            comp_ids   = request.form.getlist("component_id[]")
-            comp_qtys  = request.form.getlist("component_qty[]")
-            comp_units = request.form.getlist("unidade_uso[]")
-            while len(comp_units) < len(comp_ids):
-                comp_units.append("UN")
-            for cid, qty_s, unit in zip(comp_ids, comp_qtys, comp_units):
-                qty = to_float(qty_s)
-                if cid and qty > 0:
-                    db.bar_insert_component({"product_id": pid, "component_id": _pid_to_uuid(cid), "quantity": qty, "unidade_uso": unit or "UN"})
-            return redirect(url_for("bar_produtos"))
+            try:
+                db.bar_update_product(pid, {"name": name, "sale_price": price, "category": category})
+                db.bar_delete_all_components(pid)
+                comp_ids   = request.form.getlist("component_id[]")
+                comp_qtys  = request.form.getlist("component_qty[]")
+                comp_units = request.form.getlist("unidade_uso[]")
+                while len(comp_units) < len(comp_ids):
+                    comp_units.append("UN")
+                for cid, qty_s, unit in zip(comp_ids, comp_qtys, comp_units):
+                    qty = to_float(qty_s)
+                    if cid and qty > 0:
+                        db.bar_insert_component({"product_id": pid, "component_id": _pid_to_uuid(cid), "quantity": qty, "unidade_uso": unit or "UN"})
+            except Exception as e:
+                erro = f"Não foi possível salvar o pacote: {e}"
+            if not erro:
+                return redirect(url_for("bar_produtos"))
 
     insumos    = [{"id": p["pid"], "name": p["nome"], "unit": p.get("unit", "UN"),
                    "cost": p.get("valor_investido", 0), "stock": p.get("quantidade", 0),
@@ -6071,12 +6421,9 @@ def bar_produto_editar(pid):
                    "conteudo_unidade": p.get("conteudo_unidade") or ""}
                   for p in db.get_all_products()]
     components = db.bar_get_components(pid)
-    categorias_extra = [
-        c for c in _categorias_existentes(db.bar_get_all_products(), campo="category")
-        if c.strip().lower() not in ("drink", "combo", "porcao")
-    ]
+    categorias = db.get_all_categorias()
     return render_template("bar_produto_form.html", produto=produto, components=components, insumos=insumos, erro=erro,
-        categorias_extra=categorias_extra,
+        categorias=categorias,
         tipo=session.get("tipo"), usuario=session.get("usuario", ""), permissoes=session.get("permissoes", []))
 
 

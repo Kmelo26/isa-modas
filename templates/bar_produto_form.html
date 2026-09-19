@@ -302,19 +302,15 @@
 
         <div class="pf-field">
           <label>Categoria <span class="req">*</span></label>
-          <select name="category" id="categoria" required onchange="onCategoriaChange(this)">
-            <option value="drink"  {% if produto and produto.category == 'drink'  %}selected{% endif %}>Drink</option>
-            <option value="combo"  {% if not produto or produto.category == 'combo' %}selected{% endif %}>Combo</option>
-            <option value="porcao" {% if produto and produto.category == 'porcao' %}selected{% endif %}>Porção</option>
-            {% for c in categorias_extra %}
-            <option value="{{ c }}" {% if produto and produto.category == c %}selected{% endif %}>{{ c }}</option>
+          <select name="category" id="categoria" required>
+            <option value="">Selecione</option>
+            {% for c in categorias %}
+            <option value="{{ c.nome }}" {% if produto and produto.category == c.nome %}selected{% elif not produto and c.nome == 'combo' %}selected{% endif %}>{{ c.nome }}</option>
             {% endfor %}
-            <option value="__nova__">+ Adicionar nova categoria...</option>
           </select>
-          <div class="pf-nova-cat-box" id="nova-categoria-box" style="display:none;">
-            <input type="text" id="nova-categoria-input" placeholder="Nome da nova categoria">
-            <button type="button" onclick="confirmarNovaCategoria()">Adicionar</button>
-          </div>
+          <span style="font-size:12px;color:var(--text-muted);">
+            Não achou a categoria? <a href="{{ url_for('estoque_categorias') }}" target="_blank" style="color:var(--accent);">Gerenciar categorias</a>
+          </span>
         </div>
 
         <div class="pf-field">
@@ -485,36 +481,6 @@ function fmt(v)    { return 'R$ ' + Math.abs(v).toFixed(2).replace('.', ','); }
 function fmtV(v)   { return (v < 0 ? '-' : '') + fmt(v); }
 function fmtPct(v) { return v.toFixed(2).replace('.', ',') + '%'; }
 function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
-
-/* \u2500\u2500 Adicionar nova categoria \u2500\u2500 */
-function onCategoriaChange(sel) {
-  const box = document.getElementById('nova-categoria-box');
-  if (sel.value === '__nova__') {
-    box.style.display = 'flex';
-    document.getElementById('nova-categoria-input').focus();
-  } else {
-    box.style.display = 'none';
-  }
-}
-
-function confirmarNovaCategoria() {
-  const input = document.getElementById('nova-categoria-input');
-  const sel = document.getElementById('categoria');
-  const valor = input.value.trim();
-  if (!valor) return;
-  const existente = Array.from(sel.options).find(o => o.value.toLowerCase() === valor.toLowerCase());
-  if (existente) {
-    sel.value = existente.value;
-  } else {
-    const opt = document.createElement('option');
-    opt.value = valor;
-    opt.textContent = valor;
-    sel.insertBefore(opt, sel.querySelector('option[value="__nova__"]'));
-    sel.value = valor;
-  }
-  document.getElementById('nova-categoria-box').style.display = 'none';
-  input.value = '';
-}
 
 /* ── Busca de produto ── */
 const buscaInp   = document.getElementById('busca-insumo');

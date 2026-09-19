@@ -442,6 +442,24 @@ def insert_sale(sale: dict):
         raise RuntimeError(f"Erro ao registrar venda: {e}") from e
 
 
+def insert_sales(sales: list[dict]):
+    """Grava várias linhas de uma vez, num INSERT só — atômico (ou tudo entra,
+    ou nada entra), pra um carrinho com vários itens não ficar "pela metade"
+    no banco se uma das linhas falhar (ex: erro de código duplicado, estoque
+    mudando no meio do caminho etc.)."""
+    if not sales:
+        return
+    for sale in sales:
+        if not sale.get("codigo"):
+            sale["codigo"] = gerar_codigo_rastreio("V", sale.get("data", ""))
+        if not sale.get("codigo_produto") and sale.get("produto_pid"):
+            sale["codigo_produto"] = _lookup_codigo_produto(sale["produto_pid"], sale.get("produto_tipo", "estoque"))
+    try:
+        _sb().table("sales").insert(sales).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao registrar venda: {e}") from e
+
+
 def update_sale(sale: dict):
     try:
         _sb().table("sales").update(sale).eq("uid", sale["uid"]).execute()
@@ -508,12 +526,16 @@ def get_pagamentos_por_id_vendas(ids_venda: list) -> list:
 
 
 def insert_pagamentos_venda(rows: list):
+    """Gravação tolerante: mesmo padrão de get_pagamentos_venda — se a tabela
+    venda_pagamentos ainda não existir (migração não rodada) ou der erro
+    transitório, não derruba o registro da venda em si (que já foi salva
+    antes desta chamada)."""
     if not rows:
         return
     try:
         _sb().table("venda_pagamentos").insert(rows).execute()
-    except Exception as e:
-        raise RuntimeError(f"Erro ao registrar pagamento da venda: {e}") from e
+    except Exception:
+        pass
 
 
 def delete_pagamentos_venda(id_venda: str):
@@ -917,15 +939,18 @@ def bar_get_composite_cost_summary() -> dict:
 # ==================== BAR: PRODUCT COMPONENTS ====================
 
 def bar_get_all_components_grouped() -> dict:
-    """Busca todos os componentes de uma vez e agrupa por product_id."""
+    """Busca todos os componentes de uma vez e agrupa por product_id.
+    component_id referencia um produto do Estoque (ingrediente), não um
+    bar_products — mesma regra já usada em bar_get_components() (products.pid
+    é hex sem hífen, component_id vem como UUID com hífen)."""
     rows = _sb().table("bar_product_components").select("*").execute().data or []
-    bar_prods = {p["id"]: p for p in (_sb().table("bar_products").select("id,name,unit").execute().data or [])}
+    produtos_estoque = {p["pid"]: p for p in (_sb().table("products").select("pid,nome").execute().data or [])}
     grouped: dict = {}
     for row in rows:
         pid = row.get("product_id", "")
-        cid = row.get("component_id", "")
-        comp_prod = bar_prods.get(cid, {})
-        row["component"] = {"id": cid, "name": comp_prod.get("name", "?"), "unit": comp_prod.get("unit", "")}
+        cid = (row.get("component_id", "") or "").replace("-", "")
+        comp_prod = produtos_estoque.get(cid, {})
+        row["component"] = {"id": cid, "name": comp_prod.get("nome", "?")}
         grouped.setdefault(pid, []).append(row)
     return grouped
 
@@ -1353,3 +1378,43 @@ def insert_transferencia_estoque(t: dict):
 def get_all_transferencias_estoque() -> list:
     rows = _sb().table("estoque_transferencias").select("*").order("data", desc=True).order("hora", desc=True).execute().data or []
     return rows
+
+
+# ==================== CATEGORIAS DE PRODUTO ====================
+# Cada categoria (ex: "Cerveja") tem um "tipo" (bebida/comida/insumo) que
+# define quais unidades de conteúdo fazem sentido pra ela (ml/L, kg/UN, UN
+# — ver UNIDADES_CAT no front de estoque_novo.html/editar_produto.html).
+
+def get_all_categorias() -> list:
+    """Leitura tolerante: se a tabela categorias ainda não existir (migração
+    não rodada), cai pras 3 categorias fixas de sempre em vez de derrubar
+    a página de cadastro de produto."""
+    try:
+        return _sb().table("categorias").select("*").order("nome").execute().data or []
+    except Exception:
+        return [
+            {"nome": "bebida", "tipo": "bebida"},
+            {"nome": "comida", "tipo": "comida"},
+            {"nome": "insumo", "tipo": "insumo"},
+        ]
+
+
+def insert_categoria(nome: str, tipo: str):
+    try:
+        _sb().table("categorias").insert({"nome": nome, "tipo": tipo}).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao criar categoria: {e}") from e
+
+
+def update_categoria_tipo(nome: str, tipo: str):
+    try:
+        _sb().table("categorias").update({"tipo": tipo}).eq("nome", nome).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar categoria: {e}") from e
+
+
+def delete_categoria(nome: str):
+    try:
+        _sb().table("categorias").delete().eq("nome", nome).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao excluir categoria: {e}") from e

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+.est{width:100%;padding:24px 20px}
+.est-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.est-header h1{font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:2px;margin:0;display:flex;align-items:center;gap:10px}
+.est-header-btns{display:flex;gap:8px;flex-wrap:wrap}
+.est-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;
+  font-size:.85rem;font-weight:700;cursor:pointer;text-decoration:none;border:1px solid var(--border);
+  background:var(--card-bg);color:var(--text);transition:.15s;white-space:nowrap}
+.est-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+.ec-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
+  box-shadow:var(--shadow);padding:20px 22px;margin-bottom:20px}
+.ec-card-title{font-size:11px;font-weight:bold;color:var(--accent);text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:16px}
+
+.ec-form-row{display:grid;grid-template-columns:1fr 200px auto;gap:12px;align-items:end}
+.ec-field{display:flex;flex-direction:column;gap:5px}
+.ec-field label{font-size:12px;font-weight:bold;color:var(--accent)}
+.ec-field input,.ec-field select{padding:9px 11px;border-radius:8px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:14px}
+.ec-field input:focus,.ec-field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,66,110,0.12)}
+.ec-btn-add{background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px 20px;
+  font-weight:bold;font-size:14px;cursor:pointer;white-space:nowrap}
+.ec-btn-add:hover{opacity:.9}
+
+.ec-table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+.ec-table{width:100%;border-collapse:collapse}
+.ec-table th{background:#2a2a2a;color:var(--accent);padding:10px 14px;text-align:left;
+  font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+.ec-table td{padding:11px 14px;border-top:1px solid var(--border);font-size:13px;color:var(--text)}
+.ec-table tr:nth-child(even) td{background:var(--table-even)}
+.ec-tipo-badge{display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700}
+.ec-tipo-bebida{background:#0c2340;color:#60a5fa;border:1px solid rgba(96,165,250,.35)}
+.ec-tipo-comida{background:#2a2000;color:#fbbf24;border:1px solid rgba(251,191,36,.35)}
+.ec-tipo-insumo{background:#241a3d;color:#a78bfa;border:1px solid rgba(167,139,250,.35)}
+.ec-select-tipo{padding:5px 8px;border-radius:6px;border:1px solid var(--border);
+  background:var(--input-bg);color:var(--text);font-size:12px;cursor:pointer}
+.ec-acoes{display:flex;gap:8px;align-items:center}
+.ec-btn-icon{background:none;border:1px solid var(--border);border-radius:7px;padding:6px 9px;
+  cursor:pointer;color:var(--text-muted);display:inline-flex;align-items:center;transition:.15s}
+.ec-btn-icon:hover{border-color:#f87171;color:#f87171}
+.ec-vazio{text-align:center;padding:30px;color:var(--text-muted);font-size:13px}
+.ec-count{color:var(--text-muted);font-size:12px}
+
+.alerta{background:#2a0f0f;border:1px solid #5a1f1f;padding:10px;border-radius:8px;margin:0 0 16px;color:#f87171}
+.toast-ok{background:#052e16;border:1px solid #16a34a;border-radius:10px;padding:12px 16px;
+  margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#4ade80}
+</style>
+
+<div class="est">
+  <div class="est-header">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      CATEGORIAS
+    </h1>
+    <div class="est-header-btns">
+      <a href="{{ url_for('estoque') }}" class="est-btn">← Voltar ao Estoque</a>
+    </div>
+  </div>
+
+  {% if request.args.get('salvo') %}
+  <div id="toast-salvo" class="toast-ok">
+    ✅ Alteração salva com sucesso!
+    <button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;border:none;color:#4ade80;cursor:pointer;font-size:16px;">✕</button>
+  </div>
+  <script>setTimeout(()=>{ const t=document.getElementById('toast-salvo'); if(t) t.remove(); }, 4000);</script>
+  {% endif %}
+
+  {% if erro %}
+    <div class="alerta">{{ erro }}</div>
+  {% endif %}
+
+  <div class="ec-card">
+    <div class="ec-card-title">Nova categoria</div>
+    <form method="post">
+      <input type="hidden" name="acao" value="criar">
+      <div class="ec-form-row">
+        <div class="ec-field">
+          <label>Nome da categoria</label>
+          <input type="text" name="nome" placeholder="Ex.: Cerveja" required>
+        </div>
+        <div class="ec-field">
+          <label>Tipo (define as unidades)</label>
+          <select name="tipo" required>
+            <option value="">Selecione</option>
+            {% for t in tipos_categoria %}
+            <option value="{{ t }}">{{ tipos_categoria_label[t] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="ec-btn-add">+ Adicionar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="ec-card">
+    <div class="ec-card-title">Categorias cadastradas ({{ categorias|length }})</div>
+    {% if categorias %}
+    <div class="ec-table-wrap">
+      <table class="ec-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Tipo</th>
+            <th>Produtos</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categorias %}
+          <tr>
+            <td><strong>{{ c.nome }}</strong></td>
+            <td>
+              <form method="post" style="display:inline-flex;gap:8px;align-items:center;" onchange="this.requestSubmit ? this.requestSubmit() : this.submit()">
+                <input type="hidden" name="acao" value="editar_tipo">
+                <input type="hidden" name="nome" value="{{ c.nome }}">
+                <select name="tipo" class="ec-select-tipo">
+                  {% for t in tipos_categoria %}
+                  <option value="{{ t }}" {% if c.tipo == t %}selected{% endif %}>{{ tipos_categoria_label[t] }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </td>
+            <td><span class="ec-count">{{ contagem.get(c.nome, 0) }} produto(s)</span></td>
+            <td>
+              <div class="ec-acoes">
+                <form method="post" class="ec-form-excluir" data-nome="{{ c.nome }}" data-qtd="{{ contagem.get(c.nome, 0) }}" onsubmit="return false;">
+                  <input type="hidden" name="acao" value="excluir">
+                  <input type="hidden" name="nome" value="{{ c.nome }}">
+                  <button type="button" class="ec-btn-icon" title="Excluir categoria" onclick="pedirExclusao(this.closest('form'))">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="ec-vazio">Nenhuma categoria cadastrada ainda.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function pedirExclusao(form) {
+  const nome = form.dataset.nome;
+  const qtd = parseInt(form.dataset.qtd) || 0;
+  const msg = qtd > 0
+    ? `A categoria "${nome}" está sendo usada em ${qtd} produto(s). Excluir a categoria não altera os produtos já cadastrados, só remove ela da lista pra novos cadastros.`
+    : `Excluir a categoria "${nome}"?`;
+  showConfirm('Excluir categoria', msg, function(){ form.submit(); });
+}
+</script>
+
+{% endblock %}

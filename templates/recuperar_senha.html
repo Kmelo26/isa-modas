@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recuperar senha - Isa Bar</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: #0d0d0d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    padding: 40px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(135deg, transparent calc(50% - 1px), rgba(255,255,255,.05) 50%, transparent calc(50% + 1px)),
+      linear-gradient(45deg, transparent calc(50% - 1px), rgba(255,255,255,.05) 50%, transparent calc(50% + 1px));
+    pointer-events: none;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 460px;
+    position: relative;
+    z-index: 2;
+    animation: card-in 0.6s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .logo-wrap {
+    margin-bottom: 28px;
+    animation: fade-up 0.5s 0.1s both;
+  }
+
+  .logo-wrap svg { display: block; margin-bottom: 14px; }
+
+  .logo-text {
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #9a9a9a;
+    letter-spacing: 0.2px;
+  }
+
+  .form-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    font-weight: 600;
+    color: #f2f2f2;
+    margin-top: 4px;
+    margin-bottom: 10px;
+    animation: fade-up 0.5s 0.15s both;
+  }
+
+  .form-sub {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #9a9a9a;
+    margin-bottom: 32px;
+    animation: fade-up 0.5s 0.2s both;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 22px;
+    animation: fade-up 0.5s 0.25s both;
+  }
+
+  .field-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .field label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #a0a0a0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .input-wrap { position: relative; }
+
+  .field input {
+    width: 100%;
+    padding: 14px 18px;
+    border: 1px solid #303030;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #ededed;
+    background: #181818;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    appearance: none;
+  }
+
+  .field input:focus {
+    border-color: #ffffff;
+    background: #1f1f1f;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+  }
+
+  .field input::placeholder { color: #5e5e5e; }
+
+  .aviso {
+    background: #14201a;
+    border: 1px solid #234233;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #a9d8bf;
+    margin-bottom: 18px;
+    text-align: center;
+    display: none;
+    animation: fade-up 0.3s both;
+  }
+  .aviso.mostrar { display: block; }
+
+  .btn-wrap { animation: fade-up 0.5s 0.3s both; }
+
+  .btn {
+    width: 100%;
+    padding: 15px;
+    background: #ece9e3;
+    color: #141414;
+    border: 0;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    letter-spacing: 0.2px;
+  }
+
+  .btn:hover { transform: translateY(-1px); background: #ffffff; box-shadow: 0 8px 28px rgba(0,0,0,0.5); }
+  .btn:active { transform: scale(0.98); background: #d6d2cb; }
+
+  .back-link {
+    display: inline-block;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #b4b4b4;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    animation: fade-up 0.5s 0.45s both;
+  }
+  .back-link:hover { color: #ffffff; }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo-wrap">
+    <svg width="22" height="24" viewBox="0 0 26 30" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 3h22L13 15z"/>
+      <path d="M13 15v12"/>
+      <path d="M7 27h12"/>
+    </svg>
+    <span class="logo-text">Isa Bar</span>
+  </div>
+
+  <p class="form-title">Recuperar senha</p>
+  <p class="form-sub">Informe seu usuário ou e-mail e enviaremos um link para redefinir a senha.</p>
+
+  <div class="aviso" id="aviso-envio" role="status">Funcionalidade em desenvolvimento. Fale com o administrador pra redefinir sua senha.</div>
+
+  <div class="field">
+    <div class="field-head">
+      <label for="usuario-email">Usuário ou e-mail</label>
+    </div>
+    <div class="input-wrap">
+      <input type="text" id="usuario-email" name="usuario-email" placeholder="ex. ana.ribeiro" autocomplete="username">
+    </div>
+  </div>
+
+  <div class="btn-wrap">
+    <button class="btn" type="button" id="btn-enviar">Enviar link</button>
+  </div>
+
+  <a class="back-link" href="{{ url_for('login') }}">Voltar para o login</a>
+</div>
+
+<script>
+  document.getElementById('btn-enviar').addEventListener('click', function () {
+    document.getElementById('aviso-envio').classList.add('mostrar');
+  });
+</script>
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 
 <style>
 *{box-sizing:border-box}
-.fin{max-width:1200px;margin:0 auto;padding:24px 20px;font-family:inherit}
+.fin{flex:1;min-height:0;padding:24px 20px;font-family:inherit;display:flex;flex-direction:column}
 
 /* HEADER */
 .fin-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px}
@@ -153,6 +153,7 @@
 .desp-qbtn:hover{border-color:var(--accent);color:var(--accent)}
 .desp-qbtn.ativo{border-color:var(--accent);color:var(--accent);background:rgba(224,224,224,.07)}
 .desp-table-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.desp-table-wrap{max-height:55vh;overflow-y:auto}
 .desp-table{width:100%;border-collapse:collapse}
 .desp-table th{font-size:.72rem;font-weight:700;color:var(--text-muted,#888);text-transform:uppercase;
   letter-spacing:.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);
@@ -872,7 +873,7 @@
     </form>
 
     <div class="desp-table-card">
-      <div style="overflow-x:auto">
+      <div class="desp-table-wrap" style="overflow-x:auto">
         <table class="desp-table">
           <thead>
             <tr>
@@ -915,7 +916,7 @@
         <button type="button" class="desp-btn desp-btn-primary" onclick="abrirNovaRecorrente()">+ Nova Recorrente</button>
         {% endif %}
       </div>
-      <div style="overflow-x:auto">
+      <div class="desp-table-wrap" style="overflow-x:auto">
         <table class="desp-table">
           <thead>
             <tr>

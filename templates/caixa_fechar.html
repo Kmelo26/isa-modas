@@ -235,6 +235,28 @@
       {% endif %}
     </div>
 
+    <!-- Comandas pagas neste caixa -->
+    <div class="cx-card" style="margin-bottom:16px;">
+      <div class="cx-card-title">Comandas Pagas neste Caixa ({{ pagamentos_comanda_caixa|length }})</div>
+      {% if pagamentos_comanda_caixa %}
+        {% for p in pagamentos_comanda_caixa %}
+        <div class="cx-row">
+          <span class="cx-label">📋 {{ p.comanda_nome or 'Comanda' }}
+            <span style="color:var(--text-muted);">· {{ p.hora }} · {{ 'Pix' if p.forma == 'pix' else 'Cartão' if p.forma == 'cartao' else 'Dinheiro' }}</span>
+          </span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            R$ {{ "%.2f"|format(p.valor) }}
+            {% if p.comanda_status == 'quitada' %}<span class="cx-cmd-badge cx-cmd-quitada">✅ Quitada</span>
+            {% elif p.comanda_status == 'pagamento_parcial' %}<span class="cx-cmd-badge cx-cmd-parcial">🟠 Parcial</span>
+            {% else %}<span class="cx-cmd-badge">{{ p.comanda_status }}</span>{% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:var(--text-muted);font-size:13px;">Nenhum pagamento de comanda registrado neste caixa.</p>
+      {% endif %}
+    </div>
+
     <div class="cx-grid2">
       <!-- Observações -->
       <div class="cx-card">
