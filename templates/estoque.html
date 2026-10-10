@@ -295,6 +295,49 @@
     </div>
   </div>
 
+  {% if msg %}
+  <div style="background:#052e16;border:1px solid #16a34a;border-radius:10px;padding:10px 14px;margin-bottom:16px;color:#4ade80;font-size:.88rem;">✓ {{ msg }}</div>
+  {% endif %}
+  {% if giro_alerta %}
+  <details style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.4);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.86rem;color:var(--text);">
+    <summary style="cursor:pointer;">🔎 <strong>{{ giro_alerta|length }} produto(s)</strong> com estoque para mais de 60 dias no ritmo de venda atual — vale contar na prateleira
+      (pode ser entrada lançada a mais ou saída não lançada). Ordenado pelo valor parado além do normal.</summary>
+    <div style="overflow:auto;max-height:340px;margin-top:8px;">
+      <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+        <thead><tr style="color:var(--text-muted);text-align:left;"><th style="padding:4px 8px;">Produto</th><th style="padding:4px 8px;">No sistema</th><th style="padding:4px 8px;">Vendeu (30 dias)</th><th style="padding:4px 8px;">Dá para</th><th style="padding:4px 8px;">Excesso parado</th><th></th></tr></thead>
+        <tbody>
+          {% for g in giro_alerta %}
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:4px 8px;">{{ g.nome }}</td>
+            <td style="padding:4px 8px;">{{ g.saldo|qtd_br }}</td>
+            <td style="padding:4px 8px;">{{ g.vendido_30d|qtd_br }}</td>
+            <td style="padding:4px 8px;font-weight:700;">~{{ g.dias }} dias</td>
+            <td style="padding:4px 8px;">{{ g.excesso|qtd_br }} un. · <span class="val-oculto">R$ {{ "%.2f"|format(g.valor_excesso) }}</span></td>
+            <td style="padding:4px 8px;"><a href="{{ url_for('estoque_produto', pid=g.pid) }}" style="color:var(--accent);">conferir / ajustar →</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+  {% if diag_lotes and diag_lotes.produtos %}
+  <div style="background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.45);border-radius:10px;padding:12px 14px;margin-bottom:16px;
+              display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:.88rem;color:var(--text);">
+    <span>⚠️ <strong>{{ diag_lotes.produtos }} produto(s)</strong> com lotes inconsistentes:
+      {% if diag_lotes.duplicados %}{{ diag_lotes.duplicados }} lote(s) repetido(s){% endif %}
+      {% if diag_lotes.duplicados and diag_lotes.ajustados %} e {% endif %}
+      {% if diag_lotes.ajustados %}{{ diag_lotes.ajustados }} com saldo por local (Loja/Escritório) diferente da quantidade{% endif %}
+      {%- if diag_lotes.restos %}{% if diag_lotes.duplicados or diag_lotes.ajustados %} e {% endif %}{{ diag_lotes.restos }} só com resto de arredondamento (ex.: 0,000003){% endif %}
+      {%- if diag_lotes.sem_id %}{% if diag_lotes.duplicados or diag_lotes.ajustados or diag_lotes.restos %} e {% endif %}{{ diag_lotes.sem_id }} lote(s) antigo(s) sem identificação{% endif %}.
+      A quantidade total de cada produto não muda.</span>
+    <form method="post" action="{{ url_for('estoque_reparar_lotes') }}"
+          onsubmit="return confirm('Corrigir os lotes agora? Lotes repetidos serão unidos, o saldo por local será ajustado para bater com a quantidade de cada lote lotes com resto de arredondamento serão removidos e lotes antigos sem identificação ganham uma.');">
+      <button type="submit" class="est-btn est-btn-primary">Corrigir lotes</button>
+    </form>
+  </div>
+  {% endif %}
+
   <!-- KPI CARDS -->
   <div class="est-kpis">
     <div class="est-kpi">

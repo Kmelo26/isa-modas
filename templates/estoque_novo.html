@@ -271,7 +271,7 @@
     <div class="alerta">{{ erro }}</div>
   {% endif %}
 
-  <form method="POST">
+  <form method="POST" id="form-produto-novo">
 
     <!-- ══════════════════════════════════
          1. INFORMAÇÕES BÁSICAS
@@ -740,5 +740,16 @@ function liberarPrecoLocal(){
   });
 }
 liberarPrecoLocal();
+</script>
+<script>
+// Evita cadastro/lote em dobro: trava o botão depois do primeiro clique.
+(function(){
+  const f = document.getElementById('form-produto-novo');
+  if (!f) return;
+  f.addEventListener('submit', function(){
+    const b = f.querySelector('button[type="submit"]');
+    if (b) setTimeout(() => { b.disabled = true; b.textContent = 'Salvando…'; }, 0);
+  });
+})();
 </script>
 {% endblock %}

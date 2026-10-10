@@ -3,6 +3,7 @@ import os
 import time
 import uuid
 import json
+import copy
 import calendar
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
@@ -65,6 +66,19 @@ def br_date(value):
     return f"{s[8:10]}/{s[5:7]}/{s[0:4]}"
 
 app.jinja_env.filters["br_date"] = br_date
+
+
+def qtd_br(valor, casas: int = 3) -> str:
+    """Quantidade no formato brasileiro, sem zeros sobrando: 12 / 1,5 / 0,75."""
+    try:
+        v = round(float(valor or 0), casas)
+    except (TypeError, ValueError):
+        return "—"
+    txt = f"{v:.{casas}f}".rstrip("0").rstrip(".")
+    return (txt if txt not in ("", "-0") else "0").replace(".", ",")
+
+
+app.jinja_env.filters["qtd_br"] = qtd_br
 
 
 _NOMES_FORMA_PAGAMENTO = {
@@ -265,7 +279,10 @@ def _distribuir_pagamentos(total_venda, valor_dinheiro, valor_pix, valor_cartao)
 
 # ================== FIFO / LOTES ==================
 SEM_USUARIO = "__sem__"  # chave do filtro de usuário do Financeiro p/ vendas sem usuário gravado
-LOCAL_PADRAO = "loja"  # local assumido pra lotes/vendas antigos, sem local_id gravado
+LOCAL_PADRAO = "loja"
+# Lote com saldo abaixo disso é resto de arredondamento (venda por dose/ml)
+# e conta como zerado — senão fica no produto pra sempre (ex.: 0,000003).
+RESTO_LOTE_MINIMO = 0.001  # local assumido pra lotes/vendas antigos, sem local_id gravado
 
 
 def preco_por_local(item: dict, local_id: str | None, campo: str = "valor_venda") -> float:
@@ -316,6 +333,120 @@ def _dist_lote(lote: dict) -> dict:
     return {LOCAL_PADRAO: to_float(lote.get("qtd", 0))}
 
 
+def _ajustar_dist_para_qtd(lote: dict) -> bool:
+    """Faz o saldo por local do lote somar exatamente a quantidade do lote.
+    Sobra: tira primeiro do local principal (de onde saíam as vendas sem
+    local e de pacote), depois dos outros, sem deixar negativo. Falta: põe
+    no local com maior saldo (ou no principal). Devolve True se mudou."""
+    qtd = round(to_float(lote.get("qtd", 0)), 6)
+    dist = {k: round(to_float(v), 6) for k, v in _dist_lote(lote).items()}
+    diferenca = round(sum(dist.values()) - qtd, 6)
+    if abs(diferenca) <= 0.0001:
+        return False
+    if diferenca > 0:
+        ordem = sorted(dist, key=lambda k: (k != LOCAL_PADRAO, -dist[k]))
+        for loc in ordem:
+            tirar = min(dist[loc], diferenca)
+            dist[loc] = round(dist[loc] - tirar, 6)
+            diferenca = round(diferenca - tirar, 6)
+            if diferenca <= 0:
+                break
+    else:
+        alvo = max(dist, key=lambda k: dist[k]) if dist else LOCAL_PADRAO
+        dist[alvo] = round(dist.get(alvo, 0) - diferenca, 6)
+    lote["distribuicao"] = dist
+    return True
+
+
+def _reparar_lotes_produto(produto: dict) -> dict:
+    """Arruma os lotes de um produto (só na memória; quem chama grava):
+    1) junta lotes repetidos (mesmo id — vinham da devolução antiga), somando
+       quantidade e saldo por local no primeiro;
+    2) faz o saldo por local de cada lote bater com a quantidade.
+    3) remove lotes que só têm resto de arredondamento (< RESTO_LOTE_MINIMO);
+    4) dá um id a lote antigo sem id (sem ele a devolução não acha o lote).
+    Devolve o que mudou: {"duplicados", "ajustados", "restos", "sem_id"}."""
+    lotes = produto.get("lotes") or []
+    resumo = {"duplicados": 0, "ajustados": 0, "restos": 0, "sem_id": 0}
+    for l in lotes:
+        if not l.get("id"):
+            l["id"] = uuid.uuid4().hex
+            resumo["sem_id"] += 1
+    unidos, por_id = [], {}
+    for l in lotes:
+        lid = l.get("id")
+        if lid and lid in por_id:
+            alvo = por_id[lid]
+            dist_alvo = dict(_dist_lote(alvo))
+            for loc, q in _dist_lote(l).items():
+                dist_alvo[loc] = round(to_float(dist_alvo.get(loc, 0)) + to_float(q), 6)
+            alvo["distribuicao"] = dist_alvo
+            alvo["qtd"] = round(to_float(alvo.get("qtd", 0)) + to_float(l.get("qtd", 0)), 6)
+            resumo["duplicados"] += 1
+            continue
+        if lid:
+            por_id[lid] = l
+        unidos.append(l)
+    restos = [l for l in unidos if to_float(l.get("qtd", 0)) < RESTO_LOTE_MINIMO]
+    resumo["restos"] = len(restos)
+    unidos = [l for l in unidos if to_float(l.get("qtd", 0)) >= RESTO_LOTE_MINIMO]
+    for l in unidos:
+        if _ajustar_dist_para_qtd(l):
+            resumo["ajustados"] += 1
+    produto["lotes"] = unidos
+    if any(resumo.values()):
+        atualizar_campos_derivados_estoque(produto)
+    return resumo
+
+
+_GIRO_CACHE = {"em": 0.0, "vendido": None}
+
+
+def _alerta_giro(produtos: list, dias_limite: int = 60) -> list:
+    """Produtos cujo saldo daria pra mais de `dias_limite` dias no ritmo de
+    venda dos últimos 30 dias. O ritmo vem do que de fato saiu dos lotes nas
+    vendas (avulsas, por dose e em pacotes). Saldo muito acima do que vende
+    costuma ser entrada lançada a mais ou saída não lançada. O consumo de 30
+    dias fica guardado 10 min (o alerta é só informativo)."""
+    if _GIRO_CACHE["vendido"] is None or time.time() - _GIRO_CACHE["em"] > 600:
+        hoje = today_brt()
+        vendido = defaultdict(float)
+        for v in db.get_consumo_vendas_periodo((hoje - timedelta(days=30)).isoformat(), hoje.isoformat()):
+            for c in v.get("consumo_lotes") or []:
+                pid_c = c.get("component_id") or (v.get("produto_pid") if v.get("produto_tipo") != "bar" else None)
+                if pid_c:
+                    vendido[pid_c] += to_float(c.get("qtd", c.get("qty", 0)))
+        _GIRO_CACHE.update({"em": time.time(), "vendido": dict(vendido)})
+    vendido = _GIRO_CACHE["vendido"]
+    alerta = []
+    for p in produtos:
+        saldo = estoque_qtd_total(p)
+        vend = vendido.get(p["pid"], 0.0)
+        if saldo > 0 and vend > 0:
+            dias = saldo / (vend / 30)
+            if dias > dias_limite:
+                excesso = saldo - vend / 30 * dias_limite  # unidades além de `dias_limite` dias de venda
+                alerta.append({"pid": p["pid"], "nome": p.get("nome", ""), "saldo": round(saldo, 2),
+                               "vendido_30d": round(vend, 2), "dias": round(dias),
+                               "excesso": round(excesso, 1),
+                               "valor_excesso": round(excesso * _custo_medio_produto(p), 2)})
+    # mais dinheiro parado além do normal primeiro (é onde a conferência vale mais)
+    return sorted(alerta, key=lambda a: -a["valor_excesso"])
+
+
+def _diagnostico_lotes(produtos: list) -> dict:
+    """Conta (sem alterar nada) produtos com lote repetido ou com saldo por
+    local diferente da quantidade."""
+    diag = {"produtos": 0, "duplicados": 0, "ajustados": 0, "restos": 0, "sem_id": 0}
+    for p in produtos:
+        r = _reparar_lotes_produto(copy.deepcopy(p))
+        if any(r.values()):
+            diag["produtos"] += 1
+            for k in ("duplicados", "ajustados", "restos", "sem_id"):
+                diag[k] += r[k]
+    return diag
+
+
 def _qtd_por_local(produto: dict) -> dict:
     """Soma a quantidade de todos os lotes do produto, por local de estoque."""
     totais = {}
@@ -363,6 +494,42 @@ def atualizar_campos_derivados_estoque(produto):
     # qtd == 0: mantém o último valor_investido; só atualiza ao entrar novo lote
 
 
+def _log_lote(tipo_evento: str, produto: dict, acao: str, detalhes: dict | None = None):
+    """Registra no histórico o que foi feito num lote (antes não ficava
+    registro de quem adicionou/editou/removeu lote)."""
+    db.registrar_log(
+        session.get("usuario", ""), tipo_evento, f"{produto.get('nome', '')}: {acao}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+        detalhes={"pid": produto.get("pid"), **(detalhes or {})},
+    )
+
+
+MSG_LOTE_REPETIDO = ("Esse mesmo lote acabou de ser lançado (mesma quantidade, custo e data, há menos de 1 minuto). "
+                     "Não foi lançado de novo — confira a lista de lotes do produto.")
+
+
+def _lote_repetido_recente(produto: dict, qtd, custo_unit, data, usuario: str, segundos: int = 60) -> bool:
+    """Evita lote em dobro por clique duplo no "Salvar" (já aconteceu: o mesmo
+    lote lançado 6x no mesmo minuto). Compara com lotes deste produto criados
+    há menos de `segundos` pelo mesmo usuário."""
+    agora = now_brt()
+    data_n = normalizar_data_str(data)
+    for l in produto.get("lotes") or []:
+        try:
+            criado = datetime.fromisoformat(l.get("criado_em") or "")
+        except (TypeError, ValueError):
+            continue
+        if criado.tzinfo is None:
+            criado = criado.replace(tzinfo=BRT)
+        if ((agora - criado).total_seconds() <= segundos
+                and l.get("criado_por") == usuario
+                and l.get("data") == data_n
+                and abs(to_float(l.get("qtd_entrada", l.get("qtd"))) - to_float(qtd)) < 1e-6
+                and abs(to_float(l.get("custo_unit")) - to_float(custo_unit)) < 1e-6):
+            return True
+    return False
+
+
 def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario="", local_id=None):
     qtd = to_int(qtd, 0)
     custo_unit = to_float(custo_unit, 0)
@@ -370,13 +537,17 @@ def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario="", local_id=No
         raise ValueError("Quantidade inválida para entrada de estoque.")
     if custo_unit <= 0:
         raise ValueError("Custo unitário inválido.")
+    if _lote_repetido_recente(produto, qtd, custo_unit, data, usuario):
+        raise ValueError(MSG_LOTE_REPETIDO)
 
     novo_lote = {
         "id": uuid.uuid4().hex,
         "data": normalizar_data_str(data),
         "qtd": qtd,
+        "qtd_entrada": qtd,
         "custo_unit": custo_unit,
         "criado_por": usuario,
+        "criado_em": now_brt().isoformat(timespec="seconds"),
     }
     if local_id:
         novo_lote["distribuicao"] = {local_id: qtd}
@@ -398,63 +569,17 @@ def calcular_margem(venda, custo) -> float:
 
 
 def consumir_fifo(produto, qtd_vender):
-    qtd_vender = to_int(qtd_vender, 0)
-    if qtd_vender <= 0:
-        raise ValueError("Quantidade inválida.")
-
-    lotes = produto.get("lotes", [])
-    if not isinstance(lotes, list):
-        lotes = []
-        produto["lotes"] = lotes
-    lotes.sort(key=lambda l: str(l.get("data", "")))
-
-    estoque_total = sum(to_float(l.get("qtd", 0)) for l in lotes)
-    if qtd_vender > estoque_total:
-        raise ValueError(f"Quantidade insuficiente. Tem {estoque_total}, pediu {qtd_vender}.")
-
-    restante = qtd_vender
-    custo_total = 0.0
-    consumo = []
-
-    i = 0
-    while restante > 0:
-        lote = lotes[i]
-        qtd_lote = to_int(lote.get("qtd", 0))
-        custo_unit = to_float(lote.get("custo_unit", 0))
-        data_lote = normalizar_data_str(lote.get("data"))
-
-        usar = min(restante, qtd_lote)
-        custo_total += usar * custo_unit
-        consumo.append({"data_lote": data_lote, "qtd": usar, "custo_unit": custo_unit, "lote_id": lote.get("id")})
-
-        lote["qtd"] = qtd_lote - usar
-        restante -= usar
-
-        if lote["qtd"] <= 0:
-            lotes.pop(i)
-        else:
-            i += 1
-
-    atualizar_campos_derivados_estoque(produto)
-    return custo_total, consumo
+    """Baixa de venda sem local (vendas antigas/tela antiga = Loja). Usa a
+    versão por local pra baixar também o saldo do local — antes baixava só a
+    quantidade do lote e o saldo por local ficava errado."""
+    return consumir_fifo_local(produto, qtd_vender, LOCAL_PADRAO)
 
 
 def devolver_fifo(produto, consumo_lotes):
-    if not consumo_lotes or not isinstance(consumo_lotes, list):
-        return
-
-    produto.setdefault("lotes", [])
-    lotes = produto["lotes"]
-
-    for c in reversed(consumo_lotes):
-        lotes.insert(0, {
-            "id": c.get("lote_id"),
-            "data": normalizar_data_str(c.get("data_lote")),
-            "qtd": to_int(c.get("qtd", 0)),
-            "custo_unit": to_float(c.get("custo_unit", 0))
-        })
-
-    atualizar_campos_derivados_estoque(produto)
+    """Devolução de venda sem local gravado (vendas antigas = Loja). Usa a
+    mesma regra da versão por local, pra manter o saldo por local certo e
+    não duplicar lote."""
+    devolver_fifo_local(produto, consumo_lotes, LOCAL_PADRAO)
 
 
 def consumir_fifo_local(produto, qtd_vender, local_id, ignorar_falta=False):
@@ -516,7 +641,7 @@ def consumir_fifo_local(produto, qtd_vender, local_id, ignorar_falta=False):
         lote["qtd"] = round(to_float(lote.get("qtd", 0)) - usar, 4)
         restante = round(restante - usar, 6)
 
-        if lote["qtd"] <= 0:
+        if lote["qtd"] < RESTO_LOTE_MINIMO:
             lotes.pop(i)
         else:
             i += 1
@@ -534,20 +659,38 @@ def devolver_fifo_local(produto, consumo_lotes, local_id):
     local_id = local_id or LOCAL_PADRAO
 
     produto.setdefault("lotes", [])
-    lotes = produto["lotes"]
 
     for c in reversed(consumo_lotes):
-        alvo_local = c.get("local_id") or local_id
-        qtd_c = to_float(c.get("qtd", 0))
-        lotes.insert(0, {
-            "id": c.get("lote_id"),
-            "data": normalizar_data_str(c.get("data_lote")),
-            "qtd": qtd_c,
-            "custo_unit": to_float(c.get("custo_unit", 0)),
-            "distribuicao": {alvo_local: qtd_c},
-        })
+        _devolver_ao_lote(produto, c.get("lote_id"), c.get("data_lote"),
+                          to_float(c.get("qtd", 0)), to_float(c.get("custo_unit", 0)),
+                          c.get("local_id") or local_id)
 
     atualizar_campos_derivados_estoque(produto)
+
+
+def _devolver_ao_lote(produto: dict, lote_id, data_lote, qtd: float, custo_unit: float, local_id: str):
+    """Devolve qtd ao lote de onde saiu: se o lote ainda existe no produto,
+    soma nele (quantidade e saldo do local); só recria o lote se ele já
+    tinha zerado e sido removido. Antes sempre criava uma linha nova, e o
+    mesmo lote aparecia repetido."""
+    if qtd <= 0:
+        return
+    local_id = local_id or LOCAL_PADRAO
+    lotes = produto.setdefault("lotes", [])
+    existente = next((l for l in lotes if lote_id and l.get("id") == lote_id), None)
+    if existente:
+        dist = dict(_dist_lote(existente))
+        dist[local_id] = round(to_float(dist.get(local_id, 0)) + qtd, 6)
+        existente["distribuicao"] = dist
+        existente["qtd"] = round(to_float(existente.get("qtd", 0)) + qtd, 6)
+        return
+    lotes.insert(0, {
+        "id": lote_id,
+        "data": normalizar_data_str(data_lote),
+        "qtd": qtd,
+        "custo_unit": custo_unit,
+        "distribuicao": {local_id: qtd},
+    })
 
 
 def _aplicar_devolucao_bar_componente(produto: dict, consumo: list):
@@ -556,12 +699,11 @@ def _aplicar_devolucao_bar_componente(produto: dict, consumo: list):
     (ver comanda_remover), sem duplicar a regra."""
     produto.setdefault("lotes", [])
     for c in reversed(consumo or []):
-        produto["lotes"].insert(0, {
-            "id": c.get("lote_id"),
-            "data": normalizar_data_str(c.get("data_lote")),
-            "qtd": to_float(c.get("qty", c.get("qtd", 0))),
-            "custo_unit": to_float(c.get("unit_cost", c.get("custo_unit", 0)))
-        })
+        # consumo de pacote antigo não tem local gravado: volta pro principal
+        _devolver_ao_lote(produto, c.get("lote_id"), c.get("data_lote"),
+                          to_float(c.get("qty", c.get("qtd", 0))),
+                          to_float(c.get("unit_cost", c.get("custo_unit", 0))),
+                          c.get("local_id") or LOCAL_PADRAO)
     atualizar_campos_derivados_estoque(produto)
 
 
@@ -1508,7 +1650,8 @@ def editar_venda(uid):
                         total_cost = 0.0
                         all_logs = []
                         for comp_pid, needed, produto_comp in necessidades:
-                            cost, log = bar_fifo_consume(comp_pid, needed, produto_prefetched=produto_comp)
+                            cost, log = bar_fifo_consume(comp_pid, needed, produto_prefetched=produto_comp,
+                                                         local_id=venda.get("local_id") or LOCAL_PADRAO)
                             total_cost += cost
                             all_logs.extend(log)
 
@@ -1865,6 +2008,11 @@ def estoque():
         return redirect(url_for("vendas"))
 
     estoque_data = db.get_all_products()
+    diag_lotes = _diagnostico_lotes(estoque_data) if session.get("tipo") == "admin" else None
+    try:
+        giro_alerta = _alerta_giro(estoque_data) if session.get("tipo") == "admin" else []
+    except Exception:
+        giro_alerta = []  # alerta é só informativo — nunca derruba a tela
     estoque_data.sort(key=lambda p: (
         (p.get("categoria") or "").strip().lower() or "zzz_sem_categoria",
         str(p.get("nome", "")).strip().lower(),
@@ -1968,6 +2116,9 @@ def estoque():
         valor_total_estoque=valor_total_estoque,
         locais_estoque=locais_estoque,
         kpis_local=kpis_local,
+        diag_lotes=diag_lotes,
+        giro_alerta=giro_alerta,
+        msg=request.args.get("msg", ""),
         erro="",
         tipo=session.get("tipo"),
         permissoes=session.get("permissoes", []),
@@ -2485,7 +2636,7 @@ def estoque_produto(pid):
     if not produto:
         return redirect(url_for("estoque"))
 
-    erro = ""
+    erro = request.args.get("erro", "") if request.method == "GET" else ""
 
     if request.method == "POST":
         forma_entrada    = request.form.get("forma_entrada", "unidade")
@@ -2524,6 +2675,9 @@ def estoque_produto(pid):
             else:
                 participantes_lote = [{"investidor_id": db.get_or_create_dono_investidor()["id"], "percentual": 100.0}]
 
+        if not erro and _lote_repetido_recente(produto, qtd, custo_unit, data, session.get("usuario", "")):
+            erro = MSG_LOTE_REPETIDO
+
         if not erro:
             conteudo_val  = to_float(request.form.get("conteudo_valor"), None) if request.form.get("conteudo_valor") else None
             conteudo_unit = request.form.get("conteudo_unidade") or None
@@ -2532,10 +2686,12 @@ def estoque_produto(pid):
                 "id":             lote_id,
                 "data":           normalizar_data_str(data),
                 "qtd":            qtd,
+                "qtd_entrada":    qtd,
                 "custo_unit":     custo_unit,
                 "forma_entrada":  forma_entrada,
                 "qtd_informada":  qtd_informada,
                 "criado_por":     session.get("usuario", ""),
+                "criado_em":      now_brt().isoformat(timespec="seconds"),
                 "distribuicao":   {local_id: qtd},
             }
             if unid_por_caixa:
@@ -2559,6 +2715,10 @@ def estoque_produto(pid):
                 lote_id, pid, produto.get("nome", ""), data, qtd, custo_unit,
                 fornecedor_lote, participantes_lote,
             )
+            _log_lote("lote_adicionado", produto, f"Adicionou lote de {qtd:g} un. a R$ {custo_unit:.2f} "
+                      f"(entrada {normalizar_data_str(data)}, {local_id})",
+                      {"lote_id": lote_id, "qtd": qtd, "custo_unit": custo_unit, "local_id": local_id,
+                       "data": normalizar_data_str(data), "fornecedor": fornecedor_lote})
             return redirect(url_for("estoque_produto", pid=pid))
 
     # As buscas abaixo não dependem uma da outra — rodam ao mesmo tempo
@@ -2570,6 +2730,8 @@ def estoque_produto(pid):
         "vendas_produto": lambda: db.get_sales_by_product(pid),
         "investidores": db.get_all_investidores if permite_investidores else (lambda: []),
         "locais_estoque": db.get_all_locais_estoque,
+        "entradas": db.get_all_lote_investimentos,
+        "ajustes": lambda: db.get_ajustes_estoque(pid),
     }
     with ThreadPoolExecutor(max_workers=len(tarefas_produto)) as executor:
         futuros_produto = {nome: executor.submit(fn) for nome, fn in tarefas_produto.items()}
@@ -2581,8 +2743,24 @@ def estoque_produto(pid):
         lotes = sorted(lotes, key=lambda l: str(l.get("data", "")))
     else:
         lotes = []
+    # Quanto entrou em cada lote (registro de entrada); lote antigo sem
+    # registro usa a quantidade informada no próprio lote.
+    entrada_por_lote = {li["id"]: to_float(li.get("quantidade")) for li in res_produto["entradas"] if li.get("pid") == pid}
+    proximo_por_local = {}  # PEPS: lote mais antigo com saldo em cada local = o próximo a sair
     for l in lotes:
         l["_distribuicao_resolvida"] = _dist_lote(l)
+        if l.get("id") in entrada_por_lote:
+            l["_entrou"] = entrada_por_lote[l["id"]]
+        else:
+            qi = to_float(l.get("qtd_informada", l.get("qtd", 0)))
+            l["_entrou"] = qi * to_int(l.get("unidades_por_caixa") or 1) if l.get("forma_entrada") == "caixa" else qi
+        l["_entrou"] = max(l["_entrou"], to_float(l.get("qtd", 0)))
+        l["_pct_vendido"] = round((1 - to_float(l.get("qtd", 0)) / l["_entrou"]) * 100) if l["_entrou"] > 0 else 0
+        l["_saindo_em"] = []
+        for loc, q in l["_distribuicao_resolvida"].items():
+            if to_float(q) > 0 and loc not in proximo_por_local:
+                proximo_por_local[loc] = True
+                l["_saindo_em"].append(loc)
         # fornecedor do lote resolvido pro cadastro (pré-seleção na edição)
         l["_forn_sel"], l["_forn_extra"] = _fornecedor_cadastrado(l.get("fornecedor"), fornecedores_lista)
 
@@ -2600,6 +2778,11 @@ def estoque_produto(pid):
 
     return render_template(
         "estoque_produto.html",
+        ajustes_estoque=res_produto["ajustes"],
+        motivos_ajuste=MOTIVOS_AJUSTE,
+        saldo_por_local=_qtd_por_local(produto),
+        pode_ajustar=tem_permissao("editar_estoque"),
+        msg=request.args.get("msg", ""),
         fornecedores_sugestao=fornecedores_lista,
         fornecedor_padrao_lote=_fornecedor_cadastrado(produto.get("fornecedor"), fornecedores_lista)[0],
         pode_cadastrar_fornecedor=_pode_gerenciar_fornecedores(),
@@ -2619,6 +2802,129 @@ def estoque_produto(pid):
     )
 
 
+MOTIVOS_AJUSTE = {
+    "quebra": "Quebra / perda",
+    "consumo": "Consumo interno",
+    "venda_nao_registrada": "Venda não registrada",
+    "entrada_a_mais": "Entrada lançada a mais",
+    "contagem": "Contagem / correção",
+}
+
+
+def _custo_medio_produto(produto: dict) -> float:
+    lotes = [l for l in produto.get("lotes") or [] if to_float(l.get("qtd")) > 0]
+    qtd = sum(to_float(l.get("qtd")) for l in lotes)
+    if qtd > 0:
+        return round(sum(to_float(l.get("qtd")) * to_float(l.get("custo_unit")) for l in lotes) / qtd, 4)
+    return to_float(produto.get("valor_investido"), 0.0)
+
+
+@app.route("/estoque/produto/<pid>/ajuste", methods=["POST"])
+def estoque_ajuste_contagem(pid):
+    """Acerta o estoque com a contagem física, local por local. Contou menos:
+    baixa a diferença por PEPS (lotes mais antigos primeiro, como uma venda).
+    Contou mais: cria um lote de ajuste com o custo médio. Tudo vai pro
+    histórico com motivo — não conta como venda nem como compra."""
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if not tem_permissao("editar_estoque"):
+        return redirect(url_for("estoque_produto", pid=pid, erro="Você não tem permissão para ajustar o estoque."))
+    produto = db.get_product(pid)
+    if not produto:
+        return redirect(url_for("estoque"))
+
+    motivo = (request.form.get("motivo") or "").strip()
+    if motivo not in MOTIVOS_AJUSTE:
+        return redirect(url_for("estoque_produto", pid=pid, erro="Escolha o motivo do ajuste."))
+    obs = (request.form.get("observacao") or "").strip()[:300]
+    locais = db.get_all_locais_estoque()
+    saldo = _qtd_por_local(produto)
+    usuario = session.get("usuario", "")
+    hoje = now_brt().strftime("%Y-%m-%d")
+    ajustes = []
+    try:
+        for l in locais:
+            bruto = (request.form.get(f"contado_{l['id']}") or "").strip().replace(",", ".")
+            if bruto == "":
+                continue  # local não contado
+            contado = to_float(bruto, -1)
+            if contado < 0:
+                raise ValueError(f"Quantidade contada inválida no(a) {l['nome']}.")
+            antes = round(to_float(saldo.get(l["id"], 0)), 4)
+            diferenca = round(contado - antes, 4)
+            if abs(diferenca) < 0.0005:
+                continue
+            custo_total, lotes_afetados = 0.0, []
+            if diferenca < 0:
+                custo_total, consumo = consumir_fifo_local(produto, -diferenca, l["id"])
+                lotes_afetados = [{"lote_id": c.get("lote_id"), "data_lote": c.get("data_lote"), "qtd": c.get("qtd")} for c in consumo]
+            else:
+                custo_unit = _custo_medio_produto(produto) or 0.01
+                lote_id = uuid.uuid4().hex
+                produto.setdefault("lotes", []).append({
+                    "id": lote_id, "data": hoje, "qtd": diferenca, "qtd_entrada": diferenca,
+                    "custo_unit": custo_unit, "criado_por": usuario,
+                    "criado_em": now_brt().isoformat(timespec="seconds"),
+                    "distribuicao": {l["id"]: diferenca}, "nome_lote": "Ajuste de contagem", "ajuste": True,
+                })
+                custo_total = round(diferenca * custo_unit, 2)
+                lotes_afetados = [{"lote_id": lote_id, "data_lote": hoje, "qtd": diferenca}]
+            ajustes.append({"local": l, "antes": antes, "contado": contado, "diferenca": diferenca,
+                            "custo": round(custo_total, 2), "lotes": lotes_afetados})
+    except ValueError as e:
+        return redirect(url_for("estoque_produto", pid=pid, erro=str(e)))
+
+    if not ajustes:
+        return redirect(url_for("estoque_produto", pid=pid, msg="Nada a ajustar: a contagem bate com o sistema."))
+
+    atualizar_campos_derivados_estoque(produto)
+    db.update_product(produto)
+    for a in ajustes:
+        sinal = "−" if a["diferenca"] < 0 else "+"
+        db.registrar_log(
+            usuario, "estoque_ajuste",
+            f"{produto.get('nome', '')}: ajuste no(a) {a['local']['nome']} {a['antes']:g} → {a['contado']:g} "
+            f"({sinal}{abs(a['diferenca']):g} un., R$ {a['custo']:.2f}) — {MOTIVOS_AJUSTE[motivo]}"
+            + (f" — {obs}" if obs else ""),
+            now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+            detalhes={"pid": pid, "local_id": a["local"]["id"], "antes": a["antes"], "contado": a["contado"],
+                      "diferenca": a["diferenca"], "custo": a["custo"], "motivo": motivo, "observacao": obs,
+                      "lotes": a["lotes"]},
+        )
+    resumo = "; ".join(f"{a['local']['nome']}: {a['antes']:g} → {a['contado']:g}" for a in ajustes)
+    return redirect(url_for("estoque_produto", pid=pid, msg=f"Estoque ajustado ({resumo})."))
+
+
+@app.route("/estoque/reparar-lotes", methods=["POST"])
+def estoque_reparar_lotes():
+    """Correção única (admin): junta lotes repetidos e acerta o saldo por
+    local de cada lote pra bater com a quantidade."""
+    if not usuario_logado() or session.get("tipo") != "admin":
+        return redirect(url_for("estoque"))
+    total = {"produtos": 0, "duplicados": 0, "ajustados": 0, "restos": 0, "sem_id": 0}
+    nomes = []
+    for produto in db.get_all_products():
+        r = _reparar_lotes_produto(produto)
+        if any(r.values()):
+            db.update_product(produto)
+            total["produtos"] += 1
+            for k in ("duplicados", "ajustados", "restos", "sem_id"):
+                total[k] += r[k]
+            nomes.append(produto.get("nome", ""))
+    db.registrar_log(
+        session.get("usuario", ""), "estoque_lotes_reparados",
+        f"Corrigiu lotes de {total['produtos']} produto(s): {total['duplicados']} lote(s) repetido(s) unido(s), "
+        f"{total['ajustados']} saldo(s) por local ajustado(s), {total['restos']} resto(s) de arredondamento removido(s), "
+        f"{total['sem_id']} lote(s) sem identificação identificado(s). "
+        f"Produtos: {', '.join(nomes)[:900]}",
+        now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"),
+    )
+    return redirect(url_for("estoque", msg=f"Lotes corrigidos em {total['produtos']} produto(s): "
+                                            f"{total['duplicados']} repetido(s) unido(s), {total['ajustados']} saldo(s) por local ajustado(s) "
+                                            f", {total['restos']} resto(s) de arredondamento removido(s) "
+                                            f"e {total['sem_id']} lote(s) antigo(s) identificado(s)."))
+
+
 @app.route("/estoque/produto/<pid>/lote/<int:idx>/remover", methods=["POST"])
 def remover_lote(pid, idx):
     if not usuario_logado() or not tem_permissao("editar_estoque"):
@@ -2633,6 +2939,11 @@ def remover_lote(pid, idx):
             produto["lotes"] = [l for l in lotes if l is not lote_alvo]
             atualizar_campos_derivados_estoque(produto)
             db.update_product(produto)
+            _log_lote("lote_removido", produto,
+                      f"Removeu lote de {normalizar_data_str(lote_alvo.get('data'))} com {to_float(lote_alvo.get('qtd')):g} un. "
+                      f"a R$ {to_float(lote_alvo.get('custo_unit')):.2f}",
+                      {"lote_id": lote_id_removido, "qtd": to_float(lote_alvo.get("qtd")),
+                       "custo_unit": to_float(lote_alvo.get("custo_unit")), "distribuicao": _dist_lote(lote_alvo)})
             if lote_id_removido:
                 try:
                     db.marcar_lote_investimento_removido(lote_id_removido)
@@ -2660,10 +2971,13 @@ def editar_lote(pid, idx):
                 muda_fornecedor = "fornecedor" in request.form
                 novo_fornecedor = (request.form.get("fornecedor") or "").strip()
                 if nova_qtd > 0 and novo_custo > 0:
+                    antes_lote = {"data": lote_alvo.get("data"), "qtd": to_float(lote_alvo.get("qtd")),
+                                  "custo_unit": to_float(lote_alvo.get("custo_unit")), "fornecedor": lote_alvo.get("fornecedor")}
                     for l in produto["lotes"]:
                         if l is lote_alvo:
                             l["data"]      = normalizar_data_str(nova_data)
                             l["qtd"]       = nova_qtd
+                            _ajustar_dist_para_qtd(l)  # saldo por local acompanha a nova quantidade
                             l["custo_unit"] = novo_custo
                             if novo_nome_lote:
                                 l["nome_lote"] = novo_nome_lote
@@ -2677,6 +2991,13 @@ def editar_lote(pid, idx):
                             break
                     atualizar_campos_derivados_estoque(produto)
                     db.update_product(produto)
+                    depois_lote = {"data": lote_alvo.get("data"), "qtd": to_float(lote_alvo.get("qtd")),
+                                   "custo_unit": to_float(lote_alvo.get("custo_unit")), "fornecedor": lote_alvo.get("fornecedor")}
+                    mudancas = [f"{k}: {antes_lote[k]} → {depois_lote[k]}" for k in antes_lote if antes_lote[k] != depois_lote[k]]
+                    if mudancas:
+                        _log_lote("lote_editado", produto,
+                                  f"Editou lote de {normalizar_data_str(antes_lote['data'])} ({'; '.join(mudancas)})",
+                                  {"lote_id": lote_alvo.get("id"), "antes": antes_lote, "depois": depois_lote})
                     # Mantém o ledger de investimento (Financeiro, Investidores,
                     # Fornecedores) igual ao lote editado — antes ficava com os
                     # valores da criação.
@@ -2948,6 +3269,11 @@ def cadastrar_venda_lote():
             id_venda = f"V{int(time.time())}{uuid.uuid4().hex[:4]}"
             novas_vendas = []
             produtos_modificados = []
+            # Um único objeto por produto pra venda inteira: ingrediente de
+            # pacote e o mesmo produto vendido avulso no carrinho baixam do
+            # mesmo saldo, e cada produto é gravado uma vez só no fim (antes
+            # o pacote gravava na hora e a gravação final apagava essa baixa).
+            produtos_cache = {str(p.get("pid", "")): p for p in estoque}
 
             for pid, qtd_raw, tipo, vpc_flag, preco_raw, subst_raw, ignorar_raw in zip(pids, qtds, tipos, vpcs, precos, substituicoes, ignorar_estoque):
                 pid = (pid or "").strip()
@@ -2973,11 +3299,16 @@ def cadastrar_venda_lote():
                     try:
                         custo_total, consumo = bar_calc_drink_cost(
                             pid, qtd, componentes_override=componentes_override,
-                            ignorar_falta=(ignorar_raw == "1"),
+                            ignorar_falta=(ignorar_raw == "1"), local_id=local_id,
+                            produtos_cache=produtos_cache, salvar=False,
                         )
                     except Exception as e:
                         erro = str(e)
                         break
+                    for comp_id in {c.get("component_id") for c in consumo if c.get("lote_id") is not None or c.get("data_lote")}:
+                        comp_prod = produtos_cache.get(comp_id)
+                        if comp_prod is not None and not any(m is comp_prod for m in produtos_modificados):
+                            produtos_modificados.append(comp_prod)
                     custo_unit = round(custo_total / qtd, 4) if qtd else 0.0
                     preco_catalogo = preco_por_local(bar_prod, local_id, "sale_price")
                     novas_vendas.append({
@@ -3008,7 +3339,8 @@ def cadastrar_venda_lote():
                             custo_total, consumo = consumir_fifo_local(produto, qtd_estoque, local_id, ignorar_falta=ignorar_falta)
                         else:
                             custo_total, consumo = consumir_fifo_local(produto, qtd, local_id, ignorar_falta=ignorar_falta)
-                        produtos_modificados.append(produto)
+                        if not any(m is produto for m in produtos_modificados):
+                            produtos_modificados.append(produto)
                     except ValueError as e:
                         erro = str(e)
                         break
@@ -3582,6 +3914,7 @@ def comanda_adicionar(cid):
     vender_por_conteudo = request.form.get("vender_por_conteudo") == "1"
     ignorar_estoque = request.form.get("ignorar_estoque") == "1"
     erro = ""
+    local_id = comanda.get("local_id") or LOCAL_PADRAO
 
     if produto_tipo == "bar":
         bar_prod = db.bar_get_product(pid)
@@ -3604,7 +3937,8 @@ def comanda_adicionar(cid):
                     produto_comp = db.get_product(comp_pid)
                     cv = float((produto_comp or {}).get("conteudo_valor") or 1)
                     needed = qtd_bruta / cv if (cv > 1 and unidade_uso.upper() != "UN") else qtd_bruta
-                    cost, log = bar_fifo_consume(comp_pid, needed, ignorar_falta=ignorar_estoque, produto_prefetched=produto_comp)
+                    cost, log = bar_fifo_consume(comp_pid, needed, ignorar_falta=ignorar_estoque, produto_prefetched=produto_comp,
+                                                 local_id=local_id)
                     total_cost += cost
                     all_logs.extend(log)
                     components_consumo.append({"pid": comp_pid, "consumo": log})
@@ -3799,6 +4133,21 @@ def comanda_adicionar_lote(cid):
     novos_itens = []
     novas_vendas = []
     produtos_modificados = []
+    # Um único objeto por produto pro envio inteiro (mesmo motivo de
+    # cadastrar_venda_lote): 2 linhas do mesmo produto, ou o produto avulso
+    # + como ingrediente de pacote, baixam do mesmo saldo e são gravados
+    # uma vez só no fim. Antes cada item relia o produto do banco e a
+    # gravação de um apagava a baixa do outro.
+    produtos_cache = {}
+
+    def _produto_do_envio(pid_):
+        if pid_ not in produtos_cache:
+            produtos_cache[pid_] = db.get_product(pid_)
+        return produtos_cache[pid_]
+
+    def _marcar_modificado(prod):
+        if prod is not None and not any(m is prod for m in produtos_modificados):
+            produtos_modificados.append(prod)
 
     for pid, qtd_raw, tipo, vpc_flag, subst_raw, ignorar_raw in zip(pids, qtds, tipos, vpcs, substituicoes, ignorar_estoque):
         pid = (pid or "").strip()
@@ -3837,10 +4186,12 @@ def comanda_adicionar_lote(cid):
                         continue
                     unidade_uso = (comp.get("unidade_uso") or "UN").strip()
                     qtd_bruta = qtd_por_unidade * qtd
-                    produto_comp = db.get_product(comp_pid)
+                    produto_comp = _produto_do_envio(comp_pid)
                     cv = float((produto_comp or {}).get("conteudo_valor") or 1)
                     needed = qtd_bruta / cv if (cv > 1 and unidade_uso.upper() != "UN") else qtd_bruta
-                    cost, log = bar_fifo_consume(comp_pid, needed, ignorar_falta=ignorar_falta, produto_prefetched=produto_comp)
+                    cost, log = bar_fifo_consume(comp_pid, needed, ignorar_falta=ignorar_falta, produto_prefetched=produto_comp,
+                                                 local_id=local_id, salvar=False)
+                    _marcar_modificado(produto_comp)
                     total_cost += cost
                     all_logs.extend(log)
                     components_consumo.append({"pid": comp_pid, "consumo": log})
@@ -3872,7 +4223,7 @@ def comanda_adicionar_lote(cid):
                 "data": hoje_item, "hora": hora_item,
             })
         else:
-            produto = db.get_product(pid)
+            produto = _produto_do_envio(pid)
             if not produto:
                 erro = "Produto não encontrado no estoque."
                 break
@@ -3888,7 +4239,7 @@ def comanda_adicionar_lote(cid):
                     custo_total, consumo = consumir_fifo_local(produto, qtd, local_id, ignorar_falta=ignorar_falta)
                     custo_unit_medio = (custo_total / qtd) if qtd else 0.0
                     preco_catalogo = preco_por_local(produto, local_id)
-                produtos_modificados.append(produto)
+                _marcar_modificado(produto)
             except ValueError as e:
                 erro = str(e)
                 break
@@ -3923,11 +4274,9 @@ def comanda_adicionar_lote(cid):
     if erro:
         return redirect(url_for("cadastrar_venda_lote", comanda_erro=erro))
 
-    # Só grava depois que o lote inteiro validou (itens de estoque ficam só
-    # em memória em `produtos_modificados`/`novas_vendas` até aqui — nada
-    # foi escrito ainda pra eles). Itens de pacote do bar já consomem os
-    # ingredientes na hora (bar_fifo_consume grava direto), mesma limitação
-    # que a venda avulsa em lote já tem hoje.
+    # Só grava depois que o envio inteiro validou: produtos avulsos e
+    # ingredientes de pacote ficam só em memória (produtos_cache /
+    # produtos_modificados) até aqui, e cada produto é gravado uma vez.
     for produto in produtos_modificados:
         db.update_product(produto)
     db.insert_sales(novas_vendas)
@@ -6653,7 +7002,8 @@ def _pid_to_uuid(pid: str) -> str:
 
 
 def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = False,
-                      produto_prefetched: dict | None = None) -> tuple[float, list]:
+                      produto_prefetched: dict | None = None, local_id: str | None = None,
+                      salvar: bool = True) -> tuple[float, list]:
     """Consume qty_needed do estoque principal (products) via FIFO.
     Se o produto não existir no estoque principal, usa bar_stock_batches como fallback.
 
@@ -6665,16 +7015,31 @@ def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = F
 
     produto_prefetched: quando o chamador já buscou esse produto antes (ex:
     pra ler conteudo_valor e converter unidade), passa ele aqui pra não
-    buscar de novo do banco."""
+    buscar de novo do banco.
+
+    salvar=False: só altera o produto recebido (produto_prefetched) e NÃO
+    grava — usado quando a venda tem vários itens e quem chama grava cada
+    produto uma vez no fim (senão a gravação de um item apagava a baixa de
+    outro item do mesmo produto no mesmo carrinho).
+
+    local_id: local da venda/comanda. Mesma regra de consumir_fifo_local —
+    PEPS só nos lotes com saldo nesse local, baixando a quantidade do lote
+    E o saldo daquele local (antes baixava só a quantidade, e o saldo por
+    local ficava maior que o real). Fora do local principal não existe
+    "continuar mesmo assim"."""
+    local_id = local_id or LOCAL_PADRAO
+    if local_id != LOCAL_PADRAO:
+        ignorar_falta = False
     produto = produto_prefetched if produto_prefetched is not None else db.get_product(product_id)
     if produto:
         lotes = produto.get("lotes", [])
         lotes.sort(key=lambda l: str(l.get("data", "")))
-        disponivel = sum(to_float(l.get("qtd", 0)) for l in lotes)
+        disponivel = sum(to_float(_dist_lote(l).get(local_id, 0)) for l in lotes)
         if qty_needed > disponivel and not ignorar_falta:
+            nome_local = next((l["nome"] for l in db.get_all_locais_estoque() if l["id"] == local_id), local_id)
             raise ValueError(
-                f"Estoque insuficiente de \"{produto.get('nome', product_id)}\": "
-                f"tem {disponivel}, precisa de {round(qty_needed, 3)}."
+                f"Estoque insuficiente de \"{produto.get('nome', product_id)}\" no(a) {nome_local}: "
+                f"tem {round(disponivel, 3)}, precisa de {round(qty_needed, 3)}."
             )
         remaining = qty_needed
         total_cost = 0.0
@@ -6682,20 +7047,30 @@ def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = F
         i = 0
         while remaining > 0 and i < len(lotes):
             lote = lotes[i]
-            avail = to_float(lote.get("qtd", 0))
+            dist = _dist_lote(lote)
+            avail = to_float(dist.get(local_id, 0))
+            if avail <= 0:
+                i += 1
+                continue
             custo_unit = to_float(lote.get("custo_unit", 0))
             consume = min(avail, remaining)
             total_cost += consume * custo_unit
-            log.append({"data_lote": lote.get("data"), "qty": round(consume, 6), "unit_cost": custo_unit, "lote_id": lote.get("id"), "component_id": product_id, "codigo": produto.get("codigo")})
-            novo_qtd = round(avail - consume, 6)
+            log.append({"data_lote": lote.get("data"), "qty": round(consume, 6), "unit_cost": custo_unit,
+                        "lote_id": lote.get("id"), "component_id": product_id, "codigo": produto.get("codigo"),
+                        "local_id": local_id})
+            dist = dict(dist)
+            dist[local_id] = round(avail - consume, 6)
+            lote["distribuicao"] = dist
+            novo_qtd = round(to_float(lote.get("qtd", 0)) - consume, 6)
             lote["qtd"] = novo_qtd
-            if novo_qtd <= 0:
+            if novo_qtd < RESTO_LOTE_MINIMO:
                 lotes.pop(i)
             else:
                 i += 1
             remaining = round(remaining - consume, 6)
         atualizar_campos_derivados_estoque(produto)
-        db.update_product(produto)
+        if salvar:
+            db.update_product(produto)
         return round(total_cost, 4), log
 
     # Fallback: bar_stock_batches (ingredientes cadastrados apenas no bar)
@@ -6721,7 +7096,9 @@ def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = F
     return round(total_cost, 4), log
 
 
-def bar_calc_drink_cost(product_id: str, quantity: float, componentes_override: list | None = None, ignorar_falta: bool = False) -> tuple[float, list]:
+def bar_calc_drink_cost(product_id: str, quantity: float, componentes_override: list | None = None, ignorar_falta: bool = False,
+                        local_id: str | None = None, produtos_cache: dict | None = None,
+                        salvar: bool = True) -> tuple[float, list]:
     """Calculate cost and consume stock for a composite or simple product.
 
     componentes_override: quando informado (lista de {"component_id",
@@ -6747,10 +7124,18 @@ def bar_calc_drink_cost(product_id: str, quantity: float, componentes_override: 
                 continue
             unidade_uso = (comp.get("unidade_uso") or "UN").strip()
             qtd_bruta = qtd_por_unidade * quantity
-            produto_comp = db.get_product(comp_pid_inner)
+            # produtos_cache: o MESMO objeto de produto pra todos os itens da
+            # venda (ingrediente repetido ou também vendido avulso no carrinho)
+            if produtos_cache is not None:
+                if comp_pid_inner not in produtos_cache:
+                    produtos_cache[comp_pid_inner] = db.get_product(comp_pid_inner)
+                produto_comp = produtos_cache[comp_pid_inner]
+            else:
+                produto_comp = db.get_product(comp_pid_inner)
             cv = float((produto_comp or {}).get("conteudo_valor") or 1)
             needed = qtd_bruta / cv if (cv > 1 and unidade_uso.upper() != "UN") else qtd_bruta
-            cost, log = bar_fifo_consume(comp_pid_inner, needed, ignorar_falta=ignorar_falta, produto_prefetched=produto_comp)
+            cost, log = bar_fifo_consume(comp_pid_inner, needed, ignorar_falta=ignorar_falta, produto_prefetched=produto_comp,
+                                         local_id=local_id, salvar=salvar)
             if cost == 0 and produto_comp:
                 vi = float(produto_comp.get("valor_investido", 0) or 0)
                 cost = needed * vi
@@ -6758,7 +7143,7 @@ def bar_calc_drink_cost(product_id: str, quantity: float, componentes_override: 
             all_logs.extend(log)
         return round(total_cost, 4), all_logs
     else:
-        return bar_fifo_consume(product_id, quantity, ignorar_falta=ignorar_falta)
+        return bar_fifo_consume(product_id, quantity, ignorar_falta=ignorar_falta, local_id=local_id)
 
 
 # ── Produtos (drinks) ──

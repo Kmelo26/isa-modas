@@ -179,6 +179,11 @@
     .lp-top-stat  { border-left:none; border-top:1px solid var(--border); }
     .lp-r3 { grid-template-columns:1fr 1fr; }
   }
+  .lote-saindo { display:inline-block; margin-top:3px; padding:1px 7px; border-radius:10px; font-size:.68rem; font-weight:700;
+                 background:rgba(34,197,94,.15); color:#4ade80; border:1px solid rgba(34,197,94,.4); white-space:nowrap; }
+  .lote-sub { font-size:.7rem; color:var(--text-muted); }
+  .lote-barra { height:6px; border-radius:4px; background:var(--border); overflow:hidden; }
+  .lote-barra > div { height:100%; background:var(--accent, #22c55e); }
 </style>
 
 <div class="lp">
@@ -264,6 +269,7 @@
   <div class="lp-panel ativo" id="tab-lotes">
 
     {% if erro %}<div class="alerta">{{ erro }}</div>{% endif %}
+    {% if msg %}<div class="alerta" style="background:#052e16;border-color:#16a34a;color:#4ade80;">✓ {{ msg }}</div>{% endif %}
 
     <div class="lp-cols">
 
@@ -459,6 +465,64 @@
 
     </div><!-- /cols -->
 
+    <!-- Ajuste de estoque por contagem -->
+    <div class="lp-card">
+      <div class="lp-card-titulo-neutral" style="margin-bottom:6px;">Ajustar estoque (contagem física)</div>
+      <p style="font-size:.8rem;color:var(--text-muted);margin:0 0 12px;">
+        Conte o que tem de verdade e informe abaixo. Se tiver <strong>menos</strong> que o sistema, a diferença sai dos lotes mais antigos
+        (como uma venda, sem gerar venda). Se tiver <strong>mais</strong>, entra um lote de ajuste. Deixe vazio o local que não contou.
+      </p>
+      {% if pode_ajustar %}
+      <form method="POST" action="{{ url_for('estoque_ajuste_contagem', pid=produto.pid) }}" id="form-ajuste"
+            onsubmit="return confirmarAjuste(this)">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+          {% for l in locais_estoque %}
+          <div class="lp-fg" style="min-width:170px;flex:1;">
+            <label>{{ l.nome }} — sistema: <strong>{{ saldo_por_local.get(l.id, 0)|qtd_br }}</strong></label>
+            <input type="number" step="any" min="0" name="contado_{{ l.id }}" data-nome="{{ l.nome }}"
+                   data-sistema="{{ saldo_por_local.get(l.id, 0) }}" placeholder="quantidade contada">
+          </div>
+          {% endfor %}
+          <div class="lp-fg" style="min-width:190px;flex:1;">
+            <label>Motivo</label>
+            <select name="motivo" required>
+              <option value="">Escolha…</option>
+              {% for k, v in motivos_ajuste.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="lp-fg" style="margin-bottom:10px;">
+          <label>Observação (opcional)</label>
+          <input type="text" name="observacao" maxlength="300" placeholder="Ex.: contagem de sexta, 3 latas amassadas">
+        </div>
+        <button type="submit" class="btn-sv" style="padding:9px 18px;">Ajustar estoque</button>
+      </form>
+      {% else %}
+      <p style="font-size:.8rem;color:#facc15;margin:0;">Você não tem permissão para ajustar o estoque (precisa de "Editar estoque").</p>
+      {% endif %}
+
+      {% if ajustes_estoque %}
+      <div style="margin-top:16px;overflow-x:auto;">
+        <table class="lp-hist-table">
+          <thead><tr><th>Data</th><th>Usuário</th><th>Local</th><th>Sistema → Contado</th><th>Diferença</th><th>Custo</th><th>Motivo</th></tr></thead>
+          <tbody>
+            {% for a in ajustes_estoque %}{% set d = a.detalhes or {} %}
+            <tr>
+              <td>{{ a.data|br_date }} {{ a.hora }}</td>
+              <td>{{ a.usuario }}</td>
+              <td>{{ locais_nomes_map.get(d.local_id, d.local_id) }}</td>
+              <td>{{ d.antes|qtd_br }} → {{ d.contado|qtd_br }}</td>
+              <td style="color:{{ '#f87171' if (d.diferenca or 0) < 0 else '#4ade80' }};font-weight:700;">{{ '+' if (d.diferenca or 0) > 0 else '' }}{{ d.diferenca|qtd_br }}</td>
+              <td>R$ {{ "%.2f"|format(d.custo or 0) }}</td>
+              <td>{{ motivos_ajuste.get(d.motivo, d.motivo) }}{% if d.observacao %}<div style="font-size:.72rem;color:var(--text-muted);">{{ d.observacao }}</div>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+
     <!-- Histórico de lotes -->
     <div class="lp-card">
       <div class="lp-card-titulo-neutral">Histórico de Lotes</div>
@@ -470,9 +534,8 @@
       <table class="lp-hist-table">
         <thead>
           <tr>
-            <th>Data</th><th>Nome do Lote</th><th>Tipo entrada</th><th>Qtd. informada</th>
-            <th>Unid. por caixa</th><th>Total unidades</th><th>Local</th>
-            <th>Custo unitário</th><th>Custo total</th>
+            <th>Data</th><th>Nome do Lote</th><th>Entrou</th><th>Restante</th><th>Já saiu</th><th>Local</th>
+            <th>Custo unitário</th><th>Custo do restante</th>
             <th>Fornecedor</th><th>Validade</th><th>Usuário</th><th></th>
           </tr>
         </thead>
@@ -481,19 +544,24 @@
           {% set forma = l.get('forma_entrada', 'unidade') %}
           {% set qtd_inf = l.get('qtd_informada', l.qtd) %}
           <tr id="hr-{{ loop.index0 }}">
-            <td>{{ l.data|br_date }}</td>
+            <td>{{ l.data|br_date }}
+              {% for loc in l._saindo_em %}<div><span class="lote-saindo" title="Próxima venda {{ 'no(a) ' ~ locais_nomes_map.get(loc, loc) }} sai deste lote (o mais antigo com saldo)">saindo agora{{ ' · ' ~ locais_nomes_map.get(loc, loc) if locais_nomes_map|length > 1 else '' }}</span></div>{% endfor %}
+            </td>
             <td>{{ l.get('nome_lote') or '—' }}</td>
-            <td><span class="tipo-badge tipo-{{ forma }}">{{ 'Caixa' if forma=='caixa' else 'Unidade' }}</span></td>
-            <td>{{ qtd_inf }} {{ 'caixas' if forma=='caixa' else 'unidades' }}</td>
-            <td>{{ l.get('unidades_por_caixa') or '—' }}</td>
-            <td>{{ l.qtd }}</td>
+            <td>{{ l._entrou|qtd_br }} un.
+              {% if forma == 'caixa' %}<div class="lote-sub">{{ qtd_inf }} cx × {{ l.get('unidades_por_caixa') or '?' }}</div>{% endif %}</td>
+            <td><strong>{{ l.qtd|qtd_br }} un.</strong></td>
+            <td style="min-width:90px;">
+              <div class="lote-barra"><div style="width:{{ l._pct_vendido }}%;"></div></div>
+              <div class="lote-sub">{{ l._pct_vendido }}%</div>
+            </td>
             <td>
               {% for local_id, qtd_local in l._distribuicao_resolvida.items() if qtd_local > 0 %}
-              <span style="white-space:nowrap;">{{ locais_nomes_map.get(local_id, local_id) }}: {{ qtd_local }}</span>{% if not loop.last %}, {% endif %}
+              <span style="white-space:nowrap;">{{ locais_nomes_map.get(local_id, local_id) }}: {{ qtd_local|qtd_br }}</span>{% if not loop.last %}, {% endif %}
               {% endfor %}
             </td>
             <td>R$ {{ "%.2f"|format(l.custo_unit) }}</td>
-            <td>R$ {{ "%.2f"|format(l.qtd * l.custo_unit) }}</td>
+            <td>R$ {{ "%.2f"|format((l.qtd|float) * (l.custo_unit|float)) }}</td>
             <td>{{ l.get('fornecedor') or '—' }}</td>
             <td>{{ l.get('validade')|br_date if l.get('validade') else '—' }}</td>
             <td>{{ l.get('criado_por') or '—' }}</td>
@@ -519,7 +587,7 @@
             </td>
           </tr>
           <tr id="he-{{ loop.index0 }}" style="display:none;">
-            <td colspan="13">
+            <td colspan="12">
               <form method="POST" action="{{ url_for('editar_lote', pid=produto.pid, idx=loop.index0) }}"
                     style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:4px 0;">
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Data</label>
@@ -961,4 +1029,30 @@ function fecharEdit(idx) {
 }
 </script>
 
+<script>
+// Confirma o ajuste mostrando o que vai mudar em cada local.
+function confirmarAjuste(form){
+  const linhas = [];
+  form.querySelectorAll('input[name^="contado_"]').forEach(inp => {
+    if (inp.value === '') return;
+    const sist = parseFloat(inp.dataset.sistema) || 0, cont = parseFloat(String(inp.value).replace(',', '.'));
+    if (isNaN(cont)) return;
+    const dif = Math.round((cont - sist) * 1000) / 1000;
+    if (dif !== 0) linhas.push(inp.dataset.nome + ': ' + sist + ' → ' + cont + ' (' + (dif > 0 ? '+' : '') + dif + ')');
+  });
+  if (!linhas.length) { alert('Informe a quantidade contada em pelo menos um local (diferente do sistema).'); return false; }
+  if (!confirm('Ajustar o estoque?\n\n' + linhas.join('\n'))) return false;
+  const b = form.querySelector('button[type="submit"]'); if (b) { b.disabled = true; b.textContent = 'Ajustando…'; }
+  return true;
+}
+// Evita lote em dobro: trava o botão depois do primeiro clique.
+(function(){
+  const f = document.getElementById('form-lote');
+  if (!f) return;
+  f.addEventListener('submit', function(){
+    const b = f.querySelector('button[type="submit"]');
+    if (b) setTimeout(() => { b.disabled = true; b.textContent = 'Salvando…'; }, 0);
+  });
+})();
+</script>
 {% endblock %}

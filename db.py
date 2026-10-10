@@ -228,6 +228,30 @@ def registrar_log(usuario: str, tipo_evento: str, descricao: str, data: str, hor
         pass  # auditoria nunca deve derrubar a operação principal
 
 
+def get_consumo_vendas_periodo(data_ini: str, data_fim: str) -> list:
+    """Só o necessário pra medir giro: o que saiu de cada lote nas vendas."""
+    rows, offset = [], 0
+    while True:
+        lote = (_sb().table("sales").select("produto_pid,produto_tipo,consumo_lotes")
+                .gte("data", data_ini).lte("data", data_fim).eq("excluida", False)
+                .range(offset, offset + 999).execute().data or [])
+        rows.extend(lote)
+        if len(lote) < 1000:
+            return rows
+        offset += 1000
+
+
+def get_ajustes_estoque(pid: str) -> list:
+    """Ajustes de estoque por contagem de um produto (gravados no audit_log)."""
+    try:
+        return (_sb().table("audit_log").select("*")
+                .eq("tipo_evento", "estoque_ajuste").eq("detalhes->>pid", pid)
+                .order("data", desc=True).order("hora", desc=True).limit(100)
+                .execute().data or [])
+    except Exception:
+        return []
+
+
 def get_logs(data_ini: str = "", data_fim: str = "", usuario: str = "", tipo_evento: str = "", resultado: str = "") -> list:
     q = _sb().table("audit_log").select("*")
     if data_ini:
