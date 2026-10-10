@@ -379,6 +379,7 @@ input[name="produto_pid"] { display: none; }
         <form method="post" action="/comandas/{{ comanda.cid }}/adicionar" id="form-add" onsubmit="return cdValidarAdicionar()">
           <input type="hidden" name="produto_pid" id="pid-hidden">
           <input type="hidden" name="produto_tipo" id="tipo-hidden" value="estoque">
+          <input type="hidden" name="ignorar_estoque" id="ignorar-estoque-hidden" value="0">
           <div class="cd-add-grid">
             <div class="cd-field">
               <label>Produto ou Pacote</label>
@@ -572,7 +573,7 @@ input[name="produto_pid"] { display: none; }
         {% if permite_margem and comanda.status == "aberta" %}
         <div class="cd-margem-box" id="margem-box" style="display:none;">
           <form method="post" action="{{ url_for('comanda_margem', cid=comanda.cid) }}" class="cd-margem-form">
-            <input type="number" step="0.1" min="-100" max="99" name="margem" value="{{ margem_atual }}" class="cd-text-inp" required>
+            <input type="number" step="0.1" min="-99" name="margem" value="{{ margem_atual }}" class="cd-text-inp" required>
             <span>%</span>
             <button type="submit" class="cd-margem-apply">Aplicar</button>
           </form>
@@ -634,10 +635,13 @@ input[name="produto_pid"] { display: none; }
 
 <!-- Dados -->
 <script type="application/json" id="data-total">{{ total | tojson }}</script>
+{# Comanda fora do local principal (ex.: Escritório): mostra e confere só o saldo daquele local. #}
+{% set local_cmd = comanda.local_id or local_padrao %}
+{% set local_restrito = local_cmd != local_padrao %}
 <script type="application/json" id="data-estoque">
 [{% for p in estoque %}
   {"pid":{{ p.pid|tojson }},"nome":{{ p.nome|tojson }},
-   "preco":{{ p.valor_venda|float }},"qtd":{{ p.quantidade|int }},"tipo":"estoque",
+   "preco":{{ preco_por_local(p, comanda.local_id or local_padrao)|float }},"qtd":{{ (qtd_no_local(p, local_cmd) if local_restrito else p.quantidade)|int }},"tipo":"estoque",
    "cv":{{ (p.conteudo_valor or 0)|float }},"cu":{{ (p.conteudo_unidade or "")|tojson }}}
   {%- if not loop.last %},{% endif %}
 {% endfor %}]
@@ -645,7 +649,8 @@ input[name="produto_pid"] { display: none; }
 <script type="application/json" id="data-pacotes">
 [{% for p in bar_pacotes %}
   {"pid":{{ p.id|tojson }},"nome":{{ p.name|tojson }},
-   "preco":{{ p.sale_price|float }},"tipo":"bar"}
+   "preco":{{ preco_por_local(p, comanda.local_id or local_padrao, "sale_price")|float }},"tipo":"bar",
+   "componentes":{{ p.componentes|tojson }}}
   {%- if not loop.last %},{% endif %}
 {% endfor %}]
 </script>
@@ -655,6 +660,33 @@ const ESTOQUE  = JSON.parse(document.getElementById('data-estoque').textContent)
 const PACOTES  = JSON.parse(document.getElementById('data-pacotes').textContent);
 const CATALOGO = [...ESTOQUE, ...PACOTES];
 const TOTAL_COMANDA = JSON.parse(document.getElementById('data-total').textContent);
+
+const ESTOQUE_MAP = {};
+ESTOQUE.forEach(p => { ESTOQUE_MAP[p.pid] = p; });
+const COMPONENTES_MAP = {};
+PACOTES.forEach(p => { COMPONENTES_MAP[p.pid] = p.componentes || []; });
+
+// Pra pacotes (tipo 'bar'): calcula, pra cada ingrediente, quantas unidades
+// do pacote ainda dá pra fazer com o estoque atual dele — mesma conversão de
+// unidade (ml/L via conteúdo por unidade) usada em cadastrar_venda_lote.html.
+function checarEstoquePacoteCd(pacotePid) {
+  const comps = COMPONENTES_MAP[pacotePid] || [];
+  let minDisponivel = Infinity;
+  const problemas = [];
+  comps.forEach(c => {
+    const prodEstoque = ESTOQUE_MAP[c.component_id];
+    const qtdPorUnidade = parseFloat(c.quantidade) || 0;
+    if (!prodEstoque || prodEstoque.qtd == null || qtdPorUnidade <= 0) return;
+    const cv = prodEstoque.cv || 0;
+    const unidade = (c.unidade_uso || 'UN').toUpperCase();
+    const necessarioPorUnidade = (unidade !== 'UN' && cv > 1) ? qtdPorUnidade / cv : qtdPorUnidade;
+    if (necessarioPorUnidade <= 0) return;
+    const disponivel = Math.floor((parseFloat(prodEstoque.qtd) || 0) / necessarioPorUnidade);
+    if (disponivel < minDisponivel) minDisponivel = disponivel;
+    if (disponivel <= 0) problemas.push(c.nome);
+  });
+  return { minDisponivel, problemas };
+}
 
 function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
 
@@ -700,6 +732,8 @@ if (searchInp) {
         searchInp.value  = p.nome;
         pidHidden.value  = p.pid;
         tipoHidden.value = p.tipo;
+        document.getElementById('ignorar-estoque-hidden').value = '0';
+        _ignorandoEstoqueCd = false;
         searchList.style.display = 'none';
         // disponibilidade em estoque
         const dispEl = document.getElementById('cd-estoque-disp');
@@ -719,6 +753,10 @@ if (searchInp) {
 }
 
 /* ── Validação ao adicionar ── */
+let _ignorandoEstoqueCd = false;
+
+const CMD_LOCAL_RESTRITO = {{ local_restrito|tojson }};
+const CMD_LOCAL_NOME = {{ locais_nomes_map.get(local_cmd, local_cmd)|tojson }};
 function cdValidarAdicionar() {
   const pid  = pidHidden.value;
   const tipo = tipoHidden.value;
@@ -729,10 +767,37 @@ function cdValidarAdicionar() {
     return false;
   }
 
+  if (_ignorandoEstoqueCd) return true; // resubmit após confirmar "continuar mesmo assim"
+
+  const qtdPedida = parseInt(document.getElementById('inp-qtd').value) || 1;
+
+  function confirmarEContinuar(msg) {
+    showConfirm('Estoque insuficiente', msg, function () {
+      document.getElementById('ignorar-estoque-hidden').value = '1';
+      _ignorandoEstoqueCd = true;
+      document.getElementById('form-add').submit();
+    }, 'warn');
+  }
+
   if (tipo === 'estoque') {
-    const prod = ESTOQUE.find(p => p.pid === pid);
-    if (prod && (parseInt(prod.qtd) || 0) <= 0) {
-      showNotif('Sem estoque disponível', `"${prod.nome}" está com 0 unidades em estoque e não pode ser adicionado à comanda.`);
+    const prod = ESTOQUE_MAP[pid];
+    const qtdDisp = prod ? (parseInt(prod.qtd) || 0) : 0;
+    if (qtdDisp < qtdPedida) {
+      if (CMD_LOCAL_RESTRITO) {
+        // fora do local principal não existe "continuar mesmo assim"
+        showNotif('Sem estoque no ' + CMD_LOCAL_NOME,
+          qtdDisp <= 0 ? `"${prod ? prod.nome : ''}" não tem lote registrado no ${CMD_LOCAL_NOME}.`
+                       : `"${prod ? prod.nome : ''}" tem só ${qtdDisp} unidade${qtdDisp===1?'':'s'} no ${CMD_LOCAL_NOME}.`);
+        return false;
+      }
+      confirmarEContinuar(`"${prod ? prod.nome : ''}" tem só ${qtdDisp} unidade${qtdDisp===1?'':'s'} disponível${qtdDisp===1?'':'is'}. Deseja continuar mesmo assim?`);
+      return false;
+    }
+  } else if (tipo === 'bar') {
+    const check = checarEstoquePacoteCd(pid);
+    if (isFinite(check.minDisponivel) && check.minDisponivel < qtdPedida) {
+      const lista = check.problemas.length ? check.problemas.join(', ') : 'um ou mais ingredientes';
+      confirmarEContinuar(`Este pacote tem ingrediente(s) com pouco ou nenhum estoque: ${lista}. Deseja continuar mesmo assim?`);
       return false;
     }
   }

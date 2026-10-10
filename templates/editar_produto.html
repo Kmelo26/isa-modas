@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% from "_precos_local.html" import campos_preco_local %}
+{% from "_select_fornecedor.html" import select_fornecedor with context %}
 {% block conteudo %}
 
 <style>
-  .cp-container { max-width:960px; margin:30px auto; padding:0 20px 40px; }
+  .cp-container { padding:0 20px 40px; flex:1; display:flex; flex-direction:column; }
   .cp-header { text-align:center; margin-bottom:28px; }
   .cp-header h2 { color:var(--text); font-size:1.6rem; font-weight:700;
     display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 6px; }
@@ -230,6 +232,7 @@
           <input type="text" id="margem" readonly placeholder="0,00%">
           <span class="cp-hint">Calculado automaticamente</span>
         </div>
+        {{ campos_preco_local(locais_estoque, produto.get('precos_local'), not (tipo == "admin" or "alterar_preco_venda" in permissoes), "cp-field", locais_lote, local_padrao) }}
       </div>
     </div>
 
@@ -245,7 +248,7 @@
         </div>
         <div class="cp-field">
           <label>Fornecedor</label>
-          <input type="text" name="fornecedor" value="{{ produto.get('fornecedor','') }}" placeholder="Nome do fornecedor">
+          {{ select_fornecedor(fornecedores, fornecedor_atual[0], fornecedor_atual[1], pode_cadastrar_fornecedor) }}
           <span class="cp-hint">Fornecedor do produto</span>
         </div>
       </div>

@@ -56,6 +56,8 @@
   justify-content:space-between; gap:8px; height:96px; user-select:none; }
 .prod-card:hover { border-color:var(--accent); transform:translateY(-1px); }
 .prod-card:active { transform:scale(0.98); }
+.prod-card-indisponivel { opacity:.45; }
+.prod-card-indisponivel:hover { border-color:var(--border); transform:none; }
 .prod-card.sem-estoque { opacity:0.45; cursor:not-allowed; }
 .prod-card.sem-estoque:hover { border-color:var(--border); transform:none; }
 .prod-card-nome { font-size:13px; font-weight:700; color:var(--text); line-height:1.3;
@@ -316,6 +318,51 @@
 .cm-item-status { font-size:11px; color:var(--text-muted); }
 .cm-vazio { text-align:center; padding:24px 8px; color:#666; font-size:13px; }
 
+/* ── MODAL NOVA COMANDA / NOVO CLIENTE (portado de comandas.html) ── */
+.cmd-btn-nova {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: 9px; padding: 10px 18px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.cmd-btn-nova:hover { opacity: .88; }
+.cmd-modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+  z-index: 10000; align-items: center; justify-content: center;
+}
+.cmd-modal-bg.open { display: flex; }
+.cmd-modal-box {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 16px; padding: 26px;
+  width: 100%; max-width: 440px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  animation: modal-in .2s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes modal-in { from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none} }
+.cmd-modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.cmd-modal-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+.cmd-modal-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 5px; display: block; }
+.cmd-modal-input {
+  width: 100%; padding: 10px 13px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text); font-size: 14px; outline: none; box-sizing: border-box;
+  margin-bottom: 14px;
+}
+.cmd-modal-input:focus { border-color: var(--accent); }
+.cmd-modal-row { display: flex; gap: 10px; }
+.cmd-modal-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cmd-modal-btn-submit {
+  flex: 1; padding: 11px; background: var(--accent); color: #000;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.cmd-modal-btn-submit:hover { opacity: .9; }
+.cmd-modal-btn-cancel {
+  padding: 11px 18px; background: var(--input-bg); color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 8px; font-size: 14px; cursor: pointer;
+}
+.cmd-modal-btn-cancel:hover { color: var(--text); }
+
 /* ── ENGRENAGEM DE CAIXA (status + abrir/fechar) ── */
 .pt-wrap { position: relative; }
 .pt-btn { position: relative; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
@@ -455,8 +502,199 @@
       <button class="fv-close" onclick="fecharModalComanda()">✕</button>
     </div>
     <div class="cm-body">
+      <button type="button" class="cmd-btn-nova" style="width:100%;margin-bottom:10px;justify-content:center;" onclick="abrirModalNova()">+ Nova comanda</button>
       <input type="text" id="cm-busca" placeholder="Buscar comanda por nome ou mesa..." oninput="filtrarComandas()">
       <div id="cm-lista"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: nova comanda (portado de comandas.html) ═══ -->
+<div class="cmd-modal-bg" id="modal-nova">
+  <div class="cmd-modal-box" style="max-width:480px;">
+    <div class="cmd-modal-title">Nova Comanda</div>
+
+    <!-- Tipo de Atendimento -->
+    <div style="display:flex;gap:12px;margin-bottom:18px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;
+        padding:10px 14px;border-radius:8px;border:1px solid var(--border);
+        background:var(--card-bg);font-size:13px;color:var(--text);"
+        id="lbl-avulso">
+        <input type="radio" name="_tipo_ui" value="avulso" checked
+          onchange="novaTipo('avulso')" style="accent-color:var(--accent);">
+        Cliente Avulso
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;
+        padding:10px 14px;border-radius:8px;border:1px solid var(--border);
+        background:var(--card-bg);font-size:13px;color:var(--text);"
+        id="lbl-fiado">
+        <input type="radio" name="_tipo_ui" value="fiado"
+          onchange="novaTipo('fiado')" style="accent-color:var(--accent);">
+        Cliente Faturado
+      </label>
+    </div>
+
+    <!-- FORM: Avulso -->
+    <form method="post" action="/comandas/nova" id="form-nova-avulso">
+      <input type="hidden" name="tipo_atendimento" value="avulso">
+      <label class="cmd-modal-label">Nome do cliente <span style="color:#f87171">*</span></label>
+      <input type="text" name="nome" class="cmd-modal-input"
+        placeholder="Ex: João, Ana, Balcão" required autocomplete="off">
+      <label class="cmd-modal-label">Mesa / Local</label>
+      <input type="text" name="mesa" class="cmd-modal-input"
+        placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
+      <label class="cmd-modal-label">Local de Estoque</label>
+      <select name="local_id" class="cmd-modal-input">
+        {% for l in locais_estoque %}
+        <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+        {% endfor %}
+      </select>
+      <div class="cmd-modal-row" style="margin-top:6px;">
+        <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
+        <button type="submit" class="cmd-modal-btn-submit">Abrir Comanda</button>
+      </div>
+    </form>
+
+    <!-- FORM: Fiado -->
+    <form method="post" action="/comandas/nova" id="form-nova-fiado" style="display:none;">
+      <input type="hidden" name="tipo_atendimento" value="fiado">
+      <input type="hidden" name="cliente_id" id="fiado-cliente-id">
+
+      {# O local da comanda fiado é o do cliente. Este campo só aparece
+         quando o cliente escolhido ainda não tem local definido. #}
+      <div id="fiado-local-wrap" style="display:none;">
+        <label class="cmd-modal-label">Local <span style="color:#facc15;font-weight:400;">(cliente sem local definido)</span></label>
+        <select name="local_id" id="fiado-local" class="cmd-modal-input">
+          {% for l in locais_estoque %}
+          <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <label class="cmd-modal-label">Pesquisar Cliente</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px;position:relative;">
+        <input type="text" id="fiado-busca" class="cmd-modal-input" style="margin-bottom:0;flex:1;"
+          placeholder="Nome, telefone ou CPF..." autocomplete="off">
+        <button type="button"
+          style="padding:8px 12px;border-radius:8px;border:1px solid var(--accent);
+                 background:var(--accent-dim);color:var(--accent);font-size:12px;
+                 font-weight:bold;cursor:pointer;white-space:nowrap;"
+          onclick="abrirModalCliente()">+ Cadastrar</button>
+        <ul id="fiado-sugestoes" style="display:none;position:absolute;top:100%;left:0;
+          right:60px;z-index:9999;margin:2px 0 0;padding:0;list-style:none;
+          background:var(--card-bg);border:1px solid var(--accent);border-radius:8px;
+          box-shadow:0 4px 16px rgba(0,0,0,0.5);max-height:200px;overflow-y:auto;"></ul>
+      </div>
+
+      <!-- Painel do cliente selecionado -->
+      <div id="fiado-painel" style="display:none;background:var(--table-even);
+        border:1px solid var(--border);border-radius:10px;padding:12px;margin:12px 0 10px;">
+        <div style="font-size:13px;font-weight:bold;color:var(--accent);margin-bottom:8px;"
+          id="fiado-painel-nome">—</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px;">
+          <div><span style="color:var(--text-muted);">Telefone:</span>
+            <span id="fiado-p-tel" style="color:var(--text);margin-left:4px;">—</span></div>
+          <div><span style="color:var(--text-muted);">Limite:</span>
+            <span id="fiado-p-limite" style="color:var(--text);margin-left:4px;">—</span></div>
+          <div><span style="color:var(--text-muted);">Saldo utilizado:</span>
+            <span id="fiado-p-saldo" style="color:#f87171;margin-left:4px;">—</span></div>
+          <div><span style="color:var(--text-muted);">Disponível:</span>
+            <span id="fiado-p-disp" style="color:#4ade80;margin-left:4px;">—</span></div>
+          <div style="grid-column:1/-1;"><span style="color:var(--text-muted);">Próx. Vencimento:</span>
+            <span id="fiado-p-venc" style="color:var(--text);margin-left:4px;">—</span></div>
+        </div>
+      </div>
+
+      <label class="cmd-modal-label">Mesa / Local</label>
+      <input type="text" name="mesa" class="cmd-modal-input"
+        placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
+      <div class="cmd-modal-row" style="margin-top:6px;">
+        <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
+        <button type="submit" class="cmd-modal-btn-submit" id="fiado-btn-abrir" disabled
+          style="opacity:.45;">Abrir Comanda</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL: cadastrar cliente (portado de comandas.html) ═══ -->
+<div class="cmd-modal-bg" id="modal-cliente" style="z-index:10100;">
+  <div class="cmd-modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="cmd-modal-title">Cadastrar Cliente</div>
+
+    <div style="font-size:11px;font-weight:bold;color:var(--text-muted);
+      letter-spacing:.08em;margin:0 0 10px;text-transform:uppercase;">Dados Pessoais</div>
+    <div class="cmd-modal-row-2" style="margin-bottom:10px;">
+      <div>
+        <label class="cmd-modal-label">Nome Completo <span style="color:#f87171">*</span></label>
+        <input type="text" id="cli-nome" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Nome completo" autocomplete="off">
+      </div>
+      <div>
+        <label class="cmd-modal-label">Apelido</label>
+        <input type="text" id="cli-apelido" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Como é chamado(a)" autocomplete="off">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label class="cmd-modal-label">Telefone <span style="color:#f87171">*</span></label>
+      <input type="text" id="cli-tel" class="cmd-modal-input" style="margin-bottom:0;"
+        placeholder="(00) 00000-0000" autocomplete="off">
+    </div>
+    <div class="cmd-modal-row-2" style="margin-bottom:10px;">
+      <div>
+        <label class="cmd-modal-label">CPF</label>
+        <input type="text" id="cli-cpf" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="000.000.000-00" autocomplete="off">
+      </div>
+      <div>
+        <label class="cmd-modal-label">RG</label>
+        <input type="text" id="cli-rg" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Opcional" autocomplete="off">
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label class="cmd-modal-label">Endereço</label>
+      <input type="text" id="cli-end" class="cmd-modal-input" style="margin-bottom:0;"
+        placeholder="Rua, número, bairro..." autocomplete="off">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="cmd-modal-label">Observações</label>
+      <textarea id="cli-obs" class="cmd-modal-input" rows="2" style="margin-bottom:0;resize:vertical;"
+        placeholder="Observações sobre o cliente..."></textarea>
+    </div>
+
+    <div style="font-size:11px;font-weight:bold;color:var(--text-muted);
+      letter-spacing:.08em;margin:0 0 10px;text-transform:uppercase;">Crédito</div>
+    <div class="cmd-modal-row-2" style="margin-bottom:10px;">
+      <div>
+        <label class="cmd-modal-label">Limite de Crédito (R$) <span style="color:#f87171">*</span></label>
+        <input type="number" id="cli-limite" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Ex: 300.00" step="0.01" min="0">
+      </div>
+      <div>
+        <label class="cmd-modal-label">Todo dia (vencimento)</label>
+        <input type="number" id="cli-dia" class="cmd-modal-input" style="margin-bottom:0;"
+          placeholder="Ex: 10" min="1" max="31">
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="cmd-modal-label">Próximo Vencimento</label>
+      <input type="date" id="cli-venc" class="cmd-modal-input" style="margin-bottom:0;">
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label class="cmd-modal-label">Local do cliente <span style="color:#f87171">*</span></label>
+      <select id="cli-local" class="cmd-modal-input" style="margin-bottom:0;">
+        {% for l in locais_estoque %}<option value="{{ l.id }}">{{ l.nome }}</option>{% endfor %}
+      </select>
+    </div>
+    <div id="cli-erro" style="display:none;color:#f87171;font-size:13px;margin-bottom:10px;"></div>
+    <div class="cmd-modal-row">
+      <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalCliente()">Cancelar</button>
+      <button type="button" class="cmd-modal-btn-submit" onclick="salvarCliente()" id="cli-btn-salvar">
+        Salvar Cliente
+      </button>
     </div>
   </div>
 </div>
@@ -479,16 +717,18 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span class="pt-dot {{ 'on' if caixa_aberto else 'off' }}"></span>
+          <span class="pt-dot {{ 'on' if caixas_menu|selectattr('aberto')|list else 'off' }}"></span>
         </button>
         <div class="pt-dropdown" id="pt-dropdown">
-          {% if caixa_aberto %}
-          <a href="{{ url_for('caixa_turno') }}" class="pt-status aberto">🟢 Caixa Aberto</a>
-          <a href="{{ url_for('caixa_fechar') }}" class="pt-acao">🔒 Fechar Caixa</a>
+          {% for cm in caixas_menu %}
+          {% if cm.aberto %}
+          <a href="{{ url_for('caixa_turno', local=cm.id) }}" class="pt-status aberto">🟢 {{ cm.nome }} — Aberto</a>
+          <a href="{{ url_for('caixa_fechar', local=cm.id) }}" class="pt-acao">🔒 Fechar Caixa</a>
           {% else %}
-          <span class="pt-status fechado">🔴 Caixa Fechado</span>
-          <a href="{{ url_for('caixa_abrir') }}" class="pt-acao">🔓 Abrir Caixa</a>
+          <span class="pt-status fechado">🔴 {{ cm.nome }} — Fechado</span>
+          <a href="{{ url_for('caixa_abrir', local=cm.id) }}" class="pt-acao">🔓 Abrir Caixa</a>
           {% endif %}
+          {% endfor %}
         </div>
       </div>
       {% endif %}
@@ -610,12 +850,10 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
             Fechar Venda
           </button>
-          {% if comandas_abertas %}
           <button type="button" class="btn-enviar-comanda" onclick="abrirModalComanda()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             Enviar para comanda
           </button>
-          {% endif %}
           <p class="finalizar-hint">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             Ao finalizar, os itens serão baixados do estoque.
@@ -666,6 +904,9 @@ var PRODUTOS = [
     tipo:     'estoque',
     nome:     p.nome || '',
     preco:    parseFloat(p.valor_venda) || 0,
+    precoPadrao: parseFloat(p.valor_venda) || 0,
+    precosLocal: p.precos_local || {},
+    qtdLocal: p.qtd_por_local || {},
     estoque:  p.quantidade,
     categoria:(p.categoria || '').trim(),
     cv:       parseFloat(p.conteudo_valor) || 0,
@@ -676,6 +917,8 @@ var PRODUTOS = [
     tipo:  'bar',
     nome:  d.name || '',
     preco: parseFloat(d.sale_price) || 0,
+    precoPadrao: parseFloat(d.sale_price) || 0,
+    precosLocal: d.precos_local || {},
     estoque: null,
     categoria: (d.category || '').trim()
   }))
@@ -684,6 +927,45 @@ PRODUTOS.sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
 const PRODUTOS_MAP = {};
 PRODUTOS.forEach(p => { PRODUTOS_MAP[p.tipo+':'+p.id] = p; });
+
+/* ── LOCAL DA VENDA ── */
+const LOCAL_PRINCIPAL = {{ (local_padrao or "loja")|tojson }};
+function localVenda(){ return (document.getElementById('local_id_venda') || {}).value || LOCAL_PRINCIPAL; }
+function nomeLocalVenda(){
+  const sel = document.getElementById('local_id_venda');
+  return sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : '';
+}
+// Fora do local principal (ex.: Escritório) só vende o que tem lote lá.
+function localRestrito(){ return localVenda() !== LOCAL_PRINCIPAL; }
+
+/* ── PREÇO POR LOCAL ── */
+// Cada produto/pacote pode ter preço próprio no local; sem ele, vale o padrão.
+function precoNoLocal(p){
+  const local = (document.getElementById('local_id_venda') || {}).value;
+  const v = parseFloat((p.precosLocal || {})[local]);
+  return v > 0 ? v : p.precoPadrao;
+}
+// Atualiza os cards e os itens do carrinho cujo preço não foi editado à mão.
+function aplicarPrecosLocal(rerender){
+  PRODUTOS.forEach(p => { p.preco = precoNoLocal(p); });
+  if (!rerender) return;
+  carrinho.forEach(item => {
+    const p = PRODUTOS_MAP[item.tipo + ':' + item.id];
+    if (p && !item.precoManual) item.preco = p.preco;
+  });
+  renderGrade();
+  renderCarrinho();
+  if (localRestrito()) {
+    const semSaldo = carrinho.filter(i => i.tipo === 'estoque' && i.qtd > (limiteEstoque(PRODUTOS_MAP['estoque:' + i.id]) || 0));
+    if (semSaldo.length) cvlNotif('Sem estoque no ' + nomeLocalVenda(),
+      'Ajuste ou remova do carrinho: ' + semSaldo.map(i => i.nome).join(', ') + '.');
+  }
+}
+aplicarPrecosLocal(false);
+(function(){
+  const sel = document.getElementById('local_id_venda');
+  if (sel) sel.addEventListener('change', () => aplicarPrecosLocal(true));
+})();
 
 const COMPONENTES_MAP = {};
 _drinks.forEach(d => {
@@ -748,30 +1030,31 @@ function renderGrade(){
     return;
   }
   grade.innerHTML = lista.map(p => {
-    let semEstoque = false;
+    // O card nunca fica bloqueado por falta de estoque — tocar sempre segue
+    // pro fluxo de adicionarAoCarrinho()/adicionarPacoteAoCarrinho(), que já
+    // decide se adiciona direto ou pergunta "continuar mesmo assim?". O
+    // badge de estoque aqui é só indicativo (fica vermelho quando zerado).
     let estoqueLabel = '';
-    if (p.tipo === 'estoque' && p.estoque != null) {
-      const qtd = parseInt(p.estoque) || 0;
+    let indisponivel = false;
+    if (p.tipo === 'estoque' && (p.estoque != null || localRestrito())) {
+      const qtd = limiteEstoque(p) || 0;
       const cls = qtd <= 0 ? 'zero' : (qtd <= 5 ? 'baixo' : '');
-      estoqueLabel = `<span class="prod-card-estoque ${cls}">${qtd} un.</span>`;
-      semEstoque = qtd <= 0;
+      indisponivel = localRestrito() && qtd <= 0;
+      estoqueLabel = indisponivel
+        ? `<span class="prod-card-estoque zero">sem estoque no ${nomeLocalVenda()}</span>`
+        : `<span class="prod-card-estoque ${cls}">${qtd} un.</span>`;
     } else if (p.tipo === 'bar') {
       // Quantas unidades desse pacote ainda dá pra fazer com o estoque atual
-      // dos ingredientes (mesma checagem já usada pra bloquear/avisar na
-      // hora de adicionar ao carrinho).
+      // dos ingredientes (mesma checagem já usada no fluxo de adicionar).
       const check = checarEstoquePacote(p);
       if (isFinite(check.minDisponivel)) {
         const qtd = Math.max(check.minDisponivel, 0);
         const cls = qtd <= 0 ? 'zero' : (qtd <= 5 ? 'baixo' : '');
         estoqueLabel = `<span class="prod-card-estoque ${cls}">${qtd} un.</span>`;
-        // Só bloqueia o card (sem toque) quando é ingrediente único zerado —
-        // com vários ingredientes, continua tocável pro fluxo de "continuar
-        // mesmo assim" mesmo em 0.
-        semEstoque = qtd <= 0 && check.totalIngredientes <= 1;
       }
     }
     return `
-      <div class="prod-card ${semEstoque?'sem-estoque':''}" data-key="${p.tipo}:${p.id}">
+      <div class="prod-card${indisponivel ? ' prod-card-indisponivel' : ''}" data-key="${p.tipo}:${p.id}">
         <div class="prod-card-nome">${p.nome}</div>
         <div class="prod-card-footer">
           <span class="prod-card-preco">${fmtBR(p.preco)}</span>
@@ -785,7 +1068,7 @@ function filtrarGrade(){ renderGrade(); }
 
 document.getElementById('pv-grade').addEventListener('click', function(e){
   const card = e.target.closest('.prod-card');
-  if (!card || card.classList.contains('sem-estoque')) return;
+  if (!card) return;
   const p = PRODUTOS_MAP[card.dataset.key];
   if (p) adicionarAoCarrinho(p);
 });
@@ -793,9 +1076,12 @@ document.getElementById('pv-grade').addEventListener('click', function(e){
 /* ── CARRINHO ── */
 let carrinho = []; // {id, tipo, nome, preco, qtd, vpc}
 
-// Limite de estoque de um produto tipo 'estoque' (null = sem limite, ex: pacotes do bar)
+// Limite de estoque de um produto tipo 'estoque' (null = sem limite, ex: pacotes do bar).
+// Fora do local principal, conta só o saldo daquele local.
 function limiteEstoque(produto){
-  return (produto && produto.tipo === 'estoque' && produto.estoque != null) ? parseInt(produto.estoque) || 0 : null;
+  if (!produto || produto.tipo !== 'estoque') return null;
+  if (localRestrito()) return Math.floor(parseFloat((produto.qtdLocal || {})[localVenda()]) || 0);
+  return produto.estoque != null ? parseInt(produto.estoque) || 0 : null;
 }
 
 // Pra pacotes (tipo 'bar'): calcula, pra cada ingrediente, quantas unidades
@@ -822,20 +1108,38 @@ function checarEstoquePacote(produtoBar){
   return { minDisponivel, problemas, totalIngredientes: comps.length };
 }
 
-// Bloqueia (pacote de 1 ingrediente só, esgotado) ou pergunta se quer
-// continuar mesmo assim (vários ingredientes, algum insuficiente). Retorna
-// true quando pode seguir direto (sem problema de estoque).
+// Pergunta se quer continuar mesmo assim quando algum ingrediente do pacote
+// tá com pouco/nenhum estoque (vale pra pacote de 1 ingrediente também —
+// mesmo tratamento dado a produto normal, ver validarEstoqueProduto).
+// Retorna true quando pode seguir direto (sem problema de estoque).
 function validarEstoquePacote(produto, qtdFutura, onConfirmarIgnorar){
   const check = checarEstoquePacote(produto);
   if (!isFinite(check.minDisponivel) || check.minDisponivel >= qtdFutura) return true;
-  if (check.totalIngredientes <= 1) {
-    cvlNotif('Produto esgotado', `"${produto.nome}" não pode ser vendido: ${check.problemas[0] || 'ingrediente'} sem estoque suficiente.`);
-    return false;
-  }
   const listaProblemas = check.problemas.length ? check.problemas.join(', ') : 'um ou mais ingredientes';
   showConfirm(
     'Estoque insuficiente',
     `Este pacote tem ingrediente(s) com pouco ou nenhum estoque: ${listaProblemas}. Deseja continuar mesmo assim?`,
+    onConfirmarIgnorar,
+    'warn'
+  );
+  return false;
+}
+
+// Mesma ideia pra produto normal (tipo 'estoque'): em vez de bloquear
+// direto, pergunta se quer continuar mesmo assim sem estoque suficiente.
+function validarEstoqueProduto(produto, qtdFutura, onConfirmarIgnorar){
+  const limite = limiteEstoque(produto);
+  if (limite == null || qtdFutura <= limite) return true;
+  if (localRestrito()) {
+    // sem "continuar mesmo assim" fora do local principal
+    cvlNotif('Sem estoque no ' + nomeLocalVenda(),
+      limite <= 0 ? `"${produto.nome}" não tem lote registrado no ${nomeLocalVenda()}.`
+                  : `"${produto.nome}" tem só ${limite} unidade${limite===1?'':'s'} no ${nomeLocalVenda()}.`);
+    return false;
+  }
+  showConfirm(
+    'Estoque insuficiente',
+    `"${produto.nome}" tem só ${limite} unidade${limite===1?'':'s'} disponível${limite===1?'':'is'}. Deseja continuar mesmo assim?`,
     onConfirmarIgnorar,
     'warn'
   );
@@ -847,23 +1151,30 @@ function adicionarAoCarrinho(produto){
     adicionarPacoteAoCarrinho(produto, false);
     return;
   }
-  const limite = limiteEstoque(produto);
-  if (limite != null && limite <= 0) {
-    cvlNotif('Sem estoque disponível', `"${produto.nome}" está com 0 unidades em estoque e não pode ser adicionado à venda.`);
-    return;
-  }
+  adicionarEstoqueAoCarrinho(produto, false);
+}
+
+function adicionarEstoqueAoCarrinho(produto, forcarIgnorarEstoque){
   // Linhas com receita customizada nunca recebem incremento automático —
   // tocar o card de novo depois de trocar um ingrediente cria uma linha
   // nova (padrão), em vez de somar na linha já personalizada.
   const existente = carrinho.find(i => i.tipo === produto.tipo && i.id === produto.id && !i.receita);
-  if (existente) {
-    if (limite != null && existente.qtd + 1 > limite) {
-      cvlNotif('Estoque insuficiente', `"${produto.nome}" tem só ${limite} unidade${limite===1?'':'s'} disponível${limite===1?'':'is'} — o carrinho já tem ${existente.qtd}.`);
-      return;
-    }
+  // Linha já confirmada "continuar mesmo assim" antes — não pergunta de novo
+  // a cada unidade extra da mesma linha.
+  if (existente && existente.ignorarEstoque) {
     existente.qtd += 1;
+    renderCarrinho();
+    return;
+  }
+  const qtdFutura = (existente ? existente.qtd : 0) + 1;
+  if (!forcarIgnorarEstoque && !validarEstoqueProduto(produto, qtdFutura, function(){ adicionarEstoqueAoCarrinho(produto, true); })) {
+    return;
+  }
+  if (existente) {
+    existente.qtd += 1;
+    if (forcarIgnorarEstoque) existente.ignorarEstoque = true;
   } else {
-    carrinho.push({ id: produto.id, tipo: produto.tipo, nome: produto.nome, preco: produto.preco, qtd: 1, vpc: '0', receita: null });
+    carrinho.push({ id: produto.id, tipo: produto.tipo, nome: produto.nome, preco: produto.preco, qtd: 1, vpc: '0', receita: null, ignorarEstoque: !!forcarIgnorarEstoque });
   }
   renderCarrinho();
 }
@@ -902,11 +1213,11 @@ function alterarQtd(idx, delta){
         }
       }
     } else {
-      const produto = PRODUTOS_MAP[item.tipo+':'+item.id];
-      const limite = limiteEstoque(produto);
-      if (limite != null && item.qtd + delta > limite) {
-        cvlNotif('Estoque insuficiente', `"${item.nome}" tem só ${limite} unidade${limite===1?'':'s'} disponível${limite===1?'':'is'}.`);
-        return;
+      if (!item.ignorarEstoque) {
+        const produto = PRODUTOS_MAP[item.tipo+':'+item.id];
+        if (!validarEstoqueProduto(produto, item.qtd + delta, function(){ item.ignorarEstoque = true; item.qtd += delta; renderCarrinho(); })) {
+          return;
+        }
       }
     }
   }
@@ -919,6 +1230,7 @@ function alterarPreco(idx, valor){
   if (!carrinho[idx]) return;
   const v = parseFloat(valor) || 0;
   carrinho[idx].preco = v;
+  carrinho[idx].precoManual = true;  // trocar de local não sobrescreve
   renderCarrinho();
 }
 
@@ -1208,10 +1520,19 @@ function renderReceitaModal(){
     body.innerHTML = '<p style="color:#666;font-size:13px;text-align:center;padding:12px 0;">Nenhum ingrediente cadastrado.</p>';
     return;
   }
-  body.innerHTML = piReceitaDraft.map((c, i) => `
+  body.innerHTML = piReceitaDraft.map((c, i) => {
+    const prodEstoque = PRODUTOS_MAP['estoque:' + c.component_id];
+    let estoqueLabel = '';
+    if (prodEstoque && prodEstoque.estoque != null) {
+      const qtd = parseInt(prodEstoque.estoque) || 0;
+      const cls = qtd <= 0 ? 'zero' : (qtd <= 5 ? 'baixo' : '');
+      estoqueLabel = `<span class="prod-card-estoque ${cls}">${qtd} un. disponível</span>`;
+    }
+    return `
     <div class="pi-item">
       <div class="pi-item-main">
         <div class="pi-item-nome">${c.nome}</div>
+        ${estoqueLabel}
         <div class="pi-item-qtyrow">
           <input type="number" step="0.001" min="0" class="pi-qty-input" value="${c.quantidade}" onchange="alterarQtdIngrediente(${i}, this.value)">
           <input type="text" class="pi-unit-input" value="${c.unidade_uso || 'UN'}" onchange="alterarUnidadeIngrediente(${i}, this.value)">
@@ -1223,7 +1544,8 @@ function renderReceitaModal(){
       <input type="text" placeholder="Buscar produto do estoque..." oninput="buscarSubstituto(${i}, this.value)">
       <div class="pi-busca-lista" id="pi-busca-lista-${i}"></div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function alterarQtdIngrediente(i, valor){
@@ -1291,7 +1613,6 @@ document.getElementById('pi-overlay').addEventListener('click', function(e){
 /* ── ENVIAR PARA COMANDA ── */
 function abrirModalComanda(){
   if (!carrinho.length){ cvlNotif('Carrinho vazio', 'Adicione itens antes de enviar para uma comanda.'); return; }
-  if (!COMANDAS_ABERTAS.length){ cvlNotif('Nenhuma comanda aberta', 'Abra uma comanda antes de enviar itens pra ela.'); return; }
   document.getElementById('cm-busca').value = '';
   renderListaComandas(COMANDAS_ABERTAS);
   document.getElementById('cm-overlay').classList.add('open');
@@ -1338,6 +1659,218 @@ function enviarParaComanda(cid){
   `).join('');
   formC.action = `/comandas/${cid}/adicionar_lote`;
   formC.submit();
+}
+
+/* ── MODAL NOVA COMANDA (portado de comandas.html) ── */
+function novaTipo(tipo) {
+  const avulso = document.getElementById('form-nova-avulso');
+  const fiado  = document.getElementById('form-nova-fiado');
+  const lblA   = document.getElementById('lbl-avulso');
+  const lblF   = document.getElementById('lbl-fiado');
+  if (tipo === 'fiado') {
+    avulso.style.display = 'none';
+    fiado.style.display  = 'block';
+    lblF.style.borderColor = 'var(--accent)';
+    lblA.style.borderColor = 'var(--border)';
+    document.getElementById('fiado-busca').focus();
+  } else {
+    fiado.style.display  = 'none';
+    avulso.style.display = 'block';
+    lblA.style.borderColor = 'var(--accent)';
+    lblF.style.borderColor = 'var(--border)';
+    avulso.querySelector('input[name="nome"]').focus();
+  }
+}
+
+function abrirModalNova() {
+  const modal = document.getElementById('modal-nova');
+  modal.classList.add('open');
+  document.querySelector('input[name="_tipo_ui"][value="avulso"]').checked = true;
+  novaTipo('avulso');
+  document.getElementById('fiado-busca').value = '';
+  document.getElementById('fiado-cliente-id').value = '';
+  document.getElementById('fiado-sugestoes').style.display = 'none';
+  document.getElementById('fiado-painel').style.display = 'none';
+  document.getElementById('fiado-local-wrap').style.display = 'none';
+  document.getElementById('fiado-btn-abrir').disabled = true;
+  document.getElementById('fiado-btn-abrir').style.opacity = '.45';
+}
+
+function fecharModalNova() {
+  document.getElementById('modal-nova').classList.remove('open');
+}
+document.getElementById('modal-nova').addEventListener('click', function(e){ if (e.target === this) fecharModalNova(); });
+
+// Cria a comanda via fetch (em vez de deixar o form navegar pra /comandas)
+// e já manda o carrinho atual pra ela, reaproveitando enviarParaComanda().
+['form-nova-avulso', 'form-nova-fiado'].forEach(function(id){
+  document.getElementById(id).addEventListener('submit', function(e){
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const fd = new FormData(form);
+    fd.set('ajax', '1');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Abrindo...';
+    fetch('/comandas/nova', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false; btn.textContent = textoOriginal;
+        if (data.erro) { cvlNotif('Erro ao abrir comanda', data.erro); return; }
+        COMANDAS_ABERTAS.unshift(data);
+        fecharModalNova();
+        enviarParaComanda(data.cid);
+      })
+      .catch(() => {
+        btn.disabled = false; btn.textContent = textoOriginal;
+        cvlNotif('Erro de conexão', 'Não foi possível abrir a comanda. Tente novamente.');
+      });
+  });
+});
+
+/* ── Local do cliente fiado ── */
+// Na tela Comandas, se a lista estiver filtrada num local, a busca de cliente
+// fiado mostra só os clientes daquele local; senão, todos (com o local ao lado).
+function fiadoLocalFiltro(){
+  const f = document.getElementById('cmd-local-filtro');
+  return f ? f.value : '';
+}
+function fiadoNomeLocal(id){
+  const o = Array.from(document.getElementById('fiado-local').options).find(o => o.value === id);
+  return o ? o.text : id;
+}
+
+/* ── Autocomplete busca de clientes (fiado) ── */
+(function(){
+  const input    = document.getElementById('fiado-busca');
+  const lista    = document.getElementById('fiado-sugestoes');
+  const btnAbrir = document.getElementById('fiado-btn-abrir');
+  const inputId  = document.getElementById('fiado-cliente-id');
+
+  function fmt(v) { return v != null ? 'R$ ' + Number(v).toFixed(2).replace('.', ',') : '—'; }
+
+  function selecionarCliente(c) {
+    input.value = c.nome;
+    inputId.value = c.id;
+    // comanda fiado abre no local do cliente; só pergunta se ele não tiver local
+    const selLocal = document.getElementById('fiado-local');
+    if (c.local_id) selLocal.value = c.local_id;
+    document.getElementById('fiado-local-wrap').style.display = c.local_id ? 'none' : 'block';
+    lista.style.display = 'none';
+    btnAbrir.disabled = false;
+    btnAbrir.style.opacity = '1';
+    fetch('/clientes/' + c.id + '/info')
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('fiado-painel-nome').textContent = d.nome || '—';
+        document.getElementById('fiado-p-tel').textContent   = d.telefone || '—';
+        document.getElementById('fiado-p-limite').textContent = fmt(d.limite_credito);
+        document.getElementById('fiado-p-saldo').textContent  = fmt(d.saldo_utilizado);
+        document.getElementById('fiado-p-disp').textContent   = fmt(d.credito_disponivel);
+        document.getElementById('fiado-p-venc').textContent   = d.proximo_vencimento || '—';
+        document.getElementById('fiado-painel').style.display = 'block';
+      });
+  }
+
+  let debounce;
+  input.addEventListener('input', function() {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (!q) { lista.style.display = 'none'; return; }
+    debounce = setTimeout(() => {
+      fetch('/clientes/buscar?q=' + encodeURIComponent(q) + '&local=' + encodeURIComponent(fiadoLocalFiltro()))
+        .then(r => r.json())
+        .then(data => {
+          lista.innerHTML = '';
+          if (!data.length) { lista.style.display = 'none'; return; }
+          data.forEach(c => {
+            const li = document.createElement('li');
+            li.style.cssText = 'padding:8px 12px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);font-size:13px;';
+            li.innerHTML = '<strong>' + c.nome + '</strong>' + (c.telefone ? ' <span style="color:var(--text-muted);font-size:11px;">· ' + c.telefone + '</span>' : '')
+              + (c.local_id ? ' <span style="color:var(--accent);font-size:11px;">· ' + fiadoNomeLocal(c.local_id) + '</span>'
+                            : ' <span style="color:#facc15;font-size:11px;">· sem local definido</span>');
+            li.addEventListener('mousedown', e => { e.preventDefault(); selecionarCliente(c); });
+            li.addEventListener('mouseover', function(){ this.style.background='var(--accent-dim)'; });
+            li.addEventListener('mouseout',  function(){ this.style.background=''; });
+            lista.appendChild(li);
+          });
+          lista.style.display = 'block';
+        });
+    }, 250);
+  });
+  input.addEventListener('blur', () => setTimeout(() => { lista.style.display = 'none'; }, 200));
+  input.addEventListener('focus', function(){ if (input.value.trim()) input.dispatchEvent(new Event('input')); });
+})();
+
+/* ── Modal cadastrar cliente ── */
+function abrirModalCliente() {
+  // cliente novo já vem no local escolhido para a comanda
+  document.getElementById('cli-local').value = fiadoLocalFiltro() || document.getElementById('fiado-local').value;
+  document.getElementById('modal-cliente').classList.add('open');
+  document.getElementById('cli-nome').focus();
+  document.getElementById('cli-erro').style.display = 'none';
+}
+function fecharModalCliente() {
+  document.getElementById('modal-cliente').classList.remove('open');
+}
+document.getElementById('modal-cliente').addEventListener('click', function(e){ if (e.target === this) fecharModalCliente(); });
+
+function salvarCliente() {
+  const nome  = (document.getElementById('cli-nome').value || '').trim();
+  const tel   = (document.getElementById('cli-tel').value  || '').trim();
+  const erro  = document.getElementById('cli-erro');
+  if (!nome) { erro.textContent = 'Nome obrigatório.'; erro.style.display='block'; return; }
+  if (!tel)  { erro.textContent = 'Telefone obrigatório.'; erro.style.display='block'; return; }
+  erro.style.display = 'none';
+
+  const btn = document.getElementById('cli-btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+
+  const fd = new FormData();
+  fd.append('nome',               nome);
+  fd.append('apelido',            document.getElementById('cli-apelido').value || '');
+  fd.append('telefone',           tel);
+  fd.append('cpf',                document.getElementById('cli-cpf').value || '');
+  fd.append('rg',                 document.getElementById('cli-rg').value  || '');
+  fd.append('endereco',           document.getElementById('cli-end').value || '');
+  fd.append('observacoes',        document.getElementById('cli-obs').value || '');
+  fd.append('limite_credito',     document.getElementById('cli-limite').value || '0');
+  fd.append('dia_vencimento',     document.getElementById('cli-dia').value  || '');
+  fd.append('proximo_vencimento', document.getElementById('cli-venc').value || '');
+  fd.append('local_id',           document.getElementById('cli-local').value || '');
+
+  fetch('/clientes/novo', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false; btn.textContent = 'Salvar Cliente';
+      if (data.erro) { erro.textContent = data.erro; erro.style.display='block'; return; }
+      ['cli-nome','cli-apelido','cli-tel','cli-cpf','cli-rg','cli-end','cli-obs','cli-limite','cli-dia','cli-venc']
+        .forEach(id => { document.getElementById(id).value = ''; });
+      fecharModalCliente();
+      document.getElementById('fiado-busca').value = data.nome;
+      document.getElementById('fiado-cliente-id').value = data.id;
+      // a comanda vai pro local do cliente recém-cadastrado
+      if (data.local_id) document.getElementById('fiado-local').value = data.local_id;
+      document.getElementById('fiado-local-wrap').style.display = data.local_id ? 'none' : 'block';
+      document.getElementById('fiado-btn-abrir').disabled = false;
+      document.getElementById('fiado-btn-abrir').style.opacity = '1';
+      fetch('/clientes/' + data.id + '/info')
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById('fiado-painel-nome').textContent = d.nome || '—';
+          document.getElementById('fiado-p-tel').textContent   = d.telefone || '—';
+          document.getElementById('fiado-p-limite').textContent = 'R$ ' + Number(d.limite_credito||0).toFixed(2).replace('.',',');
+          document.getElementById('fiado-p-saldo').textContent  = 'R$ 0,00';
+          document.getElementById('fiado-p-disp').textContent   = 'R$ ' + Number(d.limite_credito||0).toFixed(2).replace('.',',');
+          document.getElementById('fiado-p-venc').textContent   = d.proximo_vencimento || '—';
+          document.getElementById('fiado-painel').style.display = 'block';
+        });
+    })
+    .catch(() => {
+      btn.disabled = false; btn.textContent = 'Salvar Cliente';
+      erro.textContent = 'Erro de conexão. Tente novamente.';
+      erro.style.display = 'block';
+    });
 }
 
 /* ── INICIALIZAÇÃO ── */

@@ -3,7 +3,7 @@
 
 <style>
 *{box-sizing:border-box}
-.cli{max-width:1300px;margin:0 auto;padding:24px 20px}
+.cli{flex:1;padding:24px 20px;display:flex;flex-direction:column}
 
 /* HEADER */
 .cli-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
@@ -17,7 +17,16 @@
 .cli-btn-primary:hover{opacity:.9;color:#000}
 
 /* SEARCH */
-.cli-search-wrap{position:relative;flex:1;margin-bottom:20px;max-width:420px}
+.cli-search-wrap{position:relative;flex:1;margin-bottom:12px;max-width:420px}
+.cli-locais{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.cli-local-btn{background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:20px;
+  padding:5px 14px;font-size:.8rem;font-weight:700;cursor:pointer}
+.cli-local-btn:hover{color:var(--text);border-color:var(--accent)}
+.cli-local-btn.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+.cli-local-btn .n{opacity:.7;margin-left:4px;font-weight:600}
+.cli-local-tag{display:inline-block;padding:2px 9px;border-radius:12px;font-size:.72rem;font-weight:700;
+  background:rgba(148,163,184,.12);border:1px solid var(--border);color:var(--text);white-space:nowrap}
+.cli-local-tag.sem{background:rgba(234,179,8,.12);border-color:rgba(234,179,8,.4);color:#facc15}
 .cli-search-wrap input{width:100%;padding:9px 36px 9px 12px;border-radius:8px;
   border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:.88rem;outline:none}
 .cli-search-wrap input:focus{border-color:var(--accent)}
@@ -144,9 +153,18 @@
           <input type="text" id="cli-apelido" class="cli-modal-input" placeholder="Como é chamado(a)" autocomplete="off">
         </div>
       </div>
-      <div style="margin-bottom:10px;">
-        <label class="cli-modal-label">Telefone *</label>
-        <input type="text" id="cli-tel" class="cli-modal-input" placeholder="(00) 00000-0000" autocomplete="off">
+      <div class="cli-modal-row-2" style="margin-bottom:10px;">
+        <div>
+          <label class="cli-modal-label">Telefone *</label>
+          <input type="text" id="cli-tel" class="cli-modal-input" placeholder="(00) 00000-0000" autocomplete="off">
+        </div>
+        <div>
+          <label class="cli-modal-label">Local *</label>
+          <select id="cli-local" class="cli-modal-input">
+            <option value="">Escolha…</option>
+            {% for l in locais_estoque %}<option value="{{ l.id }}">{{ l.nome }}</option>{% endfor %}
+          </select>
+        </div>
       </div>
       <div class="cli-modal-row-2" style="margin-bottom:10px;">
         <div>
@@ -212,6 +230,18 @@
     <input id="cli-busca" type="text" placeholder="Buscar por nome, telefone ou CPF..." autocomplete="off" oninput="filtrarClientes()">
   </div>
 
+  <!-- FILTRO POR LOCAL -->
+  <div class="cli-locais" id="cli-locais">
+    <button type="button" class="cli-local-btn ativo" data-local="" onclick="filtrarLocal(this)">Todos <span class="n">{{ clientes|length }}</span></button>
+    {% for l in locais_estoque %}
+    <button type="button" class="cli-local-btn" data-local="{{ l.id }}" onclick="filtrarLocal(this)">{{ l.nome }} <span class="n">{{ clientes|selectattr("local_id", "equalto", l.id)|list|length }}</span></button>
+    {% endfor %}
+    {% set qtd_sem_local = clientes|selectattr("local_id", "equalto", "")|list|length %}
+    {% if qtd_sem_local %}
+    <button type="button" class="cli-local-btn" data-local="__sem__" onclick="filtrarLocal(this)">Sem local <span class="n">{{ qtd_sem_local }}</span></button>
+    {% endif %}
+  </div>
+
   <!-- TABLE -->
   <div class="cli-table-card">
     <div class="cli-table-wrap">
@@ -220,6 +250,7 @@
           <tr>
             <th style="text-align:left">Cliente</th>
             <th>Telefone</th>
+            <th>Local</th>
             <th>Limite de Crédito</th>
             <th>Saldo Utilizado</th>
             <th>Crédito Disponível</th>
@@ -229,12 +260,13 @@
         </thead>
         <tbody id="tbodyClientes">
           {% for c in clientes %}
-          <tr class="cli-row" data-busca="{{ (c.nome ~ ' ' ~ c.apelido ~ ' ' ~ c.telefone ~ ' ' ~ c.cpf) | lower }}">
+          <tr class="cli-row" data-local="{{ c.local_id or '__sem__' }}" data-busca="{{ (c.nome ~ ' ' ~ c.apelido ~ ' ' ~ c.telefone ~ ' ' ~ c.cpf) | lower }}">
             <td>
               <div class="cli-nome">{{ c.nome }}</div>
               {% if c.apelido %}<div class="cli-apelido">{{ c.apelido }}</div>{% endif %}
             </td>
             <td>{{ c.telefone or '—' }}</td>
+            <td>{% if c.local_id %}<span class="cli-local-tag">{{ locais_nomes_map.get(c.local_id, c.local_id) }}</span>{% else %}<span class="cli-local-tag sem" title="Edite o cliente para definir o local">sem local</span>{% endif %}</td>
             <td>R$ {{ "%.2f"|format(c.limite_credito or 0)|replace(".", ",") }}</td>
             <td>R$ {{ "%.2f"|format(c.saldo_utilizado or 0)|replace(".", ",") }}</td>
             <td class="{{ 'cli-neg' if c.credito_disponivel < 0 else 'cli-pos' }}">
@@ -246,7 +278,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="cli-empty">Nenhum cliente cadastrado.</td></tr>
+          <tr><td colspan="8" class="cli-empty">Nenhum cliente cadastrado.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -278,10 +310,18 @@ JSON.parse(document.getElementById('data-clientes').textContent).forEach(c => { 
 function normaliza(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
 
 /* ── BUSCA (client-side) ── */
+let localFiltro = '';
+function filtrarLocal(btn){
+  document.querySelectorAll('.cli-local-btn').forEach(b => b.classList.toggle('ativo', b === btn));
+  localFiltro = btn.dataset.local;
+  filtrarClientes();
+}
 function filtrarClientes(){
   const termo = normaliza(document.getElementById('cli-busca').value);
   document.querySelectorAll('.cli-row').forEach(tr => {
-    tr.dataset.oculto = (termo && !normaliza(tr.dataset.busca).includes(termo)) ? '1' : '';
+    const foraBusca = termo && !normaliza(tr.dataset.busca).includes(termo);
+    const foraLocal = localFiltro && tr.dataset.local !== localFiltro;
+    tr.dataset.oculto = (foraBusca || foraLocal) ? '1' : '';
   });
   paginaAtual = 1;
   renderPag();
@@ -366,6 +406,8 @@ function preencherModal(c){
   document.getElementById('cli-limite').value = c ? (c.limite_credito || '') : '';
   document.getElementById('cli-dia').value = c ? (c.dia_vencimento || '') : '';
   document.getElementById('cli-venc').value = c ? (c.proximo_vencimento || '') : '';
+  // cliente novo já vem com o local do filtro selecionado (se houver)
+  document.getElementById('cli-local').value = c ? (c.local_id || '') : (localFiltro && localFiltro !== '__sem__' ? localFiltro : '');
   document.getElementById('cli-erro').style.display = 'none';
 }
 window.abrirNovo = function(){
@@ -389,6 +431,8 @@ window.salvarCliente = function(){
   const erro = document.getElementById('cli-erro');
   if (!nome) { erro.textContent='Nome obrigatório.'; erro.style.display='block'; return; }
   if (!tel)  { erro.textContent='Telefone obrigatório.'; erro.style.display='block'; return; }
+  const local = document.getElementById('cli-local').value;
+  if (!local) { erro.textContent='Escolha o local do cliente (Loja ou Escritório).'; erro.style.display='block'; return; }
   erro.style.display = 'none';
 
   const btn = document.getElementById('cli-btn-salvar');
@@ -406,6 +450,7 @@ window.salvarCliente = function(){
   fd.append('limite_credito', document.getElementById('cli-limite').value || '0');
   fd.append('dia_vencimento', document.getElementById('cli-dia').value || '');
   fd.append('proximo_vencimento', document.getElementById('cli-venc').value || '');
+  fd.append('local_id', local);
 
   const url = id ? ('/clientes/' + id + '/editar') : '/clientes/novo';
   fetch(url, { method: 'POST', body: fd })

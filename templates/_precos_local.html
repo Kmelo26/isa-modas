@@ -1,0 +1,26 @@
+{# Campo "Preço no Escritório" (um por local que não é o principal) dos
+   formulários de produto e pacote. Vazio = vendas lá usam o preço principal.
+   permitidos: locais liberados (produto com lote registrado lá); None = todos.
+   Campo bloqueado vai "disabled" (não é enviado) e o servidor ignora. #}
+{% macro campos_preco_local(locais, precos=None, readonly=false, classe="cp-field", permitidos=None, local_principal="loja") %}
+{% set precos = precos if precos is mapping else {} %}
+{% for l in locais if l.id != local_principal %}
+{% set liberado = permitidos is none or l.id in permitidos %}
+<div class="{{ classe }}" style="grid-column:1/-1;">
+  <label for="preco_local_{{ l.id }}">Preço no {{ l.nome }} <span style="font-weight:400;">(opcional)</span></label>
+  <input type="number" step="0.01" min="0" name="preco_local_{{ l.id }}" id="preco_local_{{ l.id }}"
+         class="campo-preco-local" data-local="{{ l.id }}"
+         value="{{ '%.2f'|format(precos[l.id]|float) if precos.get(l.id) else '' }}"
+         placeholder="usa o preço principal"
+         {% if readonly %}readonly title="Você não tem permissão para alterar o preço de venda."{% endif %}
+         {% if not liberado %}disabled{% endif %}>
+  <div id="preco_local_{{ l.id }}_aviso" style="font-size:.75rem;margin-top:4px;color:{{ 'var(--text-muted)' if liberado else '#facc15' }};">
+    {%- if liberado -%}
+      Toda venda no {{ l.nome }} usa este valor. Deixe vazio para usar o preço principal.
+    {%- else -%}
+      Só dá para definir depois que o produto tiver um lote registrado no {{ l.nome }}.
+    {%- endif -%}
+  </div>
+</div>
+{% endfor %}
+{% endmacro %}

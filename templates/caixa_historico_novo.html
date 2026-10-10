@@ -2,7 +2,7 @@
 {% block conteudo %}
 <style>
 *{box-sizing:border-box}
-.cx{max-width:1300px;margin:0 auto;padding:24px 20px;font-family:inherit}
+.cx{flex:1;padding:24px 20px;font-family:inherit;display:flex;flex-direction:column}
 
 /* HEADER */
 .cx-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px}
@@ -623,7 +623,7 @@ function renderDetail(cid) {
       <div class="cx-row2"><span class="cx-row2-lbl">💵 Dinheiro</span><span class="cx-row2-val">${brl(s.total_dinheiro)}</span></div>
       <div class="cx-row2"><span class="cx-row2-lbl">PIX</span><span class="cx-row2-val">${brl(s.total_pix)}</span></div>
       <div class="cx-row2"><span class="cx-row2-lbl">💳 Cartão</span><span class="cx-row2-val">${brl((parseFloat(s.total_cartao_cred)||0)+(parseFloat(s.total_cartao_deb)||0))}</span></div>
-      <div class="cx-row2"><span class="cx-row2-lbl">📒 Fiado</span><span class="cx-row2-val" style="color:#fbbf24">${brl(s.total_fiado)}</span></div>
+      <div class="cx-row2"><span class="cx-row2-lbl">📒 Faturado</span><span class="cx-row2-val" style="color:#fbbf24">${brl(s.total_fiado)}</span></div>
       <div class="cx-row2 cx-row2-total"><span class="cx-row2-lbl">Total Vendido</span><span class="cx-row2-val">${brl(s.total_vendas)}</span></div>
     </div>
 

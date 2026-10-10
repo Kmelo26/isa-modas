@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% block conteudo %}
+{% include "_fornecedores_comum.html" %}
+
+{% set r = fornecedor.resumo %}
+<style>
+.fd-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--border);
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.fd-info>div{background:var(--card-bg);padding:12px 14px;min-width:0}
+.fd-info .val{font-size:.9rem;color:var(--text);font-weight:600;overflow-wrap:anywhere}
+.fd-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:16px}
+.fd-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:16px;border:1px solid var(--border);
+  background:var(--card-bg);font-size:.76rem;color:var(--text)}
+.fd-chip button{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:0 4px}
+.fd-chip button:hover{color:#f87171}
+.fd-filtro{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fd-filtro label{font-size:.8rem;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.fd-sel{position:sticky;bottom:12px;z-index:5;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  margin:0 0 16px;padding:12px 16px;border-radius:12px;background:var(--card-bg);border:1px solid var(--accent);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.fd-sel.on{display:flex}
+.compra{border-bottom:1px solid var(--border)}
+.compra:last-child{border-bottom:none}
+.compra>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:110px 1fr auto auto;gap:12px;align-items:center;padding:14px 16px}
+.compra>summary::-webkit-details-marker{display:none}
+.compra>summary:hover{background:rgba(255,255,255,.03)}
+.compra[open]>summary{background:rgba(255,255,255,.03)}
+@media(max-width:600px){.compra>summary{grid-template-columns:1fr auto}}
+.compra-corpo{padding:4px 16px 16px}
+.compra-corpo h4{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px}
+.compra-corpo .fn-table{min-width:520px}
+.compra-rodape{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.parc-tabela{width:100%;border-collapse:collapse;margin-top:8px}
+.parc-tabela th{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;text-align:left;padding:6px 6px 6px 0}
+.parc-tabela td{padding:4px 6px 4px 0}
+.parc-tabela .fn-input{width:100%}
+#mcAviso{font-size:.8rem;margin-top:6px}
+</style>
+
+<div class="fn">
+  <a class="fn-voltar" href="{{ url_for('fornecedores_home', aba='fornecedores') }}">← Fornecedores</a>
+  <div class="fn-header">
+    <h1>{{ fornecedor.nome }} {% if not fornecedor.ativo %}<span class="badge inativo">inativo</span>{% endif %}</h1>
+    {% if pode_gerenciar %}
+    <button type="button" class="fn-btn" onclick='abrirModalFornecedor("{{ url_for("fornecedor_editar", fid=fornecedor.id) }}", {{ {
+        "id": fornecedor.id, "nome": fornecedor.nome, "cnpj": fornecedor.cnpj, "telefone": fornecedor.telefone,
+        "contato": fornecedor.contato, "email": fornecedor.email, "chave_pix": fornecedor.chave_pix,
+        "forma_pagamento_padrao": fornecedor.forma_pagamento_padrao, "prazo_dias_padrao": fornecedor.prazo_dias_padrao,
+        "observacoes": fornecedor.observacoes, "ativo": fornecedor.ativo}|tojson }}, [])'>✏️ Editar dados</button>
+    {% endif %}
+  </div>
+
+  {% if erro %}<div class="fn-alerta erro">⚠️ {{ erro }}</div>{% endif %}
+  {% if msg %}<div class="fn-alerta ok">✓ {{ msg }}</div>{% endif %}
+
+  <div class="fd-info">
+    <div><div class="kpi-label">CNPJ / CPF</div><div class="val">{{ fornecedor.cnpj or "—" }}</div></div>
+    <div><div class="kpi-label">Telefone</div><div class="val">{{ fornecedor.telefone or "—" }}</div></div>
+    <div><div class="kpi-label">Contato</div><div class="val">{{ fornecedor.contato or "—" }}</div></div>
+    <div><div class="kpi-label">E-mail</div><div class="val">{{ fornecedor.email or "—" }}</div></div>
+    <div><div class="kpi-label">Chave Pix</div><div class="val">{% if fornecedor.chave_pix %}{{ fornecedor.chave_pix }} <a href="#" onclick="navigator.clipboard&&navigator.clipboard.writeText({{ fornecedor.chave_pix|tojson|forceescape }});this.textContent='copiado ✓';return false;" style="color:var(--accent);font-size:.75rem;">copiar</a>{% else %}—{% endif %}</div></div>
+    <div><div class="kpi-label">Pagamento padrão</div><div class="val">{{ formas_pagamento.get(fornecedor.forma_pagamento_padrao, "—") }}{% if fornecedor.prazo_dias_padrao %} · {{ fornecedor.prazo_dias_padrao }} dias{% endif %}</div></div>
+    {% if fornecedor.observacoes %}<div style="grid-column:1/-1;"><div class="kpi-label">Observações</div><div class="val" style="font-weight:400;">{{ fornecedor.observacoes }}</div></div>{% endif %}
+  </div>
+
+  {% if fornecedor.apelidos %}
+  <div class="fd-chips">
+    <span class="fn-sub">Nomes juntados neste fornecedor:</span>
+    {% for a in fornecedor.apelidos %}
+    <span class="fd-chip" style="padding-right:10px;">{{ a }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="fn-kpis">
+    <div class="kpi">
+      <div class="kpi-icon azul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+      <div class="kpi-info"><div class="kpi-label">Total comprado</div>
+        <div class="kpi-valor">R$ {{ "%.2f"|format(r.total_comprado)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{{ r.qtd_lotes }} lote(s) no total</div></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon laranja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+      <div class="kpi-info"><div class="kpi-label">Lotes sem compra</div>
+        <div class="kpi-valor">R$ {{ "%.2f"|format(r.sem_compra)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{{ r.qtd_sem_compra }} lote(s) sem pagamento registrado</div></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon vermelho"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+      <div class="kpi-info"><div class="kpi-label">Em aberto</div>
+        <div class="kpi-valor {% if r.tem_vencida %}vermelho{% endif %}">R$ {{ "%.2f"|format(r.em_aberto)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{% if r.proximo_vencimento %}próximo vencimento {{ r.proximo_vencimento|br_date }}{% else %}nada a pagar{% endif %}</div></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="kpi-info"><div class="kpi-label">Já pago</div>
+        <div class="kpi-valor verde">R$ {{ "%.2f"|format(r.pago)|replace(".", ",") }}</div>
+        <div class="kpi-sub">em {{ r.qtd_compras }} compra(s)</div></div>
+    </div>
+  </div>
+
+  <div class="fn-tabs">
+    <button type="button" class="fn-tab-btn" data-tab="compras" onclick="fnMudarAba('compras')">Compras e pagamentos <span class="cont">{{ compras|length }}</span></button>
+    <button type="button" class="fn-tab-btn" data-tab="lotes" onclick="fnMudarAba('lotes')">Lotes <span class="cont">{{ lotes|length }}</span></button>
+  </div>
+
+  <!-- COMPRAS -->
+  <div class="fn-tab" id="tab-compras">
+    <div class="fn-card">
+      {% for c in compras %}
+      <details class="compra" data-id="{{ c.id }}">
+        <summary>
+          <div><strong>{{ c.data_compra|br_date }}</strong>{% if c.numero_nota %}<div class="fn-sub">Nota {{ c.numero_nota }}</div>{% endif %}</div>
+          <div>
+            {{ c.lote_ids|length }} lote(s) · {{ formas_pagamento.get(c.forma_pagamento, c.forma_pagamento) }}
+            {% if c.parcelas|length > 1 %} · {{ c.parcelas|length }}x{% endif %}
+            {% if c.status != 'paga' and c.em_aberto %}<div class="fn-sub">em aberto: R$ {{ "%.2f"|format(c.em_aberto)|replace(".", ",") }}</div>{% endif %}
+          </div>
+          <div class="num"><strong>R$ {{ "%.2f"|format(c.valor_total)|replace(".", ",") }}</strong></div>
+          <div><span class="badge {{ c.status }}">{{ {'paga':'Paga','parcial':'Parcial','atrasada':'Atrasada','pendente':'A pagar'}[c.status] }}</span></div>
+        </summary>
+        <div class="compra-corpo">
+          <h4>Parcelas</h4>
+          <div class="fn-table-wrap">
+            <table class="fn-table">
+              <thead><tr><th>#</th><th>Vencimento</th><th class="num">Valor</th><th>Situação</th><th>Pagamento</th>{% if pode_gerenciar %}<th></th>{% endif %}</tr></thead>
+              <tbody>
+                {% for p in c.parcelas %}
+                <tr>
+                  <td>{{ p.n }}</td>
+                  <td>{{ p.vencimento|br_date }}</td>
+                  <td class="num">R$ {{ "%.2f"|format(p.valor)|replace(".", ",") }}</td>
+                  <td><span class="badge {{ p.status }}">{{ {'paga':'Paga','vencida':'Vencida','aberta':'Em aberto'}[p.status] }}</span></td>
+                  <td>{% if p.pago %}{{ p.data_pagamento|br_date }} · {{ formas_pagamento.get(p.forma_pago, p.forma_pago) }}{% if p.pago_por %}<div class="fn-sub">por {{ p.pago_por }}</div>{% endif %}{% else %}—{% endif %}</td>
+                  {% if pode_gerenciar %}
+                  <td class="acao">
+                    {% if p.pago %}
+                    <form method="post" action="{{ url_for('fornecedor_parcela_desfazer', cid=c.id, n=p.n) }}" onsubmit="return confirm('Desfazer o pagamento desta parcela?');" style="display:inline;">
+                      <button type="submit" class="fn-btn fn-btn-sm">Desfazer</button>
+                    </form>
+                    {% else %}
+                    <button type="button" class="fn-btn fn-btn-sm fn-btn-primary"
+                      data-acao="{{ url_for('fornecedor_parcela_pagar', cid=c.id, n=p.n) }}"
+                      data-resumo="{{ 'Parcela ' ~ p.n ~ '/' ~ (c.parcelas|length) ~ ' · R$ ' ~ ('%.2f'|format(p.valor)|replace('.', ',')) ~ ' · vence ' ~ (p.vencimento|br_date) }}"
+                      data-forma="{{ c.forma_pagamento }}"
+                      onclick="abrirModalPagar(this.dataset.acao, this.dataset.resumo, this.dataset.forma)">✓ Pagar</button>
+                    {% endif %}
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Lotes desta compra</h4>
+          <div class="fn-table-wrap">
+            <table class="fn-table">
+              <thead><tr><th>Entrada</th><th>Produto</th><th class="num">Qtd</th><th class="num">Valor</th></tr></thead>
+              <tbody>
+                {% for li in c.lotes %}
+                <tr>
+                  <td>{{ li.data_entrada|br_date }}</td>
+                  <td><a class="fn-link" href="{{ url_for('estoque_produto', pid=li.pid) }}">{{ li.produto_nome }}</a></td>
+                  <td class="num">{{ ("%.3f"|format(li.quantidade or 0)).rstrip("0").rstrip(".")|replace(".", ",") }}</td>
+                  <td class="num">R$ {{ "%.2f"|format(li.valor_total or 0)|replace(".", ",") }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="fn-sub">Os lotes desta compra foram removidos do estoque.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="compra-rodape">
+            <div class="fn-sub">
+              Soma dos lotes: R$ {{ "%.2f"|format(c.valor_lotes)|replace(".", ",") }}
+              {% if (c.valor_total - c.valor_lotes)|abs > 0.009 %} · ajuste (frete/desconto): R$ {{ "%.2f"|format(c.valor_total - c.valor_lotes)|replace(".", ",") }}{% endif %}
+              · registrada por {{ c.criado_por or "—" }} em {{ c.criado_em[:10]|br_date if c.criado_em else "—" }}
+              {% if c.observacoes %}<br>Obs.: {{ c.observacoes }}{% endif %}
+            </div>
+            {% if pode_gerenciar %}
+            <form method="post" action="{{ url_for('fornecedor_compra_remover', cid=c.id) }}" onsubmit="return confirm('Excluir esta compra? Os lotes dela ficam livres para outra compra.');">
+              <button type="submit" class="fn-btn fn-btn-sm fn-btn-perigo">Excluir compra</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </details>
+      {% else %}
+      <div class="fn-vazio">Nenhuma compra registrada.{% if pode_gerenciar and r.qtd_sem_compra %} Vá na aba <a href="#" onclick="fnMudarAba('lotes');return false;" style="color:var(--accent);">Lotes</a>, marque os lotes de uma entrega e clique em <strong>Registrar compra</strong>.{% endif %}</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- LOTES -->
+  <div class="fn-tab" id="tab-lotes">
+    <div class="fn-card">
+      <div class="fn-card-topo">
+        <form method="get" class="fd-filtro">
+          <input type="hidden" name="aba" value="lotes">
+          <label>De <input type="date" class="fn-input" name="data_ini" value="{{ data_ini_raw }}"></label>
+          <label>até <input type="date" class="fn-input" name="data_fim" value="{{ data_fim_raw }}"></label>
+          <button type="submit" class="fn-btn fn-btn-sm">Filtrar</button>
+          {% if r.ultima_compra %}
+          <a class="fn-btn fn-btn-sm {% if data_ini_raw == r.ultima_compra and data_fim_raw == r.ultima_compra %}fn-btn-primary{% endif %}"
+             href="{{ url_for('fornecedor_detalhe', fid=fornecedor.id, aba='lotes', data_ini=r.ultima_compra, data_fim=r.ultima_compra) }}">Última compra ({{ r.ultima_compra|br_date }})</a>
+          {% endif %}
+          {% if data_ini_raw or data_fim_raw %}<a class="fn-btn fn-btn-sm" href="{{ url_for('fornecedor_detalhe', fid=fornecedor.id, aba='lotes') }}">Limpar</a>{% endif %}
+        </form>
+        <div class="fd-filtro">
+          <label><input type="checkbox" id="soSemCompra"> só sem compra</label>
+          <input type="search" class="fn-input fn-busca" id="buscaLotes" placeholder="Buscar produto...">
+        </div>
+      </div>
+      {% if lotes %}
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr>
+            {% if pode_gerenciar %}<th style="width:36px;"><input type="checkbox" id="chkTodosLotes" title="Marcar os lotes livres visíveis"></th>{% endif %}
+            <th>Entrada</th><th>Produto</th><th class="num">Qtd</th><th class="num">Custo unit.</th><th class="num">Valor</th><th>Nome no lote</th><th>Compra</th>
+          </tr></thead>
+          <tbody>
+            {% for li in lotes %}
+            <tr class="linha-lote" data-busca="{{ li.produto_nome|lower }}" data-livre="{{ '0' if li.compra else '1' }}">
+              {% if pode_gerenciar %}
+              <td>{% if not li.compra %}<input type="checkbox" class="chk-lote" value="{{ li.id }}" data-valor="{{ li.valor_total or 0 }}" data-data="{{ li.data_entrada }}">{% endif %}</td>
+              {% endif %}
+              <td>{{ li.data_entrada|br_date }}</td>
+              <td><a class="fn-link" href="{{ url_for('estoque_produto', pid=li.pid) }}">{{ li.produto_nome }}</a>{% if li.criado_por %}<div class="fn-sub">por {{ li.criado_por }}</div>{% endif %}</td>
+              <td class="num">{{ ("%.3f"|format(li.quantidade or 0)).rstrip("0").rstrip(".")|replace(".", ",") }}</td>
+              <td class="num">R$ {{ "%.2f"|format(li.custo_unit or 0)|replace(".", ",") }}</td>
+              <td class="num"><strong>R$ {{ "%.2f"|format(li.valor_total or 0)|replace(".", ",") }}</strong></td>
+              <td class="fn-sub">{{ li.fornecedor }}</td>
+              <td>
+                {% if li.compra %}
+                <a href="#" onclick="abrirCompra('{{ li.compra.id }}');return false;" style="text-decoration:none;">
+                  <span class="badge {{ li.compra.status }}">{{ li.compra.data_compra|br_date }} · {{ {'paga':'paga','parcial':'parcial','atrasada':'atrasada','pendente':'a pagar'}[li.compra.status] }}</span>
+                </a>
+                {% else %}<span class="badge livre">sem compra</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="fn-pag-bar">
+        <div class="fn-exibir">Exibir
+          <select id="porPagLotes"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select>
+          registros · <span id="resumoLotes"></span></div>
+        <div class="fn-pages" id="pagLotes"></div>
+      </div>
+      {% else %}
+      <div class="fn-vazio">Nenhum lote {% if data_ini_raw or data_fim_raw %}neste período{% else %}deste fornecedor{% endif %}.</div>
+      {% endif %}
+    </div>
+
+    {% if pode_gerenciar %}
+    <div class="fd-sel" id="barraLotes">
+      <div><strong id="qtdLotesSel">0</strong> lote(s) selecionado(s) · <strong id="valorLotesSel">R$ 0,00</strong></div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="fn-btn fn-btn-sm" onclick="limparSelecaoLotes()">Limpar</button>
+        <button type="button" class="fn-btn fn-btn-sm fn-btn-primary" onclick="abrirModalCompra()">Registrar compra</button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if pode_gerenciar %}
+<!-- MODAL: registrar compra -->
+<div class="fn-overlay" id="modalCompra" onclick="if(event.target===this)fecharModal('modalCompra')">
+  <div class="fn-modal" style="max-width:600px;">
+    <form method="post" action="{{ url_for('fornecedor_compra_nova', fid=fornecedor.id) }}" id="formCompra" onsubmit="return validarCompra()">
+      <div id="mcLotes"></div>
+      <div class="fn-modal-header">
+        <span class="fn-modal-titulo">REGISTRAR COMPRA</span>
+        <button type="button" class="fn-modal-close" onclick="fecharModal('modalCompra')">✕</button>
+      </div>
+      <div class="fn-modal-body">
+        <p style="margin:0 0 14px;font-size:.88rem;"><span id="mcResumo"></span></p>
+        <div class="fn-row">
+          <div class="fn-campo"><label class="fn-label">Data da compra</label><input class="fn-input" type="date" name="data_compra" id="mcData" required></div>
+          <div class="fn-campo"><label class="fn-label">Nº da nota (opcional)</label><input class="fn-input" name="numero_nota" maxlength="60"></div>
+        </div>
+        <div class="fn-row">
+          <div class="fn-campo">
+            <label class="fn-label">Valor da compra</label>
+            <input class="fn-input" type="number" step="0.01" min="0.01" name="valor_total" id="mcValor" required oninput="gerarParcelas()">
+            <span class="fn-sub">Já vem com a soma dos lotes. Ajuste se teve frete ou desconto.</span>
+          </div>
+          <div class="fn-campo">
+            <label class="fn-label">Forma de pagamento</label>
+            <select class="fn-select" name="forma_pagamento" id="mcForma" required>
+              {% for k, v in formas_pagamento.items() %}<option value="{{ k }}" {% if k == fornecedor.forma_pagamento_padrao %}selected{% endif %}>{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="fn-row tres">
+          <div class="fn-campo"><label class="fn-label">Parcelas</label><input class="fn-input" type="number" min="1" max="24" value="1" id="mcQtdParc" oninput="gerarParcelas()"></div>
+          <div class="fn-campo"><label class="fn-label">1º vencimento</label><input class="fn-input" type="date" id="mcVenc1" oninput="gerarParcelas()"></div>
+          <div class="fn-campo"><label class="fn-label">Intervalo (dias)</label><input class="fn-input" type="number" min="1" max="120" value="30" id="mcIntervalo" oninput="gerarParcelas()"></div>
+        </div>
+        <table class="parc-tabela">
+          <thead><tr><th style="width:40px;">#</th><th>Vencimento</th><th>Valor (R$)</th></tr></thead>
+          <tbody id="mcParcelas"></tbody>
+        </table>
+        <div id="mcAviso"></div>
+        <div class="fn-campo" style="margin-top:12px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.86rem;cursor:pointer;">
+            <input type="checkbox" name="ja_paga" value="1" id="mcJaPaga"> Já foi paga (ex.: à vista no Pix ou dinheiro)
+          </label>
+        </div>
+        <div class="fn-campo"><label class="fn-label">Observações</label><textarea name="observacoes" maxlength="500"></textarea></div>
+      </div>
+      <div class="fn-modal-footer">
+        <button type="button" class="fn-btn" onclick="fecharModal('modalCompra')">Cancelar</button>
+        <button type="submit" class="fn-btn fn-btn-primary">Salvar compra</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+const PRAZO_PADRAO = {{ fornecedor.prazo_dias_padrao|int }};
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  fnMudarAba(params.get("aba") || ({{ 'true' if compras else 'false' }} ? "compras" : "lotes"));
+})();
+
+// ── Lotes: paginação, busca e filtro "só sem compra" ──
+const resumoLotes = document.getElementById("resumoLotes");
+let pagLotes = null;
+if (document.getElementById("pagLotes")) {
+  const soSem = document.getElementById("soSemCompra");
+  pagLotes = fnPaginador({
+    linhas: ".linha-lote", porPagina: "porPagLotes", paginas: "pagLotes", busca: "buscaLotes",
+    filtro: tr => !soSem.checked || tr.dataset.livre === "1",
+    aoRenderizar: vis => { resumoLotes.textContent = vis.length + " lote(s)"; },
+  });
+  soSem.addEventListener("change", () => pagLotes.recomecar());
+}
+
+// ── Seleção de lotes ──
+function lotesSelecionados(){ return Array.from(document.querySelectorAll(".chk-lote:checked")); }
+function atualizarBarraLotes(){
+  const barra = document.getElementById("barraLotes");
+  if (!barra) return;
+  const sel = lotesSelecionados();
+  const total = sel.reduce((s, c) => s + (parseFloat(c.dataset.valor) || 0), 0);
+  document.getElementById("qtdLotesSel").textContent = sel.length;
+  document.getElementById("valorLotesSel").textContent = fnMoeda(total);
+  barra.classList.toggle("on", sel.length > 0);
+}
+document.querySelectorAll(".chk-lote").forEach(c => c.addEventListener("change", atualizarBarraLotes));
+const chkTodosLotes = document.getElementById("chkTodosLotes");
+if (chkTodosLotes) chkTodosLotes.addEventListener("change", () => {
+  document.querySelectorAll(".linha-lote").forEach(tr => {
+    const c = tr.querySelector(".chk-lote");
+    if (c && tr.style.display !== "none") c.checked = chkTodosLotes.checked;
+  });
+  atualizarBarraLotes();
+});
+function limparSelecaoLotes(){
+  document.querySelectorAll(".chk-lote").forEach(c => c.checked = false);
+  if (chkTodosLotes) chkTodosLotes.checked = false;
+  atualizarBarraLotes();
+}
+
+function abrirCompra(cid){
+  fnMudarAba("compras");
+  const det = document.querySelector('.compra[data-id="' + cid + '"]');
+  if (det) { det.open = true; det.scrollIntoView({behavior: "smooth", block: "start"}); }
+}
+
+// ── Modal de compra ──
+function addDias(iso, dias){
+  const [a, m, d] = iso.split("-").map(Number);
+  const dt = new Date(a, m - 1, d + dias);
+  return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
+}
+function abrirModalCompra(){
+  const sel = lotesSelecionados();
+  if (!sel.length) return;
+  const total = sel.reduce((s, c) => s + (parseFloat(c.dataset.valor) || 0), 0);
+  const dataMaisRecente = sel.map(c => c.dataset.data).filter(Boolean).sort().pop() || fnHojeISO();
+  document.getElementById("mcResumo").innerHTML = "<strong>" + sel.length + " lote(s)</strong> · soma dos lotes " + fnMoeda(total);
+  document.getElementById("mcData").value = dataMaisRecente;
+  document.getElementById("mcValor").value = total.toFixed(2);
+  document.getElementById("mcQtdParc").value = 1;
+  document.getElementById("mcIntervalo").value = 30;
+  document.getElementById("mcVenc1").value = addDias(dataMaisRecente, PRAZO_PADRAO);
+  document.getElementById("mcJaPaga").checked = false;
+  const box = document.getElementById("mcLotes");
+  box.innerHTML = "";
+  sel.forEach(c => {
+    const i = document.createElement("input");
+    i.type = "hidden"; i.name = "lote_ids[]"; i.value = c.value;
+    box.appendChild(i);
+  });
+  gerarParcelas();
+  abrirModal("modalCompra");
+}
+// Divide o valor em parcelas iguais (centavos que sobram vão na última).
+function gerarParcelas(){
+  const valor = Math.round((parseFloat(document.getElementById("mcValor").value) || 0) * 100);
+  const n = Math.max(1, Math.min(24, parseInt(document.getElementById("mcQtdParc").value) || 1));
+  const venc1 = document.getElementById("mcVenc1").value || fnHojeISO();
+  const intervalo = Math.max(1, parseInt(document.getElementById("mcIntervalo").value) || 30);
+  const base = Math.floor(valor / n);
+  const corpo = document.getElementById("mcParcelas");
+  corpo.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const centavos = i === n - 1 ? valor - base * (n - 1) : base;
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td>' + (i + 1) + '</td>' +
+      '<td><input class="fn-input" type="date" name="parcela_vencimento[]" required value="' + addDias(venc1, i * intervalo) + '"></td>' +
+      '<td><input class="fn-input mc-parc-valor" type="number" step="0.01" min="0.01" name="parcela_valor[]" required value="' + (centavos / 100).toFixed(2) + '"></td>';
+    corpo.appendChild(tr);
+  }
+  corpo.querySelectorAll(".mc-parc-valor").forEach(i => i.addEventListener("input", conferirSoma));
+  conferirSoma();
+}
+function conferirSoma(){
+  const valor = parseFloat(document.getElementById("mcValor").value) || 0;
+  const soma = Array.from(document.querySelectorAll(".mc-parc-valor")).reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+  const aviso = document.getElementById("mcAviso");
+  const ok = Math.abs(soma - valor) <= 0.01;
+  aviso.innerHTML = ok ? '<span class="fn-verde">✓ Parcelas somam ' + fnMoeda(soma) + '</span>'
+                       : '<span class="fn-vermelho">As parcelas somam ' + fnMoeda(soma) + ', mas a compra é de ' + fnMoeda(valor) + '.</span>';
+  return ok;
+}
+function validarCompra(){
+  if (!conferirSoma()) { alert("A soma das parcelas precisa ser igual ao valor da compra."); return false; }
+  return true;
+}
+</script>
+{% endblock %}

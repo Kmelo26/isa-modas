@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_precos_local.html" import campos_preco_local %}
 {% block conteudo %}
 
 <style>
 /* ── Layout ── */
-.pf-wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+.pf-wrap { padding: 24px 16px 60px; flex: 1; display: flex; flex-direction: column; }
 
 .pf-back {
   display: inline-flex; align-items: center; gap: 6px;
@@ -320,6 +321,7 @@
             value="{{ '%.2f'|format(produto.sale_price) if produto else '' }}"
             oninput="calcular()">
         </div>
+        {{ campos_preco_local(locais_estoque, produto.precos_local if produto else None, false, "pf-field", None, local_padrao) }}
       </div>
 
       <!-- Summary boxes -->
@@ -605,7 +607,7 @@ function calcular() {
 
   const venda  = parseFloat(document.getElementById('sale_price').value || 0);
   const lucro  = venda - custo;
-  const margem = venda > 0 ? (lucro / venda) * 100 : 0;
+  const margem = custo > 0 ? (lucro / custo) * 100 : 0;
 
   document.getElementById('sum-custo').textContent  = fmt(custo);
   document.getElementById('sum-lucro').textContent  = fmtV(lucro);
@@ -629,7 +631,7 @@ function updateDonut(margem) {
   const dc = document.getElementById('donut-cost');
   dc.setAttribute('stroke-dasharray', costLen + ' ' + (CIRC - costLen));
   dc.setAttribute('stroke-dashoffset', -profitLen);
-  document.getElementById('donut-pct').textContent = clamped.toFixed(1) + '%';
+  document.getElementById('donut-pct').textContent = margem.toFixed(1) + '%';
 }
 
 function validarForm() {

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <style>
-.cx-page{max-width:720px;margin:24px auto;padding:16px;}
+.cx-page{flex:1;padding:16px;display:flex;flex-direction:column;}
 .cx-title{font-size:20px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
 .cx-sub{font-size:12px;color:var(--text-muted);margin-bottom:24px;}
 .cx-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
@@ -44,7 +44,7 @@
     <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_dinheiro) }}</span></div>
     <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_pix) }}</span></div>
     <div class="cx-row"><span class="cx-label">💳 Cartão Débito/Crédito</span><span class="cx-val">R$ {{ "%.2f"|format(sessao.total_cartao_cred + sessao.total_cartao_deb) }}</span></div>
-    <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(sessao.total_fiado) }}</span></div>
+    <div class="cx-row"><span class="cx-label">📒 Faturado</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(sessao.total_fiado) }}</span></div>
   </div>
 
   <!-- Comandas pagas neste caixa -->

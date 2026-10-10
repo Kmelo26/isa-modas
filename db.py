@@ -273,14 +273,38 @@ def get_product(pid: str) -> dict | None:
     return _fix_product(rows[0]) if rows else None
 
 
+def _sem_precos_local(dados: dict) -> dict:
+    return {k: v for k, v in dados.items() if k != "precos_local"}
+
+
+def _gravar_com_precos_local(gravar, dados: dict):
+    """Grava; se a coluna precos_local ainda não existir (schema_precos_local.sql
+    não rodado), grava de novo sem ela — o resto do produto não pode travar."""
+    try:
+        return gravar(dados)
+    except Exception as e:
+        if "precos_local" not in dados or "precos_local" not in str(e):
+            raise
+        return gravar(_sem_precos_local(dados))
+
+
+def precos_local_disponivel() -> bool:
+    """False enquanto schema_precos_local.sql não foi rodado no Supabase."""
+    try:
+        _sb().table("products").select("precos_local").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
 def insert_product(product: dict):
     if not product.get("codigo"):
         product["codigo"] = gerar_codigo_rastreio("E", product.get("data", ""))
-    _sb().table("products").insert(product).execute()
+    _gravar_com_precos_local(lambda d: _sb().table("products").insert(d).execute(), product)
 
 
 def update_product(product: dict):
-    _sb().table("products").update(product).eq("pid", product["pid"]).execute()
+    _gravar_com_precos_local(lambda d: _sb().table("products").update(d).eq("pid", product["pid"]).execute(), product)
 
 
 def delete_product(pid: str):
@@ -449,11 +473,25 @@ def insert_sales(sales: list[dict]):
     mudando no meio do caminho etc.)."""
     if not sales:
         return
+    # Busca codigo_produto em lote (até 2 consultas via .in_, uma em products
+    # e outra em bar_products) em vez de 1 consulta por linha da venda.
+    pids_estoque = {s["produto_pid"] for s in sales
+                    if s.get("produto_pid") and not s.get("codigo_produto") and s.get("produto_tipo", "estoque") != "bar"}
+    pids_bar = {s["produto_pid"] for s in sales
+                if s.get("produto_pid") and not s.get("codigo_produto") and s.get("produto_tipo") == "bar"}
+    codigos_map: dict[tuple[str, str], str | None] = {}
+    if pids_estoque:
+        rows = _sb().table("products").select("pid,codigo").in_("pid", list(pids_estoque)).execute().data or []
+        codigos_map.update({("estoque", r["pid"]): r.get("codigo") for r in rows})
+    if pids_bar:
+        rows = _sb().table("bar_products").select("id,codigo").in_("id", list(pids_bar)).execute().data or []
+        codigos_map.update({("bar", r["id"]): r.get("codigo") for r in rows})
     for sale in sales:
         if not sale.get("codigo"):
             sale["codigo"] = gerar_codigo_rastreio("V", sale.get("data", ""))
         if not sale.get("codigo_produto") and sale.get("produto_pid"):
-            sale["codigo_produto"] = _lookup_codigo_produto(sale["produto_pid"], sale.get("produto_tipo", "estoque"))
+            tipo = sale.get("produto_tipo", "estoque")
+            sale["codigo_produto"] = codigos_map.get((tipo, sale["produto_pid"]))
     try:
         _sb().table("sales").insert(sales).execute()
     except Exception as e:
@@ -649,9 +687,35 @@ def _fix_command(c: dict) -> dict:
     return c
 
 
+_COMMANDS_LISTA_OK = {"v": None}  # view commands_lista existe? (schema_comandas_lista.sql)
+
+
+def _tabela_lista_comandas() -> str:
+    """Listagens usam a view leve (sem consumo de estoque dos itens) quando
+    ela existe; senão, a tabela completa."""
+    if _COMMANDS_LISTA_OK["v"] is None:
+        try:
+            _sb().table("commands_lista").select("cid").limit(1).execute()
+            _COMMANDS_LISTA_OK["v"] = True
+        except Exception:
+            return "commands"  # tenta de novo na próxima (SQL pode ser rodado depois)
+    return "commands_lista" if _COMMANDS_LISTA_OK["v"] else "commands"
+
+
 def get_all_commands() -> list:
-    rows = _sb().table("commands").select("*").execute().data or []
-    return [_fix_command(c) for c in rows]
+    """Todas as comandas, SEM consumo_lotes/bar_consumo_components nos itens
+    (quando a view existe) — só pra leitura/somatórios. Pra alterar e salvar
+    uma comanda, use get_command(), que lê a comanda completa."""
+    all_rows = []
+    offset = 0
+    tabela = _tabela_lista_comandas()
+    while True:
+        batch = _sb().table(tabela).select("*").order("cid").range(offset, offset + 999).execute().data or []
+        all_rows.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    return [_fix_command(c) for c in all_rows]
 
 
 def get_commands_by_ids(cids: list) -> list:
@@ -663,6 +727,21 @@ def get_commands_by_ids(cids: list) -> list:
         return []
     rows = _sb().table("commands").select("*").in_("cid", cids).execute().data or []
     return [_fix_command(c) for c in rows]
+
+
+def get_comandas_abertas_resumo(status_list: list) -> list:
+    """Busca só um resumo enxuto (cid/nome/mesa/status/local_id) das comandas
+    num conjunto de status, em vez de get_all_commands() inteiro (tabela toda,
+    com os blobs de itens/histórico/pagamentos de TODA comanda, de qualquer
+    status) — usado onde só uma listinha rápida de comandas abertas é
+    necessária (ex: seletor de "enviar pra comanda" em Cadastrar Venda)."""
+    if not status_list:
+        return []
+    rows = (
+        _sb().table("commands").select("cid,nome,mesa,status,local_id")
+        .in_("status", status_list).execute().data or []
+    )
+    return rows
 
 
 def get_command(cid: str) -> dict | None:
@@ -834,7 +913,7 @@ def bar_get_product(pid: str) -> dict | None:
 def bar_insert_product(p: dict) -> str:
     if not p.get("codigo"):
         p["codigo"] = gerar_codigo_rastreio("P")
-    r = _sb().table("bar_products").insert(p).execute()
+    r = _gravar_com_precos_local(lambda d: _sb().table("bar_products").insert(d).execute(), p)
     return r.data[0]["id"] if r.data else ""
 
 
@@ -843,7 +922,7 @@ def bar_get_simple_products() -> list:
 
 
 def bar_update_product(pid: str, data: dict):
-    _sb().table("bar_products").update(data).eq("id", pid).execute()
+    _gravar_com_precos_local(lambda d: _sb().table("bar_products").update(d).eq("id", pid).execute(), data)
 
 
 def bar_delete_product(pid: str):
@@ -1049,7 +1128,13 @@ def _fix_cliente(c: dict) -> dict:
         c.setdefault("dia_vencimento", None)
         c.setdefault("proximo_vencimento", "")
         c.setdefault("data_cadastro", "")
+        c["local_id"] = c.get("local_id") or ""
     return c
+
+
+def _sem_coluna_local(e: Exception) -> bool:
+    """Erro de coluna local_id inexistente (schema_clientes_local.sql ainda não rodado)."""
+    return "local_id" in str(e)
 
 
 def get_all_clientes() -> list:
@@ -1064,14 +1149,24 @@ def get_cliente(cid: str) -> dict | None:
 
 def insert_cliente(c: dict):
     try:
-        _sb().table("clientes").insert(c).execute()
+        try:
+            _sb().table("clientes").insert(c).execute()
+        except Exception as e:
+            if not _sem_coluna_local(e):
+                raise
+            _sb().table("clientes").insert({k: v for k, v in c.items() if k != "local_id"}).execute()
     except Exception as e:
         raise RuntimeError(f"Erro ao cadastrar cliente: {e}") from e
 
 
 def update_cliente(c: dict):
     try:
-        _sb().table("clientes").update(c).eq("id", c["id"]).execute()
+        try:
+            _sb().table("clientes").update(c).eq("id", c["id"]).execute()
+        except Exception as e:
+            if not _sem_coluna_local(e):
+                raise
+            _sb().table("clientes").update({k: v for k, v in c.items() if k != "local_id"}).eq("id", c["id"]).execute()
     except Exception as e:
         raise RuntimeError(f"Erro ao atualizar cliente: {e}") from e
 
@@ -1229,6 +1324,114 @@ def marcar_lote_investimento_removido(lid: str):
         _sb().table("lote_investimentos").update({"removido": True}).eq("id", lid).execute()
     except Exception as e:
         raise RuntimeError(f"Erro ao remover investimento do lote: {e}") from e
+
+
+def update_fornecedor_lotes_investimento(lids: list, nome_fornecedor: str):
+    """Grava o mesmo nome de fornecedor em vários lotes (em blocos, pra não
+    estourar a URL do Supabase)."""
+    try:
+        for ini in range(0, len(lids), 150):
+            (_sb().table("lote_investimentos").update({"fornecedor": nome_fornecedor})
+             .in_("id", lids[ini:ini + 150]).execute())
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar fornecedor dos lotes: {e}") from e
+
+
+def update_lote_investimento(lid: str, campos: dict):
+    try:
+        _sb().table("lote_investimentos").update(campos).eq("id", lid).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar investimento do lote: {e}") from e
+
+
+# ==================== FORNECEDORES ====================
+# Tabelas criadas por schema_fornecedores.sql.
+
+def _fix_fornecedor(f: dict) -> dict:
+    if f:
+        if not isinstance(f.get("apelidos"), list):
+            f["apelidos"] = []
+        for campo in ("cnpj", "telefone", "contato", "email", "chave_pix",
+                      "forma_pagamento_padrao", "observacoes", "criado_por", "criado_em"):
+            f[campo] = f.get(campo) or ""
+        f["prazo_dias_padrao"] = int(f.get("prazo_dias_padrao") or 0)
+        f["ativo"] = f.get("ativo") is not False
+    return f
+
+
+def _fix_fornecedor_compra(c: dict) -> dict:
+    if c:
+        if not isinstance(c.get("lote_ids"), list):
+            c["lote_ids"] = []
+        if not isinstance(c.get("parcelas"), list):
+            c["parcelas"] = []
+        c["valor_lotes"] = float(c.get("valor_lotes") or 0)
+        c["valor_total"] = float(c.get("valor_total") or 0)
+        for campo in ("numero_nota", "forma_pagamento", "observacoes", "criado_por", "criado_em"):
+            c[campo] = c.get(campo) or ""
+        c["removida"] = bool(c.get("removida"))
+    return c
+
+
+def fornecedores_disponivel() -> bool:
+    """False enquanto schema_fornecedores.sql não foi rodado no Supabase."""
+    try:
+        _sb().table("fornecedores").select("id").limit(1).execute()
+        _sb().table("fornecedor_compras").select("id").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
+def get_all_fornecedores() -> list:
+    rows = _sb().table("fornecedores").select("*").order("nome").execute().data or []
+    return [_fix_fornecedor(f) for f in rows]
+
+
+def get_fornecedor(fid: str) -> dict | None:
+    rows = _sb().table("fornecedores").select("*").eq("id", fid).limit(1).execute().data or []
+    return _fix_fornecedor(rows[0]) if rows else None
+
+
+def insert_fornecedor(f: dict):
+    try:
+        _sb().table("fornecedores").insert(f).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao cadastrar fornecedor: {e}") from e
+
+
+def update_fornecedor(f: dict):
+    try:
+        _sb().table("fornecedores").update(f).eq("id", f["id"]).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar fornecedor: {e}") from e
+
+
+def get_all_fornecedor_compras(fornecedor_id: str | None = None) -> list:
+    q = _sb().table("fornecedor_compras").select("*").eq("removida", False)
+    if fornecedor_id:
+        q = q.eq("fornecedor_id", fornecedor_id)
+    rows = q.order("data_compra", desc=True).execute().data or []
+    return [_fix_fornecedor_compra(c) for c in rows]
+
+
+def get_fornecedor_compra(cid: str) -> dict | None:
+    rows = _sb().table("fornecedor_compras").select("*").eq("id", cid).limit(1).execute().data or []
+    return _fix_fornecedor_compra(rows[0]) if rows else None
+
+
+def insert_fornecedor_compra(c: dict):
+    try:
+        _sb().table("fornecedor_compras").insert(c).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao registrar compra: {e}") from e
+
+
+def update_fornecedor_compra(c: dict):
+    try:
+        _sb().table("fornecedor_compras").update(c).eq("id", c["id"]).execute()
+    except Exception as e:
+        raise RuntimeError(f"Erro ao atualizar compra: {e}") from e
 
 
 def tem_vinculos_investidor(investidor_id: str) -> bool:
@@ -1418,3 +1621,137 @@ def delete_categoria(nome: str):
         _sb().table("categorias").delete().eq("nome", nome).execute()
     except Exception as e:
         raise RuntimeError(f"Erro ao excluir categoria: {e}") from e
+
+
+# ==================== CACHE (desempenho) ====================
+# Cada consulta ao Supabase custa ~0,2 s só de ida e volta. Dados de
+# referência que quase não mudam (locais, usuários, categorias, pacotes)
+# ficam guardados em memória por alguns minutos e são descartados na hora
+# em que este processo grava algo neles. Com mais de um processo (gunicorn
+# com vários workers), outro processo enxerga a mudança em até `ttl`.
+# Comandas, vendas, caixa e estoque NÃO entram aqui — mudam o tempo todo.
+import copy as _copy
+import functools as _functools
+import threading as _threading
+
+_CACHE: dict = {}
+_CACHE_LOCK = _threading.Lock()
+
+
+def _cacheado(grupo: str, ttl: float):
+    def deco(fn):
+        @_functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            chave = (grupo, fn.__name__, args, tuple(sorted(kwargs.items())))
+            agora = time.monotonic()
+            with _CACHE_LOCK:
+                item = _CACHE.get(chave)
+            if item and agora - item[0] < ttl:
+                return _copy.deepcopy(item[1])  # quem chama pode alterar a cópia
+            valor = fn(*args, **kwargs)
+            with _CACHE_LOCK:
+                _CACHE[chave] = (agora, valor)
+            return _copy.deepcopy(valor)
+        return wrapper
+    return deco
+
+
+def invalidar_cache(*grupos: str):
+    with _CACHE_LOCK:
+        for chave in [k for k in _CACHE if k[0] in grupos]:
+            del _CACHE[chave]
+
+
+def _invalida(*grupos: str):
+    def deco(fn):
+        @_functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                invalidar_cache(*grupos)
+        return wrapper
+    return deco
+
+
+def _memo_requisicao(fn):
+    """Mesma consulta repetida dentro de UMA página (ex.: caixa aberto da
+    Loja pedido 3x) vai ao banco uma vez só. Não passa de uma requisição."""
+    @_functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            from flask import g, has_request_context
+            if not has_request_context():
+                return fn(*args, **kwargs)
+            memo = g.setdefault("_db_memo", {})
+        except Exception:
+            return fn(*args, **kwargs)
+        chave = (fn.__name__, args, tuple(sorted(kwargs.items())))
+        if chave not in memo:
+            memo[chave] = fn(*args, **kwargs)
+        return _copy.deepcopy(memo[chave])
+    return wrapper
+
+
+def _limpa_memo_requisicao(fn):
+    @_functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            try:
+                from flask import g, has_request_context
+                if has_request_context():
+                    g.pop("_db_memo", None)
+            except Exception:
+                pass
+    return wrapper
+
+
+def _memo_se_verdadeiro(fn):
+    """Checagens "a tabela/coluna já existe?": depois que deu True, não muda mais."""
+    ok = {"v": False}
+    @_functools.wraps(fn)
+    def wrapper():
+        if not ok["v"]:
+            ok["v"] = fn()
+        return ok["v"]
+    return wrapper
+
+
+for _nome, _grupo, _ttl in [
+    ("get_all_locais_estoque", "locais", 300),
+    ("get_all_categorias", "categorias", 300),
+    ("get_all_users", "users", 60),
+    ("bar_get_all_products", "bar", 60),
+    ("bar_get_simple_products", "bar", 60),
+    ("bar_get_all_components_grouped", "bar", 60),
+]:
+    globals()[_nome] = _cacheado(_grupo, _ttl)(globals()[_nome])
+
+for _nome, _grupos in [
+    ("insert_local_estoque", ("locais",)),
+    ("insert_categoria", ("categorias",)),
+    ("update_categoria_tipo", ("categorias",)),
+    ("delete_categoria", ("categorias",)),
+    ("insert_user", ("users",)),
+    ("update_user_permissions", ("users",)),
+    ("update_user_cargo", ("users",)),
+    ("set_user_ativo", ("users",)),
+    ("set_user_arquivado", ("users",)),
+    ("update_user_senha", ("users",)),
+    ("update_user_pin", ("users",)),
+    ("bar_insert_product", ("bar",)),
+    ("bar_update_product", ("bar",)),
+    ("bar_delete_product", ("bar",)),
+    ("bar_insert_component", ("bar",)),
+    ("bar_delete_component", ("bar",)),
+    ("bar_delete_all_components", ("bar",)),
+]:
+    globals()[_nome] = _invalida(*_grupos)(globals()[_nome])
+
+get_caixa_aberto = _memo_requisicao(get_caixa_aberto)
+insert_caixa = _limpa_memo_requisicao(insert_caixa)
+update_caixa = _limpa_memo_requisicao(update_caixa)
+fornecedores_disponivel = _memo_se_verdadeiro(fornecedores_disponivel)
+precos_local_disponivel = _memo_se_verdadeiro(precos_local_disponivel)

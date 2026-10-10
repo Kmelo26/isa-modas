@@ -2,7 +2,7 @@
 
 {% block conteudo %}
 <style>
-.perm-wrap { max-width: 1300px; padding: 0 0 40px; }
+.perm-wrap { flex: 1; padding: 0 0 40px; display: flex; flex-direction: column; }
 .perm-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .perm-title { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 0; }
 
@@ -420,6 +420,7 @@ const CATEGORIAS = [
       { v: "aplicar_desconto",   l: "Aplicar desconto" },
       { v: "editar_desconto",    l: "Editar desconto" },
       { v: "ver_valor_comandas", l: "Ver valores monetários em comandas (R$ nos cards e tabela)" },
+      { v: "alterar_preco_venda_realizada", l: "Alterar o preço de uma venda já realizada (Editar venda)" },
     ]
   },
   {
@@ -460,6 +461,14 @@ const CATEGORIAS = [
     ]
   },
   {
+    id: "fornecedores", icon: "🚚", titulo: "Fornecedores", critical: false,
+    perms: [
+      { v: "ver_fornecedores",       l: "Acessar tela de fornecedores (lotes, compras e contas a pagar)" },
+      { v: "gerenciar_fornecedores", l: "Cadastrar/editar fornecedores, registrar compras e marcar pagamentos" },
+      { v: "ver_lotes_periodo",      l: "Ver aba Lotes (lotes adicionados no período)" },
+    ]
+  },
+  {
     id: "info_financeiro", icon: "📈", titulo: "Informações Financeiras", critical: false,
     perms: [
       { v: "ver_historico_caixa", l: "Ver histórico de caixas (exibe botão Caixa no menu)" },
@@ -467,6 +476,7 @@ const CATEGORIAS = [
       { v: "ver_lucro_liquido",   l: "Ver lucro líquido" },
       { v: "ver_despesas",        l: "Ver despesas" },
       { v: "exportar_financeiro", l: "Exportar dados financeiros" },
+      { v: "ver_vendas_por_usuario", l: "Ver vendas por usuário no Financeiro (quadro e filtro por usuário)" },
     ]
   },
   {

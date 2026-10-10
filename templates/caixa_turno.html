@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <style>
-.cx-page{max-width:900px;margin:24px auto;padding:16px;}
+.cx-page{flex:1;padding:16px;display:flex;flex-direction:column;}
 .cx-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
 .cx-title{font-size:18px;font-weight:bold;color:var(--accent);}
 .cx-status-line{font-size:12.5px;color:#4ade80;font-weight:600;margin-top:4px;}
@@ -131,7 +131,7 @@
       <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
       <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
       <div class="cx-row"><span class="cx-label">💳 Cartão</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
-      <div class="cx-row"><span class="cx-label">📒 Fiado</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
+      <div class="cx-row"><span class="cx-label">📒 Faturado</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
       <div class="cx-total"><span>Total</span><span>R$ {{ "%.2f"|format(totais.total) }}</span></div>
     </div>
 
@@ -340,7 +340,7 @@ function fecharConferir() {
 }
 
 const VENDAS_POR_USUARIO = JSON.parse(document.getElementById('json-vendas-por-usuario').textContent);
-const VU_FORMA_LABEL = { pix: '⚡ Pix', credito: '💳 Crédito', debito: '💳 Débito', dinheiro: '💵 Dinheiro', fiado: '📒 Fiado' };
+const VU_FORMA_LABEL = { pix: '⚡ Pix', credito: '💳 Crédito', debito: '💳 Débito', dinheiro: '💵 Dinheiro', fiado: '📒 Faturado' };
 const VU_STATUS_LABEL = { pendente: '🟡 Pendente', parcial: '🟠 Parcial', quitada: '🟢 Quitada', cancelada: '🔴 Cancelada' };
 
 function vuFmtData(d) {

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <style>
-.cx-page{max-width:1120px;margin:24px auto;padding:16px;}
+.cx-page{flex:1;padding:16px;display:flex;flex-direction:column;}
 .cx-topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .cx-title{font-size:20px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
 .cx-sub{font-size:12px;color:var(--text-muted);}
@@ -86,6 +86,7 @@
     </div>
     <a href="{{ url_for('caixa_historico_novo') }}" class="cx-hist-btn">🕒 Histórico de Fechamentos</a>
   </div>
+  {% if erro %}<div style="background:#2a0f0f;border:1px solid #f87171;border-radius:8px;padding:10px 14px;color:#f87171;font-size:13px;margin-bottom:16px;">⚠️ {{ erro }}</div>{% endif %}
 
   <!-- Info bar -->
   <div class="cx-infobar">

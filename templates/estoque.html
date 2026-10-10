@@ -3,7 +3,7 @@
 
 <style>
 *{box-sizing:border-box}
-.est{width:100%;padding:24px 20px}
+.est{flex:1;padding:24px 20px;display:flex;flex-direction:column}
 
 /* HEADER */
 .est-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
@@ -381,13 +381,13 @@
         <div class="est-filter-field" style="max-width:160px;">
           <label for="margemMin">Margem mín. %</label>
           <input id="margemMin" type="number" name="margem_min" class="est-select"
-            placeholder="ex: 30" step="1" min="0" max="100"
+            placeholder="ex: 30" step="1" min="-100"
             value="{{ margem_min_raw or '' }}">
         </div>
         <div class="est-filter-field" style="max-width:160px;">
           <label for="margemMax">Margem máx. %</label>
           <input id="margemMax" type="number" name="margem_max" class="est-select"
-            placeholder="ex: 80" step="1" min="0" max="100"
+            placeholder="ex: 80" step="1" min="-100"
             value="{{ margem_max_raw or '' }}">
         </div>
         {% endif %}
@@ -444,14 +444,17 @@
             <td>{{ (p.estoque_minimo | int) if p.estoque_minimo else '—' }} {% if p.estoque_minimo %}un.{% endif %}</td>
             {% if tipo == "admin" or "ver_custo_produtos" in permissoes %}
             <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_investido) }}</td>
-            <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_venda) }}</td>
+            <td class="td-val val-oculto">R$ {{ "%.2f"|format(p.valor_venda) }}
+              {%- if p.precos_local %}{% for lid, pr in p.precos_local.items() %}
+              <div style="font-size:.7rem;color:var(--text-muted);font-weight:400;white-space:nowrap;">{% for l in locais_estoque if l.id == lid %}{{ l.nome }}{% endfor %}: R$ {{ "%.2f"|format(pr|float) }}</div>
+              {%- endfor %}{% endif %}</td>
             <td class="td-lucro td-val val-oculto">R$ {{ "%.2f"|format(lucro_un) }}</td>
             <td class="td-lucro td-val val-oculto">R$ {{ "%.2f"|format(lucro_total) }}</td>
             {% endif %}
             {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
             <td style="text-align:center">
               {% if p.valor_venda and p.valor_venda > 0 and p.valor_investido and p.valor_investido > 0 %}
-                {% set margem = ((p.valor_venda - p.valor_investido) / p.valor_venda * 100) %}
+                {% set margem = ((p.valor_venda - p.valor_investido) / p.valor_investido * 100) %}
                 {% if margem >= 40 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
                 {% elif margem >= 20 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
                 {% elif margem >= 0 %}<span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>

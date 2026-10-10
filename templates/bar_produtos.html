@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block conteudo %}
 <style>
-.container { max-width:1100px; margin:20px auto; padding:20px; }
+.container { flex:1; padding:20px; display:flex; flex-direction:column; }
 h2 { text-align:center; color:var(--accent); margin-bottom:20px; }
 .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
 .btn { background:var(--btn-bg); color:var(--accent); border:none; padding:8px 16px;
@@ -193,7 +193,7 @@ tr:nth-child(even) { background:var(--table-even); }
         {% set preco = p.sale_price or 0 %}
         <td style="text-align:center">
           {% if custo > 0 and preco > 0 %}
-            {% set margem = ((preco - custo) / preco * 100) %}
+            {% set margem = ((preco - custo) / custo * 100) %}
             {% if margem >= 40 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
             {% elif margem >= 20 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
             {% elif margem >= 0 %}<span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>

@@ -3,7 +3,7 @@
 
 <style>
 /* ── Wrapper ── */
-.cmd-wrap { width: 100%; padding: 20px 16px 60px; }
+.cmd-wrap { flex: 1; padding: 20px 16px 60px; display: flex; flex-direction: column; }
 
 /* ── Top bar ── */
 .cmd-topbar {
@@ -443,7 +443,7 @@
         id="lbl-fiado">
         <input type="radio" name="_tipo_ui" value="fiado"
           onchange="novaTipo('fiado')" style="accent-color:var(--accent);">
-        Cliente Conta Fiado
+        Cliente Faturado
       </label>
     </div>
 
@@ -472,6 +472,17 @@
     <form method="post" action="/comandas/nova" id="form-nova-fiado" style="display:none;">
       <input type="hidden" name="tipo_atendimento" value="fiado">
       <input type="hidden" name="cliente_id" id="fiado-cliente-id">
+
+      {# O local da comanda fiado é o do cliente. Este campo só aparece
+         quando o cliente escolhido ainda não tem local definido. #}
+      <div id="fiado-local-wrap" style="display:none;">
+        <label class="cmd-modal-label">Local <span style="color:#facc15;font-weight:400;">(cliente sem local definido)</span></label>
+        <select name="local_id" id="fiado-local" class="cmd-modal-input">
+          {% for l in locais_estoque %}
+          <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
       <label class="cmd-modal-label">Pesquisar Cliente</label>
       <div style="display:flex;gap:8px;margin-bottom:4px;position:relative;">
@@ -510,12 +521,6 @@
       <label class="cmd-modal-label">Mesa / Local</label>
       <input type="text" name="mesa" class="cmd-modal-input"
         placeholder="Ex: Mesa 05 (opcional)" autocomplete="off">
-      <label class="cmd-modal-label">Local de Estoque</label>
-      <select name="local_id" class="cmd-modal-input">
-        {% for l in locais_estoque %}
-        <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
-        {% endfor %}
-      </select>
       <div class="cmd-modal-row" style="margin-top:6px;">
         <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalNova()">Cancelar</button>
         <button type="submit" class="cmd-modal-btn-submit" id="fiado-btn-abrir" disabled
@@ -607,6 +612,12 @@
       <input type="date" id="cli-venc" class="cmd-modal-input" style="margin-bottom:0;">
     </div>
 
+    <div style="margin-bottom:16px;">
+      <label class="cmd-modal-label">Local do cliente <span style="color:#f87171">*</span></label>
+      <select id="cli-local" class="cmd-modal-input" style="margin-bottom:0;">
+        {% for l in locais_estoque %}<option value="{{ l.id }}">{{ l.nome }}</option>{% endfor %}
+      </select>
+    </div>
     <div id="cli-erro" style="display:none;color:#f87171;font-size:13px;margin-bottom:10px;"></div>
     <div class="cmd-modal-row">
       <button type="button" class="cmd-modal-btn-cancel" onclick="fecharModalCliente()">Cancelar</button>
@@ -1596,6 +1607,7 @@ function abrirModalNova() {
   document.getElementById('fiado-cliente-id').value = '';
   document.getElementById('fiado-sugestoes').style.display = 'none';
   document.getElementById('fiado-painel').style.display = 'none';
+  document.getElementById('fiado-local-wrap').style.display = 'none';
   document.getElementById('fiado-btn-abrir').disabled = true;
   document.getElementById('fiado-btn-abrir').style.opacity = '.45';
 }
@@ -1619,6 +1631,18 @@ function fecharModalEditar() {
 }
 document.getElementById('modal-editar-comanda').addEventListener('click', function(e){ if (e.target === this) fecharModalEditar(); });
 
+/* ── Local do cliente fiado ── */
+// Na tela Comandas, se a lista estiver filtrada num local, a busca de cliente
+// fiado mostra só os clientes daquele local; senão, todos (com o local ao lado).
+function fiadoLocalFiltro(){
+  const f = document.getElementById('cmd-local-filtro');
+  return f ? f.value : '';
+}
+function fiadoNomeLocal(id){
+  const o = Array.from(document.getElementById('fiado-local').options).find(o => o.value === id);
+  return o ? o.text : id;
+}
+
 /* ── Autocomplete busca de clientes (fiado) ── */
 (function(){
   const input    = document.getElementById('fiado-busca');
@@ -1631,6 +1655,10 @@ document.getElementById('modal-editar-comanda').addEventListener('click', functi
   function selecionarCliente(c) {
     input.value = c.nome;
     inputId.value = c.id;
+    // comanda fiado abre no local do cliente; só pergunta se ele não tiver local
+    const selLocal = document.getElementById('fiado-local');
+    if (c.local_id) selLocal.value = c.local_id;
+    document.getElementById('fiado-local-wrap').style.display = c.local_id ? 'none' : 'block';
     lista.style.display = 'none';
     btnAbrir.disabled = false;
     btnAbrir.style.opacity = '1';
@@ -1654,7 +1682,7 @@ document.getElementById('modal-editar-comanda').addEventListener('click', functi
     const q = input.value.trim();
     if (!q) { lista.style.display = 'none'; return; }
     debounce = setTimeout(() => {
-      fetch('/clientes/buscar?q=' + encodeURIComponent(q))
+      fetch('/clientes/buscar?q=' + encodeURIComponent(q) + '&local=' + encodeURIComponent(fiadoLocalFiltro()))
         .then(r => r.json())
         .then(data => {
           lista.innerHTML = '';
@@ -1662,7 +1690,9 @@ document.getElementById('modal-editar-comanda').addEventListener('click', functi
           data.forEach(c => {
             const li = document.createElement('li');
             li.style.cssText = 'padding:8px 12px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);font-size:13px;';
-            li.innerHTML = '<strong>' + c.nome + '</strong>' + (c.telefone ? ' <span style="color:var(--text-muted);font-size:11px;">· ' + c.telefone + '</span>' : '');
+            li.innerHTML = '<strong>' + c.nome + '</strong>' + (c.telefone ? ' <span style="color:var(--text-muted);font-size:11px;">· ' + c.telefone + '</span>' : '')
+              + (c.local_id ? ' <span style="color:var(--accent);font-size:11px;">· ' + fiadoNomeLocal(c.local_id) + '</span>'
+                            : ' <span style="color:#facc15;font-size:11px;">· sem local definido</span>');
             li.addEventListener('mousedown', e => { e.preventDefault(); selecionarCliente(c); });
             li.addEventListener('mouseover', function(){ this.style.background='var(--accent-dim)'; });
             li.addEventListener('mouseout',  function(){ this.style.background=''; });
@@ -1678,6 +1708,8 @@ document.getElementById('modal-editar-comanda').addEventListener('click', functi
 
 /* ── Modal cadastrar cliente ── */
 function abrirModalCliente() {
+  // cliente novo já vem no local escolhido para a comanda
+  document.getElementById('cli-local').value = fiadoLocalFiltro() || document.getElementById('fiado-local').value;
   document.getElementById('modal-cliente').classList.add('open');
   document.getElementById('cli-nome').focus();
   document.getElementById('cli-erro').style.display = 'none';
@@ -1709,6 +1741,7 @@ function salvarCliente() {
   fd.append('limite_credito',     document.getElementById('cli-limite').value || '0');
   fd.append('dia_vencimento',     document.getElementById('cli-dia').value  || '');
   fd.append('proximo_vencimento', document.getElementById('cli-venc').value || '');
+  fd.append('local_id',           document.getElementById('cli-local').value || '');
 
   fetch('/clientes/novo', { method: 'POST', body: fd })
     .then(r => r.json())
@@ -1722,6 +1755,9 @@ function salvarCliente() {
       // selecionar o cliente recém-criado no modal de fiado
       document.getElementById('fiado-busca').value = data.nome;
       document.getElementById('fiado-cliente-id').value = data.id;
+      // a comanda vai pro local do cliente recém-cadastrado
+      if (data.local_id) document.getElementById('fiado-local').value = data.local_id;
+      document.getElementById('fiado-local-wrap').style.display = data.local_id ? 'none' : 'block';
       document.getElementById('fiado-btn-abrir').disabled = false;
       document.getElementById('fiado-btn-abrir').style.opacity = '1';
       fetch('/clientes/' + data.id + '/info')

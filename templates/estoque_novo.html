@@ -1,11 +1,14 @@
 {% extends "base.html" %}
+{% from "_precos_local.html" import campos_preco_local %}
+{% from "_select_fornecedor.html" import select_fornecedor with context %}
 {% block conteudo %}
 
 <style>
   .cp-container {
-    max-width: 960px;
-    margin: 30px auto;
     padding: 0 20px 40px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
 
   .cp-header {
@@ -362,7 +365,7 @@
       <div class="cp-grid cp-grid-2" style="margin-bottom:14px;">
         <div class="cp-field">
           <label>Local de entrada</label>
-          <select name="local_id">
+          <select name="local_id" id="local_primeiro_lote" onchange="liberarPrecoLocal()">
             {% for l in locais_estoque %}
             <option value="{{ l.id }}" {% if l.id == local_padrao %}selected{% endif %}>{{ l.nome }}</option>
             {% endfor %}
@@ -445,6 +448,7 @@
           <input type="text" id="margem" readonly placeholder="0,00%">
           <span class="cp-hint">Calculado automaticamente</span>
         </div>
+        {{ campos_preco_local(locais_estoque, None, false, "cp-field", [local_padrao], local_padrao) }}
       </div>
     </div>
 
@@ -462,14 +466,7 @@
         </div>
         <div class="cp-field">
           <label>Fornecedor</label>
-          <select name="fornecedor">
-            <option value="">Selecione o fornecedor</option>
-            {% for f in fornecedores %}
-              <option value="{{ f.id }}">{{ f.nome }}</option>
-            {% else %}
-              {# Nenhum fornecedor cadastrado ainda #}
-            {% endfor %}
-          </select>
+          {{ select_fornecedor(fornecedores, "", "", pode_cadastrar_fornecedor) }}
           <span class="cp-hint">Fornecedor do produto</span>
         </div>
       </div>
@@ -727,4 +724,21 @@
   atualizarTipoCusto();
 </script>
 
+<script>
+// Preço no Escritório só pode ser definido se o lote for registrado lá.
+function liberarPrecoLocal(){
+  const local = (document.getElementById('local_primeiro_lote') || {}).value;
+  document.querySelectorAll('.campo-preco-local').forEach(inp => {
+    const ok = inp.dataset.local === local;
+    inp.disabled = !ok;
+    const aviso = document.getElementById(inp.id + '_aviso');
+    if (aviso) {
+      aviso.style.color = ok ? 'var(--text-muted)' : '#facc15';
+      aviso.textContent = ok ? 'Toda venda nesse local usa este valor. Deixe vazio para usar o preço principal.'
+                             : 'Só dá para definir se o lote for registrado nesse local (campo "Local" acima).';
+    }
+  });
+}
+liberarPrecoLocal();
+</script>
 {% endblock %}

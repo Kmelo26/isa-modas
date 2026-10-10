@@ -2,7 +2,7 @@
 {% block conteudo %}
 
 <style>
-.lg-wrap { max-width:1300px; margin:0 auto; padding:20px 20px 40px; }
+.lg-wrap { flex:1; min-height:0; padding:20px 20px 40px; display:flex; flex-direction:column; }
 .lg-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
 .lg-header h2 { margin:0; font-size:22px; font-weight:800; color:var(--accent); letter-spacing:1px; }
 .lg-sub { font-size:12px; color:var(--text-muted); margin-top:3px; }
@@ -22,7 +22,8 @@
 .btn-filt-sec { background:transparent; border:1px solid var(--border); color:var(--text-muted); text-decoration:none; display:inline-flex; align-items:center; }
 
 .lg-table-wrap { background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
-  box-shadow:var(--shadow); overflow-x:auto; }
+  box-shadow:var(--shadow); overflow-x:auto; flex:1; min-height:0; display:flex; flex-direction:column; }
+.lg-table-scroll { overflow-y:auto; flex:1; min-height:0; }
 .lg-table { width:100%; border-collapse:collapse; }
 .lg-table th { background:#1e1e1e; color:var(--accent); font-size:11px; font-weight:700;
   text-transform:uppercase; letter-spacing:0.8px; padding:10px 12px; text-align:left;
@@ -90,6 +91,7 @@
 
   <div class="lg-table-wrap">
     {% if registros %}
+    <div class="lg-table-scroll">
     <table class="lg-table">
       <thead>
         <tr>
@@ -116,6 +118,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     <div class="lg-limite">Exibindo até 500 registros mais recentes que atendem ao filtro.</div>
     {% else %}
     <div class="lg-empty">Nenhum registro encontrado para o filtro selecionado.</div>

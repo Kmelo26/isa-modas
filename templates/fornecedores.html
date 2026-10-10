@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block conteudo %}
+{% include "_fornecedores_comum.html" %}
+
+<style>
+.fn-dias{font-size:.72rem;color:var(--text-muted)}
+.fn-dias.vencida{color:#f87171;font-weight:700}
+.fn-dias.hoje{color:#facc15;font-weight:700}
+.fl-periodo{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 16px}
+.fl-atalhos{display:flex;flex-wrap:wrap;gap:6px}
+.fl-data{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--text-muted)}
+.fn-table tfoot td{border-top:1px solid var(--border);border-bottom:none}
+</style>
+
+<div class="fn">
+  <div class="fn-header">
+    <h1>🚚 FORNECEDORES</h1>
+    {% if pode_gerenciar and tabelas_ok %}
+    <button type="button" class="fn-btn fn-btn-primary" onclick="abrirModalFornecedor('{{ url_for('fornecedor_novo') }}', null, [])">+ Novo fornecedor</button>
+    {% endif %}
+  </div>
+
+  {% if erro %}<div class="fn-alerta erro">⚠️ {{ erro }}</div>{% endif %}
+  {% if msg %}<div class="fn-alerta ok">✓ {{ msg }}</div>{% endif %}
+
+  {% if not tabelas_ok %}
+  <div class="fn-alerta info">
+    <strong>Falta criar as tabelas de fornecedores no banco.</strong><br>
+    Abra o Supabase → <em>SQL Editor</em>, cole o conteúdo do arquivo <code>schema_fornecedores.sql</code> (na pasta do projeto) e clique em <em>Run</em>. Depois é só recarregar esta página.
+  </div>
+  {% else %}
+
+  <!-- KPIs -->
+  <div class="fn-kpis">
+    <div class="kpi">
+      <div class="kpi-icon azul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+      <div class="kpi-info">
+        <div class="kpi-label">Total a pagar</div>
+        <div class="kpi-valor">R$ {{ "%.2f"|format(kpis.a_pagar)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{{ contas|length }} parcela(s) em aberto</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon vermelho"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div class="kpi-info">
+        <div class="kpi-label">Vencido</div>
+        <div class="kpi-valor {% if kpis.vencido > 0 %}vermelho{% endif %}">R$ {{ "%.2f"|format(kpis.vencido)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{{ kpis.qtd_vencidas }} parcela(s) atrasada(s)</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon amarelo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div class="kpi-info">
+        <div class="kpi-label">Vence em 7 dias</div>
+        <div class="kpi-valor {% if kpis.vence_7d > 0 %}amarelo{% endif %}">R$ {{ "%.2f"|format(kpis.vence_7d)|replace(".", ",") }}</div>
+        <div class="kpi-sub">{{ kpis.qtd_7d }} parcela(s)</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-icon verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="kpi-info">
+        <div class="kpi-label">Pago no mês</div>
+        <div class="kpi-valor verde">R$ {{ "%.2f"|format(kpis.pago_mes)|replace(".", ",") }}</div>
+        <div class="kpi-sub">pagamentos a fornecedores</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn-tabs">
+    <button type="button" class="fn-tab-btn" data-tab="contas" onclick="fnMudarAba('contas')">Contas a pagar <span class="cont {% if kpis.qtd_vencidas %}alerta{% endif %}">{{ contas|length }}</span></button>
+    <button type="button" class="fn-tab-btn" data-tab="fornecedores" onclick="fnMudarAba('fornecedores')">Fornecedores <span class="cont">{{ fornecedores|length }}</span></button>
+    {% if pode_ver_lotes %}<button type="button" class="fn-tab-btn" data-tab="lotes" onclick="fnMudarAba('lotes')">Lotes <span class="cont">{{ lotes_periodo|length }}</span></button>{% endif %}
+  </div>
+
+  <!-- CONTAS A PAGAR -->
+  <div class="fn-tab" id="tab-contas">
+    <div class="fn-card">
+      {% if contas %}
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr>
+            <th>Vencimento</th><th>Fornecedor</th><th>Compra</th><th>Parcela</th><th class="num">Valor</th><th>Forma</th>
+            {% if pode_gerenciar %}<th></th>{% endif %}
+          </tr></thead>
+          <tbody>
+            {% for ct in contas %}
+            {% set p = ct.parcela %}{% set c = ct.compra %}
+            <tr class="linha-conta">
+              <td>
+                {{ p.vencimento|br_date }}<br>
+                {% if ct.dias is none %}{% elif ct.dias < 0 %}<span class="fn-dias vencida">vencida há {{ -ct.dias }} dia(s)</span>
+                {% elif ct.dias == 0 %}<span class="fn-dias hoje">vence hoje</span>
+                {% else %}<span class="fn-dias">em {{ ct.dias }} dia(s)</span>{% endif %}
+              </td>
+              <td>{% if ct.fornecedor %}<a class="fn-link" href="{{ url_for('fornecedor_detalhe', fid=ct.fornecedor.id, aba='compras') }}">{{ ct.fornecedor.nome }}</a>{% else %}—{% endif %}</td>
+              <td>{{ c.data_compra|br_date }}{% if c.numero_nota %}<div class="fn-sub">Nota {{ c.numero_nota }}</div>{% endif %}</td>
+              <td>{{ p.n }}/{{ c.parcelas|length }}</td>
+              <td class="num {% if ct.dias is not none and ct.dias < 0 %}fn-vermelho{% endif %}">R$ {{ "%.2f"|format(p.valor)|replace(".", ",") }}</td>
+              <td>{{ formas_pagamento.get(c.forma_pagamento, c.forma_pagamento) }}</td>
+              {% if pode_gerenciar %}
+              <td class="acao">
+                <button type="button" class="fn-btn fn-btn-sm"
+                  data-acao="{{ url_for('fornecedor_parcela_pagar', cid=c.id, n=p.n) }}"
+                  data-resumo="{{ (ct.fornecedor.nome if ct.fornecedor else '') ~ ' · parcela ' ~ p.n ~ '/' ~ (c.parcelas|length) ~ ' · R$ ' ~ ('%.2f'|format(p.valor)|replace('.', ',')) }}"
+                  data-forma="{{ c.forma_pagamento }}"
+                  onclick="abrirModalPagar(this.dataset.acao, this.dataset.resumo, this.dataset.forma)">✓ Pagar</button>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="fn-pag-bar">
+        <div class="fn-exibir">Exibir
+          <select id="porPagContas"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select>
+          registros</div>
+        <div class="fn-pages" id="pagContas"></div>
+      </div>
+      {% else %}
+      <div class="fn-vazio">Nenhuma conta em aberto. Para registrar o que deve a um fornecedor, abra o fornecedor, vá em <strong>Lotes</strong>, selecione os lotes da entrega e clique em <strong>Registrar compra</strong>.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- FORNECEDORES -->
+  <div class="fn-tab" id="tab-fornecedores">
+    {% if fora_do_padrao and pode_gerenciar %}
+    <div class="fn-alerta info" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span><strong>{{ fora_do_padrao }} lote(s)</strong> ainda estão escritos com outra grafia (ex.: “JACU-PESSEGO FULVIO”). Padronize para todos ficarem com o nome do cadastro, também no Estoque.</span>
+      <form method="post" action="{{ url_for('fornecedores_padronizar_nomes') }}"
+            onsubmit="return confirm('Trocar o nome do fornecedor em {{ fora_do_padrao }} lote(s) e nos produtos pelo nome do cadastro?');">
+        <button type="submit" class="fn-btn fn-btn-sm fn-btn-primary">Padronizar nomes nos lotes</button>
+      </form>
+    </div>
+    {% endif %}
+    <div class="fn-card">
+      <div class="fn-card-topo">
+        <span class="fn-card-titulo">Fornecedores cadastrados</span>
+        {% if fornecedores %}<input type="search" class="fn-input fn-busca" id="buscaFornecedores" placeholder="Buscar fornecedor...">{% endif %}
+      </div>
+      {% if fornecedores %}
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr>
+            <th>Fornecedor</th><th>Telefone</th><th class="num">Lotes</th><th class="num">Total comprado</th>
+            <th class="num">Lotes sem compra</th><th class="num">Em aberto</th><th>Próx. vencimento</th><th>Última entrada</th>
+          </tr></thead>
+          <tbody>
+            {% for f in fornecedores %}
+            {% set r = f.resumo %}
+            <tr class="linha-fornecedor" data-busca="{{ (f.nome ~ ' ' ~ f.apelidos|join(' ') ~ ' ' ~ f.telefone ~ ' ' ~ f.cnpj)|lower }}">
+              <td>
+                <a class="fn-link" href="{{ url_for('fornecedor_detalhe', fid=f.id) }}">{{ f.nome }}</a>
+                {% if not f.ativo %} <span class="badge inativo">inativo</span>{% endif %}
+                {% if f.apelidos %}<div class="fn-sub">+{{ f.apelidos|length }} nome(s) juntado(s)</div>{% endif %}
+              </td>
+              <td>{{ f.telefone or "—" }}</td>
+              <td class="num">{{ r.qtd_lotes }}</td>
+              <td class="num">R$ {{ "%.2f"|format(r.total_comprado)|replace(".", ",") }}</td>
+              <td class="num">{% if r.qtd_sem_compra %}R$ {{ "%.2f"|format(r.sem_compra)|replace(".", ",") }}<div class="fn-sub">{{ r.qtd_sem_compra }} lote(s)</div>{% else %}—{% endif %}</td>
+              <td class="num {% if r.tem_vencida %}fn-vermelho{% endif %}">{% if r.em_aberto %}R$ {{ "%.2f"|format(r.em_aberto)|replace(".", ",") }}{% else %}—{% endif %}</td>
+              <td>{% if r.proximo_vencimento %}<span class="{% if r.proximo_vencimento < hoje_iso %}fn-vermelho{% endif %}">{{ r.proximo_vencimento|br_date }}</span>{% else %}—{% endif %}</td>
+              <td>{{ r.ultima_compra|br_date if r.ultima_compra else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="fn-pag-bar">
+        <div class="fn-exibir">Exibir
+          <select id="porPagFornecedores"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select>
+          registros</div>
+        <div class="fn-pages" id="pagFornecedores"></div>
+      </div>
+      {% else %}
+      <div class="fn-vazio">Nenhum fornecedor cadastrado ainda.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if pode_ver_lotes %}
+  <!-- LOTES DO PERÍODO -->
+  <div class="fn-tab" id="tab-lotes">
+    <form method="get" action="{{ url_for('fornecedores_home') }}" id="formLotes" class="fn-card fl-periodo">
+      <input type="hidden" name="aba" value="lotes">
+      <div class="fl-atalhos">
+        <button type="button" class="fn-btn fn-btn-sm" onclick="setPeriodoLotes('hoje')">Hoje</button>
+        <button type="button" class="fn-btn fn-btn-sm" onclick="setPeriodoLotes('7dias')">Últimos 7 dias</button>
+        <button type="button" class="fn-btn fn-btn-sm" onclick="setPeriodoLotes('mes')">Mês atual</button>
+        <button type="button" class="fn-btn fn-btn-sm" onclick="setPeriodoLotes('mes_passado')">Mês passado</button>
+        {% if ultima_compra_data %}
+        <button type="button" class="fn-btn fn-btn-sm {% if lotes_data_ini == ultima_compra_data and lotes_data_fim == ultima_compra_data %}fn-btn-primary{% endif %}"
+                onclick="setPeriodoLotes('ultima')" title="Lotes do dia {{ ultima_compra_data|br_date }}">Última compra ({{ ultima_compra_data|br_date }})</button>
+        {% endif %}
+      </div>
+      <label class="fl-data">De <input type="date" name="data_ini" id="lotesIni" class="fn-input" value="{{ lotes_data_ini }}"></label>
+      <label class="fl-data">até <input type="date" name="data_fim" id="lotesFim" class="fn-input" value="{{ lotes_data_fim }}"></label>
+      <button type="submit" class="fn-btn fn-btn-sm fn-btn-primary">Aplicar</button>
+    </form>
+
+    <div class="fn-kpis">
+      <div class="kpi">
+        <div class="kpi-icon azul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Lotes no período</div>
+          <div class="kpi-valor">{{ resumo_lotes.qtd }}</div>
+          <div class="kpi-sub">{{ lotes_data_ini|br_date }} até {{ lotes_data_fim|br_date }}</div></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon roxo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Produtos diferentes</div>
+          <div class="kpi-valor">{{ resumo_lotes.produtos }}</div>
+          <div class="kpi-sub">produtos que receberam lote</div></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon verde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Total investido</div>
+          <div class="kpi-valor">R$ {{ "%.2f"|format(resumo_lotes.total)|replace(".", ",") }}</div>
+          <div class="kpi-sub">soma do valor dos lotes</div></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icon laranja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Maior fornecedor</div>
+          <div class="kpi-valor" style="font-size:1rem;" title="{{ resumo_lotes.maior_fornecedor }}">{{ resumo_lotes.maior_fornecedor or "—" }}</div>
+          <div class="kpi-sub">{% if resumo_lotes.maior_fornecedor %}R$ {{ "%.2f"|format(resumo_lotes.maior_fornecedor_valor)|replace(".", ",") }} no período{% else %}sem fornecedor informado{% endif %}</div></div>
+      </div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-card-topo">
+        <span class="fn-card-titulo">Lotes adicionados no período</span>
+        {% if lotes_periodo %}<input type="search" class="fn-input fn-busca" id="lotesBusca" placeholder="Buscar produto ou fornecedor...">{% endif %}
+      </div>
+      {% if lotes_periodo %}
+      <div class="fn-table-wrap">
+        <table class="fn-table">
+          <thead><tr>
+            <th>Data</th><th>Produto</th><th class="num">Quantidade</th><th class="num">Custo unit.</th><th class="num">Valor total</th>
+            <th>Fornecedor</th><th>Compra</th><th>Cadastrado por</th>
+          </tr></thead>
+          <tbody>
+            {% for li in lotes_periodo %}
+            {% set fc = li.fornecedor_cad %}
+            <tr class="linha-lote-periodo" data-busca="{{ (li.produto_nome ~ ' ' ~ (li.fornecedor or '') ~ ' ' ~ (fc.nome if fc else ''))|lower }}" data-valor="{{ li.valor_total or 0 }}">
+              <td>{{ li.data_entrada|br_date }}</td>
+              <td>{% if li.pid %}<a class="fn-link" href="{{ url_for('estoque_produto', pid=li.pid) }}">{{ li.produto_nome }}</a>{% else %}{{ li.produto_nome }}{% endif %}</td>
+              <td class="num">{{ ("%.3f"|format(li.quantidade or 0)).rstrip("0").rstrip(".")|replace(".", ",") }}</td>
+              <td class="num">R$ {{ "%.2f"|format(li.custo_unit or 0)|replace(".", ",") }}</td>
+              <td class="num"><strong>R$ {{ "%.2f"|format(li.valor_total or 0)|replace(".", ",") }}</strong></td>
+              <td>
+                {% if fc %}<a class="fn-link" href="{{ url_for('fornecedor_detalhe', fid=fc.id, aba='lotes') }}">{{ fc.nome }}</a>
+                {% elif li.fornecedor and li.fornecedor not in ("None", "") %}{{ li.fornecedor }} <span class="fn-sub">(sem cadastro)</span>
+                {% else %}<span class="fn-sub">—</span>{% endif %}
+              </td>
+              <td>
+                {% if li.compra %}<span class="badge {{ li.compra.status }}">{{ {'paga':'paga','parcial':'parcial','atrasada':'atrasada','pendente':'a pagar'}[li.compra.status] }}</span>
+                {% else %}<span class="badge livre">sem compra</span>{% endif %}
+              </td>
+              <td>{{ li.criado_por_nome or "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" class="fn-sub"><span id="lotesQtd">{{ lotes_periodo|length }}</span> lote(s)</td>
+              <td class="num"><strong id="lotesTotal">R$ {{ "%.2f"|format(resumo_lotes.total)|replace(".", ",") }}</strong></td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="fn-pag-bar">
+        <div class="fn-exibir">Exibir
+          <select id="porPagLotesPeriodo"><option value="10" selected>10</option><option value="15">15</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select>
+          registros</div>
+        <div class="fn-pages" id="pagLotesPeriodo"></div>
+      </div>
+      {% else %}
+      <div class="fn-vazio">Nenhum lote adicionado no período.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  if (!document.querySelector(".fn-tabs")) return;
+  const params = new URLSearchParams(window.location.search);
+  let aba = params.get("aba");
+  if (!aba || !document.getElementById("tab-" + aba)) aba = {{ 'true' if contas else 'false' }} ? "contas" : "fornecedores";
+  fnMudarAba(aba);
+
+  if (document.getElementById("pagContas")) fnPaginador({ linhas: ".linha-conta", porPagina: "porPagContas", paginas: "pagContas" });
+  if (document.getElementById("pagFornecedores")) fnPaginador({ linhas: ".linha-fornecedor", porPagina: "porPagFornecedores", paginas: "pagFornecedores", busca: "buscaFornecedores" });
+  // Lotes do período: rodapé com qtd/total de tudo que bate com a busca (não só a página).
+  if (document.getElementById("pagLotesPeriodo")) fnPaginador({
+    linhas: ".linha-lote-periodo", porPagina: "porPagLotesPeriodo", paginas: "pagLotesPeriodo", busca: "lotesBusca",
+    aoRenderizar: vis => {
+      document.getElementById("lotesQtd").textContent = vis.length;
+      document.getElementById("lotesTotal").textContent = fnMoeda(vis.reduce((s, tr) => s + (parseFloat(tr.dataset.valor) || 0), 0));
+    },
+  });
+})();
+
+// ── Lotes: atalhos de período (iguais aos do Financeiro) ──
+function setPeriodoLotes(tipo){
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  const hoje = new Date();
+  let ini = new Date(hoje), fim = new Date(hoje);
+  if (tipo === "ultima") {
+    // dia em que entrou o lote mais recente
+    document.getElementById("lotesIni").value = document.getElementById("lotesFim").value = {{ (ultima_compra_data or "")|tojson }};
+    document.getElementById("formLotes").submit();
+    return;
+  }
+  if (tipo === "7dias") ini.setDate(hoje.getDate() - 6);
+  else if (tipo === "mes") ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  else if (tipo === "mes_passado") {
+    ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+  }
+  document.getElementById("lotesIni").value = iso(ini);
+  document.getElementById("lotesFim").value = iso(fim);
+  document.getElementById("formLotes").submit();
+}
+
+</script>
+{% endblock %}

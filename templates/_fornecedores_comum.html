@@ -1,0 +1,304 @@
+{# Estilo, modais e scripts compartilhados por fornecedores.html e fornecedor_detalhe.html #}
+<style>
+*{box-sizing:border-box}
+.fn{flex:1;padding:24px 20px;display:flex;flex-direction:column;min-width:0}
+.fn-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.fn-header h1{font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:2px;margin:0;display:flex;align-items:center;gap:10px}
+.fn-voltar{font-size:.82rem;color:var(--text-muted);text-decoration:none;display:inline-block;margin-bottom:8px}
+.fn-voltar:hover{color:var(--accent)}
+
+.fn-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:.85rem;font-weight:700;
+  cursor:pointer;text-decoration:none;border:1px solid var(--border);background:var(--card-bg);color:var(--text);transition:.15s;white-space:nowrap}
+.fn-btn:hover{border-color:var(--accent);color:var(--accent)}
+.fn-btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.fn-btn-primary:hover{opacity:.9;color:#000}
+.fn-btn-sm{padding:5px 10px;font-size:.78rem}
+.fn-btn-perigo{color:#f87171;border-color:#5c1a1a}
+.fn-btn-perigo:hover{background:#2a0f0f;color:#f87171;border-color:#f87171}
+.fn-btn:disabled{opacity:.45;cursor:not-allowed}
+
+.fn-alerta{border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.88rem}
+.fn-alerta.erro{background:#2a0f0f;border:1px solid #f87171;color:#f87171}
+.fn-alerta.ok{background:#052e16;border:1px solid #16a34a;color:#4ade80}
+.fn-alerta.info{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);color:var(--text)}
+.fn-alerta code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px}
+
+.fn-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.fn-tab-btn{background:none;border:none;padding:10px 16px;font-size:.88rem;font-weight:700;color:var(--text-muted);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.fn-tab-btn:hover{color:var(--text)}
+.fn-tab-btn.ativo{color:var(--accent);border-bottom-color:var(--accent)}
+.fn-tab-btn .cont{display:inline-block;min-width:20px;padding:1px 6px;margin-left:4px;border-radius:10px;
+  background:var(--border);color:var(--text);font-size:.7rem}
+.fn-tab-btn .cont.alerta{background:#dc2626;color:#fff}
+.fn-tab{display:none}
+.fn-tab.ativo{display:block}
+
+.fn-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;margin-bottom:20px}
+@media(max-width:900px){.fn-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.fn-kpis{grid-template-columns:1fr}}
+.fn-kpis .kpi{background:var(--card-bg);padding:16px 18px;display:flex;align-items:center;gap:14px}
+.kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-icon svg{width:22px;height:22px;color:#fff}
+.kpi-icon.azul{background:#2563eb}.kpi-icon.verde{background:#16a34a}.kpi-icon.vermelho{background:#dc2626}
+.kpi-icon.laranja{background:#ea580c}.kpi-icon.roxo{background:#7c3aed}.kpi-icon.amarelo{background:#ca8a04}
+.kpi-info{min-width:0}
+.kpi-label{font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.kpi-valor{font-size:1.3rem;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi-valor.vermelho{color:#f87171}.kpi-valor.verde{color:#4ade80}.kpi-valor.amarelo{color:#facc15}
+.kpi-sub{font-size:.72rem;color:var(--text-muted)}
+
+.fn-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.fn-card-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--border)}
+.fn-card-titulo{font-size:.8rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.fn-input,.fn-select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:.84rem;outline:none}
+.fn-input:focus,.fn-select:focus{border-color:var(--accent)}
+.fn-busca{min-width:220px;flex:1;max-width:340px}
+
+.fn-table-wrap{overflow-x:auto}
+.fn-table{width:100%;border-collapse:collapse;min-width:720px}
+.fn-table th{font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;
+  padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.fn-table td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:.86rem;color:var(--text);vertical-align:middle}
+.fn-table tr:last-child td{border-bottom:none}
+.fn-table tbody tr:hover{background:rgba(255,255,255,.03)}
+.fn-table .num{text-align:right;white-space:nowrap}
+.fn-table .acao{text-align:right;white-space:nowrap}
+.fn-link{color:var(--text);font-weight:600;text-decoration:none}
+.fn-link:hover{color:var(--accent)}
+.fn-sub{font-size:.74rem;color:var(--text-muted)}
+.fn-vazio{padding:28px;text-align:center;color:var(--text-muted);font-size:.88rem}
+.fn-vermelho{color:#f87171;font-weight:700}
+.fn-verde{color:#4ade80;font-weight:700}
+
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:700;white-space:nowrap}
+.badge.paga{background:#052e16;color:#4ade80;border:1px solid #1a5c30}
+.badge.parcial,.badge.aberta,.badge.pendente{background:rgba(234,179,8,.12);color:#facc15;border:1px solid rgba(234,179,8,.4)}
+.badge.atrasada,.badge.vencida{background:#2a0f0f;color:#f87171;border:1px solid #5c1a1a}
+.badge.livre{background:rgba(148,163,184,.12);color:var(--text-muted);border:1px solid var(--border)}
+.badge.inativo{background:#27272a;color:#a1a1aa;border:1px solid #3f3f46}
+
+.fn-pag-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.fn-exibir{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--text-muted)}
+.fn-exibir select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:.84rem}
+.fn-pages{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.fn-pages button{background:var(--card-bg);border:1px solid var(--border);color:var(--text);width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600}
+.fn-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+.fn-pages button:hover:not(.ativo):not(:disabled){border-color:var(--accent);color:var(--accent)}
+.fn-pages button:disabled{opacity:.4;cursor:default}
+.fn-pages .ellipsis{color:var(--text-muted);padding:0 4px;line-height:34px}
+
+/* MODAIS */
+.fn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:1000;
+  align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
+.fn-overlay.open{display:flex}
+.fn-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;width:100%;max-width:560px;
+  box-shadow:0 24px 64px rgba(0,0,0,.6);margin:auto}
+.fn-modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.fn-modal-titulo{font-size:15px;font-weight:bold;color:var(--accent);letter-spacing:.5px}
+.fn-modal-close{background:#2a2a2a;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--text-muted);font-size:15px}
+.fn-modal-close:hover{color:var(--accent)}
+.fn-modal-body{padding:18px 20px 20px}
+.fn-modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.fn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.fn-row.tres{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:520px){.fn-row,.fn-row.tres{grid-template-columns:1fr}}
+.fn-campo{margin-bottom:12px}
+.fn-row .fn-campo{margin-bottom:0}
+.fn-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px}
+.fn-campo .fn-input,.fn-campo .fn-select,.fn-campo textarea{width:100%}
+.fn-campo textarea{background:var(--input-bg);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:.84rem;outline:none;resize:vertical;min-height:60px;font-family:inherit}
+</style>
+
+<!-- MODAL: novo/editar fornecedor -->
+<div class="fn-overlay" id="modalFornecedor" onclick="if(event.target===this)fecharModal('modalFornecedor')">
+  <div class="fn-modal">
+    <form method="post" id="formFornecedor">
+      <input type="hidden" name="next" value="">
+      <div id="mfApelidos"></div>
+      <div class="fn-modal-header">
+        <span class="fn-modal-titulo" id="mfTitulo">NOVO FORNECEDOR</span>
+        <button type="button" class="fn-modal-close" onclick="fecharModal('modalFornecedor')">✕</button>
+      </div>
+      <div class="fn-modal-body">
+        <div class="fn-campo">
+          <label class="fn-label">Nome *</label>
+          <input class="fn-input" name="nome" id="mfNome" required maxlength="120">
+        </div>
+        <div class="fn-row">
+          <div class="fn-campo"><label class="fn-label">CNPJ / CPF</label><input class="fn-input" name="cnpj" id="mfCnpj"></div>
+          <div class="fn-campo"><label class="fn-label">Telefone / WhatsApp</label><input class="fn-input" name="telefone" id="mfTelefone"></div>
+        </div>
+        <div class="fn-row">
+          <div class="fn-campo"><label class="fn-label">Contato (vendedor)</label><input class="fn-input" name="contato" id="mfContato"></div>
+          <div class="fn-campo"><label class="fn-label">E-mail</label><input class="fn-input" type="email" name="email" id="mfEmail"></div>
+        </div>
+        <div class="fn-campo"><label class="fn-label">Chave Pix</label><input class="fn-input" name="chave_pix" id="mfPix"></div>
+        <div class="fn-row">
+          <div class="fn-campo">
+            <label class="fn-label">Forma de pagamento padrão</label>
+            <select class="fn-select" name="forma_pagamento_padrao" id="mfForma">
+              <option value="">—</option>
+              {% for k, v in formas_pagamento.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fn-campo">
+            <label class="fn-label">Prazo padrão (dias)</label>
+            <input class="fn-input" type="number" min="0" max="365" name="prazo_dias_padrao" id="mfPrazo" placeholder="Ex: 28">
+          </div>
+        </div>
+        <div class="fn-campo"><label class="fn-label">Observações</label><textarea name="observacoes" id="mfObs" maxlength="500"></textarea></div>
+        <div class="fn-campo" id="mfAtivoWrap" style="display:none;">
+          <label class="fn-label">Situação</label>
+          <select class="fn-select" name="ativo" id="mfAtivo"><option value="1">Ativo</option><option value="0">Inativo</option></select>
+        </div>
+      </div>
+      <div class="fn-modal-footer">
+        <button type="button" class="fn-btn" onclick="fecharModal('modalFornecedor')">Cancelar</button>
+        <button type="submit" class="fn-btn fn-btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: marcar parcela como paga -->
+<div class="fn-overlay" id="modalPagar" onclick="if(event.target===this)fecharModal('modalPagar')">
+  <div class="fn-modal" style="max-width:420px;">
+    <form method="post" id="formPagar">
+      <input type="hidden" name="next" value="">
+      <div class="fn-modal-header">
+        <span class="fn-modal-titulo">MARCAR COMO PAGO</span>
+        <button type="button" class="fn-modal-close" onclick="fecharModal('modalPagar')">✕</button>
+      </div>
+      <div class="fn-modal-body">
+        <p id="mpResumo" style="margin:0 0 14px;font-size:.9rem;color:var(--text);"></p>
+        <div class="fn-row">
+          <div class="fn-campo"><label class="fn-label">Data do pagamento</label><input class="fn-input" type="date" name="data_pagamento" id="mpData" required></div>
+          <div class="fn-campo">
+            <label class="fn-label">Pago com</label>
+            <select class="fn-select" name="forma_pago" id="mpForma">
+              {% for k, v in formas_pagamento.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="fn-modal-footer">
+        <button type="button" class="fn-btn" onclick="fecharModal('modalPagar')">Cancelar</button>
+        <button type="submit" class="fn-btn fn-btn-primary">Confirmar pagamento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function fnHojeISO(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function fnMoeda(v){ return "R$ " + (Number(v) || 0).toFixed(2).replace(".", ","); }
+function fnDataBR(iso){ return iso ? iso.split("-").reverse().join("/") : ""; }
+function abrirModal(id){ document.getElementById(id).classList.add("open"); }
+function fecharModal(id){ document.getElementById(id).classList.remove("open"); }
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") document.querySelectorAll(".fn-overlay.open").forEach(o => o.classList.remove("open"));
+});
+function fnUrlAtual(){ return window.location.pathname + window.location.search.replace(/([?&])(erro|msg)=[^&]*/g, "$1").replace(/[?&]+$/, ""); }
+
+// Abre o modal de fornecedor. dados = null (novo) ou objeto do fornecedor (editar).
+// apelidos = nomes antigos que vão junto como apelidos do fornecedor.
+function abrirModalFornecedor(acao, dados, apelidos){
+  const f = document.getElementById("formFornecedor");
+  f.action = acao;
+  f.next.value = dados ? fnUrlAtual() : "";
+  dados = dados || {};
+  document.getElementById("mfTitulo").textContent = dados.id ? "EDITAR FORNECEDOR" : "NOVO FORNECEDOR";
+  document.getElementById("mfNome").value = dados.nome || "";
+  document.getElementById("mfCnpj").value = dados.cnpj || "";
+  document.getElementById("mfTelefone").value = dados.telefone || "";
+  document.getElementById("mfContato").value = dados.contato || "";
+  document.getElementById("mfEmail").value = dados.email || "";
+  document.getElementById("mfPix").value = dados.chave_pix || "";
+  document.getElementById("mfForma").value = dados.forma_pagamento_padrao || "";
+  document.getElementById("mfPrazo").value = dados.prazo_dias_padrao || "";
+  document.getElementById("mfObs").value = dados.observacoes || "";
+  document.getElementById("mfAtivoWrap").style.display = dados.id ? "" : "none";
+  document.getElementById("mfAtivo").value = dados.ativo === false ? "0" : "1";
+  const box = document.getElementById("mfApelidos");
+  box.innerHTML = "";
+  (apelidos || []).forEach(n => {
+    const i = document.createElement("input");
+    i.type = "hidden"; i.name = "apelidos[]"; i.value = n;
+    box.appendChild(i);
+  });
+  abrirModal("modalFornecedor");
+  setTimeout(() => document.getElementById("mfNome").focus(), 50);
+}
+
+function abrirModalPagar(acao, resumo, forma){
+  const f = document.getElementById("formPagar");
+  f.action = acao;
+  f.next.value = fnUrlAtual();
+  document.getElementById("mpResumo").textContent = resumo;
+  document.getElementById("mpData").value = fnHojeISO();
+  if (forma) document.getElementById("mpForma").value = forma;
+  abrirModal("modalPagar");
+}
+
+// Paginação + busca de uma tabela (mesmo padrão do Estoque).
+// linhas: <tr> com data-busca (texto em minúsculas) quando houver busca;
+// filtro: função opcional (tr) => bool pra filtros extras.
+function fnPaginador(opts){
+  const linhas = Array.from(document.querySelectorAll(opts.linhas));
+  const selPor = document.getElementById(opts.porPagina);
+  const cont = document.getElementById(opts.paginas);
+  const busca = opts.busca ? document.getElementById(opts.busca) : null;
+  let pagina = 1;
+  function render(){
+    const termo = busca ? busca.value.trim().toLowerCase() : "";
+    const visiveis = linhas.filter(tr => (!termo || (tr.dataset.busca || "").includes(termo)) && (!opts.filtro || opts.filtro(tr)));
+    const porPag = parseInt(selPor.value) || 10;
+    const totalPags = Math.max(1, Math.ceil(visiveis.length / porPag));
+    if (pagina > totalPags) pagina = totalPags;
+    const ini = (pagina - 1) * porPag, fim = ini + porPag;
+    linhas.forEach(tr => tr.style.display = "none");
+    visiveis.forEach((tr, i) => { if (i >= ini && i < fim) tr.style.display = ""; });
+    if (opts.aoRenderizar) opts.aoRenderizar(visiveis);
+    cont.innerHTML = "";
+    const mk = (label, pg, ativo, off) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.innerHTML = label; b.disabled = !!off;
+      if (ativo) b.classList.add("ativo");
+      b.onclick = () => { pagina = pg; render(); };
+      cont.appendChild(b);
+    };
+    mk("&#8249;", Math.max(1, pagina - 1), false, pagina === 1);
+    const mostrar = new Set([1, totalPags]);
+    for (let i = Math.max(1, pagina - 1); i <= Math.min(totalPags, pagina + 1); i++) mostrar.add(i);
+    let ant = 0;
+    for (let p = 1; p <= totalPags; p++) {
+      if (!mostrar.has(p)) continue;
+      if (ant && p - ant > 1) { const s = document.createElement("span"); s.className = "ellipsis"; s.textContent = "..."; cont.appendChild(s); }
+      mk(p, p, p === pagina);
+      ant = p;
+    }
+    mk("&#8250;", Math.min(totalPags, pagina + 1), false, pagina === totalPags);
+  }
+  selPor.addEventListener("change", () => { pagina = 1; render(); });
+  if (busca) busca.addEventListener("input", () => { pagina = 1; render(); });
+  render();
+  return { render, recomecar: () => { pagina = 1; render(); } };
+}
+
+// Abas com ?aba= na URL (igual ao Financeiro).
+function fnMudarAba(aba){
+  document.querySelectorAll(".fn-tab-btn").forEach(b => b.classList.toggle("ativo", b.dataset.tab === aba));
+  document.querySelectorAll(".fn-tab").forEach(t => t.classList.toggle("ativo", t.id === "tab-" + aba));
+  if (history.replaceState) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("aba", aba);
+    url.searchParams.delete("erro"); url.searchParams.delete("msg");
+    history.replaceState(null, "", url);
+  }
+}
+</script>

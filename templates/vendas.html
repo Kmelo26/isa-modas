@@ -3,7 +3,7 @@
 
 <style>
 /* ── BASE ── */
-.v-wrap { width:100%; padding:20px 20px 40px; }
+.v-wrap { flex:1; padding:20px 20px 40px; display:flex; flex-direction:column; }
 
 /* ── HEADER ── */
 .v-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
@@ -100,6 +100,9 @@
 /* pagamento icons */
 .pgto-cell { display:flex; align-items:center; gap:5px; font-size:12px; white-space:nowrap; }
 .pgto-icon { font-size:14px; }
+.pgto-multi-badge { display:inline-flex; align-items:center; justify-content:center;
+  padding:2px 6px; border-radius:20px; font-size:11px; background:#241a3d; color:#a78bfa;
+  border:1px solid #a78bfa44; flex-shrink:0; }
 
 /* margem badge */
 .margem-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; }
@@ -174,18 +177,20 @@
 #acoes-dropdown-grupo a:last-child { border-bottom:none; }
 #acoes-dropdown-grupo a:hover { background:var(--accent-dim); color:var(--accent); }
 
-/* ── FOOTER PAGINAÇÃO ── */
-.v-footer { display:flex; justify-content:space-between; align-items:center;
-  padding:14px 16px; border-top:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+/* ── FOOTER PAGINAÇÃO (mesmo padrão da tela de Estoque, 100% no navegador) ── */
 .v-footer-info { font-size:12px; color:var(--text-muted); }
-.v-pag-btns { display:flex; gap:4px; align-items:center; }
-.pag-btn { display:inline-flex; align-items:center; justify-content:center;
-  min-width:32px; height:32px; padding:0 8px; border:1px solid var(--border); border-radius:8px;
-  font-size:13px; font-weight:600; color:var(--text-muted); text-decoration:none;
-  background:var(--card-bg); cursor:pointer; transition:all 0.15s; }
-.pag-btn:hover { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
-.pag-btn.current { background:var(--accent-dim); color:var(--accent); border-color:var(--accent); cursor:default; }
-.pag-btn.disabled { opacity:0.35; pointer-events:none; }
+.v-footer-truncado { font-size:12px; color:#fbbf24; padding:8px 16px 0; }
+.est-pag-bar{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.est-exibir{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--text-muted,#888)}
+.est-exibir select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:6px;font-size:.85rem;cursor:pointer}
+.est-pages{display:flex;gap:4px;align-items:center}
+.est-pages button{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+  width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600}
+.est-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+.est-pages button:hover:not(.ativo){border-color:var(--accent);color:var(--accent)}
+.est-pages .ellipsis{color:var(--text-muted,#888);padding:0 4px;line-height:34px}
 
 /* ── VAZIO ── */
 .v-vazio { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:14px; }
@@ -346,7 +351,7 @@
       <div class="vis-secao" id="vv-secao-lotes" style="display:none;">
         <div class="vis-secao-titulo">3. Rastreio de Estoque Consumido</div>
         <table class="vis-lote-table">
-          <thead><tr><th>Lote / Ref.</th><th>Qtd consumida</th><th>Custo unit.</th><th>Custo total</th></tr></thead>
+          <thead><tr><th>Código</th><th>Lote / Ref.</th><th>Qtd consumida</th><th>Custo unit.</th><th>Custo total</th></tr></thead>
           <tbody id="vv-lotes-body"></tbody>
         </table>
       </div>
@@ -499,7 +504,7 @@
           <tbody>
             {% for v in g.itens %}
               {% set custo  = v.valor_investido if v.valor_investido else 0 %}
-              {% set margem = ((v.valor_venda - custo) / v.valor_venda * 100) if v.valor_venda and v.valor_venda > 0 else 0 %}
+              {% set margem = ((v.valor_venda - custo) / custo * 100) if custo and custo > 0 else 0 %}
               {% set is_bar = v.produto_tipo == 'bar' %}
               {% set pgto   = (v.forma_pagamento or '')|lower %}
               <tr>
@@ -540,7 +545,7 @@
                     {% elif 'dinheiro' in pgto %}
                       <span class="pgto-icon">💵</span> Dinheiro
                     {% else %}
-                      {{ v.forma_pagamento or '—' }}
+                      {{ v.forma_pagamento|forma_pagamento }}
                     {% endif %}
                   </div>
                 </td>
@@ -709,6 +714,7 @@
           <option value="pix" {% if forma_pagamento_raw == 'pix' %}selected{% endif %}>⚡ Pix</option>
           <option value="cartao" {% if forma_pagamento_raw == 'cartao' %}selected{% endif %}>💳 Cartão</option>
           <option value="dinheiro" {% if forma_pagamento_raw == 'dinheiro' %}selected{% endif %}>💵 Dinheiro</option>
+          <option value="__multiplas__" {% if forma_pagamento_raw == '__multiplas__' %}selected{% endif %}>🔀 Múltiplas formas</option>
         </select>
       </div>
       <div>
@@ -734,12 +740,12 @@
       <div>
         <label>Margem Mín. %</label>
         <input class="v-margem-input" type="number" name="margem_min" placeholder="ex: 30"
-          value="{{ margem_min_raw or '' }}" min="0" max="100" step="1">
+          value="{{ margem_min_raw or '' }}" min="-100" step="1">
       </div>
       <div>
         <label>Margem Máx. %</label>
         <input class="v-margem-input" type="number" name="margem_max" placeholder="ex: 80"
-          value="{{ margem_max_raw or '' }}" min="0" max="100" step="1">
+          value="{{ margem_max_raw or '' }}" min="-100" step="1">
       </div>
       {% endif %}
       <input type="hidden" name="ordenar" id="hidden-ordenar" value="{{ ordenar_raw or 'data_desc' }}">
@@ -808,7 +814,10 @@
             <td>{{ g.usuario or 'Não identificado' }}</td>
             <td style="text-align:right;" class="v-qtd-itens">{{ g.qtd_itens }}</td>
             <td>
-              <div class="pgto-cell">{{ g.formas_pagamento|join(' + ') if g.formas_pagamento else '—' }}</div>
+              <div class="pgto-cell">
+                {% if g.formas_pagamento and g.formas_pagamento|length > 1 %}<span class="pgto-multi-badge" title="Paga em múltiplas formas">🔀</span>{% endif %}
+                {{ g.formas_pagamento|map('forma_pagamento')|join(' + ') if g.formas_pagamento else '—' }}
+              </div>
             </td>
             <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(g.valor_total) }}</td>
             {% if tem_margem %}
@@ -850,34 +859,24 @@
       </tbody>
     </table>
 
-    <!-- FOOTER PAGINAÇÃO -->
-    <div class="v-footer">
-      <span class="v-footer-info">
-        Mostrando {{ inicio_reg }} a {{ fim_reg }} de {{ total_registros }} venda{{ 's' if total_registros != 1 else '' }}
-      </span>
-      {% if total_paginas and total_paginas > 1 %}
-      <div class="v-pag-btns">
-        {% if pagina > 1 %}
-          <a class="pag-btn" href="/vendas?pagina={{ pagina-1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">←</a>
-        {% else %}
-          <span class="pag-btn disabled">←</span>
-        {% endif %}
+    {% if vendas_truncadas %}
+    <div class="v-footer-truncado">⚠️ Exibindo as {{ vendas|length }} vendas mais recentes que atendem ao filtro (de {{ total_registros }} no total) — refine a busca por data pra ver o restante.</div>
+    {% endif %}
 
-        {% for p in range([pagina-2,1]|max, [pagina+3,total_paginas+1]|min) %}
-          {% if p == pagina %}
-            <span class="pag-btn current">{{ p }}</span>
-          {% else %}
-            <a class="pag-btn" href="/vendas?pagina={{ p }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">{{ p }}</a>
-          {% endif %}
-        {% endfor %}
-
-        {% if pagina < total_paginas %}
-          <a class="pag-btn" href="/vendas?pagina={{ pagina+1 }}&busca_produto={{ busca_produto or '' }}&codigo={{ busca_codigo or '' }}&data_ini={{ data_ini_raw or '' }}&data_fim={{ data_fim_raw or '' }}&forma_pagamento={{ forma_pagamento_raw or '' }}&status={{ status_raw or '' }}&margem_min={{ margem_min_raw or '' }}&margem_max={{ margem_max_raw or '' }}&ordenar={{ ordenar_raw or 'data_desc' }}">→</a>
-        {% else %}
-          <span class="pag-btn disabled">→</span>
-        {% endif %}
+    <!-- FOOTER PAGINAÇÃO (igual à tela de Estoque — tudo no navegador, sem recarregar) -->
+    <div class="est-pag-bar">
+      <div class="est-exibir">
+        Exibir
+        <select id="v-por-pag" onchange="renderPagVendas()">
+          <option value="10">10</option>
+          <option value="15">15</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        registros — {{ vendas|length }} venda{{ 's' if vendas|length != 1 else '' }} no filtro atual
       </div>
-      {% endif %}
+      <div class="est-pages" id="v-paginacao"></div>
     </div>
   </div>
 
@@ -1019,6 +1018,54 @@ function aplicarSort(val) {
   f.submit();
 }
 
+// ── Paginação (mesmo padrão da tela de Estoque — tudo no navegador) ──
+const todasLinhasVendas = Array.from(document.querySelectorAll(".v-group-row"));
+let paginaAtualVendas = 1;
+
+function renderPagVendas(){
+  if (!todasLinhasVendas.length) return;
+  const porPag = parseInt(document.getElementById("v-por-pag").value) || 10;
+  const total = todasLinhasVendas.length;
+  const totalPags = Math.max(1, Math.ceil(total / porPag));
+  if (paginaAtualVendas > totalPags) paginaAtualVendas = totalPags;
+  const ini = (paginaAtualVendas - 1) * porPag;
+  const fim = ini + porPag;
+  todasLinhasVendas.forEach((tr, i) => tr.style.display = (i >= ini && i < fim) ? "" : "none");
+
+  const cont = document.getElementById("v-paginacao");
+  cont.innerHTML = "";
+
+  function mkBtn(label, pg, ativo){
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (ativo) b.classList.add("ativo");
+    b.onclick = () => { paginaAtualVendas = pg; renderPagVendas(); };
+    return b;
+  }
+  const prev = document.createElement("button");
+  prev.innerHTML = "&#8249;";
+  prev.disabled = paginaAtualVendas === 1;
+  prev.onclick = () => { if (paginaAtualVendas > 1) { paginaAtualVendas--; renderPagVendas(); } };
+  cont.appendChild(prev);
+
+  const visible = new Set([1, totalPags]);
+  for (let i = Math.max(1, paginaAtualVendas - 1); i <= Math.min(totalPags, paginaAtualVendas + 1); i++) visible.add(i);
+  let prevP = 0;
+  Array.from({length: totalPags}, (_, i) => i + 1).forEach(p => {
+    if (!visible.has(p)) return;
+    if (prevP && p - prevP > 1) { const el = document.createElement("span"); el.textContent = "..."; el.className = "ellipsis"; cont.appendChild(el); }
+    cont.appendChild(mkBtn(p, p, p === paginaAtualVendas));
+    prevP = p;
+  });
+
+  const next = document.createElement("button");
+  next.innerHTML = "&#8250;";
+  next.disabled = paginaAtualVendas === totalPags;
+  next.onclick = () => { if (paginaAtualVendas < totalPags) { paginaAtualVendas++; renderPagVendas(); } };
+  cont.appendChild(next);
+}
+renderPagVendas();
+
 // ── Toggle olhinho ──
 const eyeAberto  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
 const eyeFechado = `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
@@ -1037,7 +1084,7 @@ function preencherVisualizar(v) {
   const custo = parseFloat(v.valor_investido) || 0;
   const total = preco * qtd;
   const lucro = (preco - custo) * qtd;
-  const margem = preco > 0 ? ((preco - custo) / preco * 100) : 0;
+  const margem = custo > 0 ? ((preco - custo) / custo * 100) : 0;
   const tipo  = v.produto_tipo === 'bar' ? 'bar' : 'estoque';
 
   document.getElementById('vv-nome').textContent  = v.nome || '—';
@@ -1046,7 +1093,7 @@ function preencherVisualizar(v) {
   document.getElementById('vv-codigo-produto').textContent = v.codigo_produto || '—';
   document.getElementById('vv-data').textContent  = fmtData(v.data);
   document.getElementById('vv-qtd').textContent   = Math.floor(qtd) + ' un.';
-  document.getElementById('vv-pgto').textContent  = v.forma_pagamento || '—';
+  document.getElementById('vv-pgto').textContent  = v.forma_pagamento === 'fiado' ? 'Faturado' : (v.forma_pagamento || '—');
   document.getElementById('vv-hora').textContent  = v.hora || '—';
   document.getElementById('vv-usuario').textContent = v.usuario || '—';
   const STATUS_LABEL_V = {
@@ -1079,10 +1126,11 @@ function preencherVisualizar(v) {
   const tbody = document.getElementById('vv-lotes-body');
   if (lotes.length) {
     tbody.innerHTML = lotes.map(cl => {
+      const cod = v.produto_tipo === 'bar' ? (cl.codigo || '—') : (v.codigo_produto || '—');
       const ref = cl.data_lote ? 'Lote ' + fmtData(cl.data_lote) : (cl.batch_id ? 'Batch #' + String(cl.batch_id).slice(0,8) : '—');
       const qty = parseFloat(cl.qty || cl.qtd || 0);
       const uc  = parseFloat(cl.unit_cost || cl.custo_unit || 0);
-      return `<tr><td>${ref}</td><td>${qty.toFixed(4)}</td><td>${fmtR(uc)}</td><td>${fmtR(qty*uc)}</td></tr>`;
+      return `<tr><td>${cod}</td><td>${ref}</td><td>${qty.toFixed(4)}</td><td>${fmtR(uc)}</td><td>${fmtR(qty*uc)}</td></tr>`;
     }).join('');
     secao.style.display = '';
   } else {
@@ -1098,7 +1146,7 @@ window.fecharVisualizar = function() {
 };
 
 // ── Visualizar venda (grupo) ──
-const FORMA_LABEL_G = { pix: 'Pix', credito: 'Cartão', debito: 'Débito', dinheiro: 'Dinheiro', fiado: 'Fiado' };
+const FORMA_LABEL_G = { pix: 'Pix', credito: 'Cartão', debito: 'Débito', dinheiro: 'Dinheiro', fiado: 'Faturado' };
 function preencherVisualizarGrupo(g) {
   if (!g) return;
   document.getElementById('vvg-id').textContent = g.id_display || '—';

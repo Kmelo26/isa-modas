@@ -2,11 +2,12 @@
 {% block conteudo %}
 
 <style>
-.container { max-width:700px; margin:20px auto; padding:20px }
+.container { padding:20px; flex:1; display:flex; flex-direction:column; }
 h2 { text-align:center; color:var(--accent); margin-bottom:15px }
 form { background:var(--card-bg); padding:18px; border-radius:10px;
   box-shadow:var(--shadow); border:1px solid var(--border);
-  display:flex; flex-direction:column; gap:10px; }
+  display:flex; flex-direction:column; gap:10px;
+  max-width:700px; margin:0 auto; width:100%; }
 label { font-weight:bold; color:var(--accent); }
 input, select { padding:10px; border:1px solid var(--border); border-radius:8px;
   background:var(--input-bg); color:var(--text); }
@@ -60,10 +61,17 @@ input[readonly] { background:#242424; color:var(--text-muted); }
     <input type="text" readonly value="{{ nome_produto_atual }}{{ ' (pacote)' if produto_tipo_venda == 'bar' else '' }}">
     <input type="hidden" name="produto_pid" value="{{ venda.produto_pid }}">
 
-    <div class="obs">O produto da venda não pode ser trocado por aqui — só data, quantidade e forma de pagamento.</div>
+    <div class="obs">O produto da venda não pode ser trocado por aqui — só data, quantidade{{ ', preço' if pode_alterar_preco else '' }} e forma de pagamento.</div>
 
-    <label>Preço de Venda</label>
-    <input id="precoVenda" type="text" readonly value="R$ {{ '%.2f'|format(preco_produto_atual) }}">
+    <label>Preço de Venda (unitário)</label>
+    {% if pode_alterar_preco %}
+    <input id="precoVenda" type="number" name="preco_unit" step="0.01" min="0.01" required
+           value="{{ '%.2f'|format(preco_produto_atual) }}" oninput="pgdCalcular()">
+    <div class="obs">Preço desta venda. Alterar aqui não muda o preço do produto no estoque.</div>
+    {% else %}
+    <input id="precoVenda" type="text" readonly value="R$ {{ '%.2f'|format(preco_produto_atual) }}"
+           title="{{ 'Item de comanda: o preço é controlado pela comanda.' if venda.comanda_id else 'Você não tem permissão para alterar o preço de uma venda já realizada.' }}">
+    {% endif %}
 
     {% if produto_tipo_venda != 'bar' %}
     <label>Quantidade disponível</label>
@@ -134,6 +142,12 @@ Escolha a forma de pagamento e o valor. Se o valor pago for menor que o total, i
 
   const PRECO_PRODUTO_ATUAL = {{ preco_produto_atual }};
   const TOTAL_OUTROS_ITENS = {{ total_outros_itens or 0 }};
+  // Preço digitado (se o usuário pode alterar) ou o preço da venda.
+  function precoUnitAtual(){
+    const el = document.getElementById("precoVenda");
+    const v = el && el.type === "number" ? parseFloat(el.value) : NaN;
+    return Number.isFinite(v) && v > 0 ? v : PRECO_PRODUTO_ATUAL;
+  }
   const TEM_PERM_EDITAR_VENDA = {{ (tipo == "admin" or "editar_vendas" in permissoes)|tojson }};
 
   /* ── PIN de autorização (mesmo padrão de vendas.html/comandas.html) ── */
@@ -153,7 +167,7 @@ Escolha a forma de pagamento e o valor. Se o valor pago for menor que o total, i
 
   function pgdTotalAtual() {
     const qtd = parseInt(document.querySelector('input[name="quantidade"]').value) || 0;
-    return Math.round((TOTAL_OUTROS_ITENS + PRECO_PRODUTO_ATUAL * qtd) * 100) / 100;
+    return Math.round((TOTAL_OUTROS_ITENS + precoUnitAtual() * qtd) * 100) / 100;
   }
 
   function pgdSelecionarForma1(forma){

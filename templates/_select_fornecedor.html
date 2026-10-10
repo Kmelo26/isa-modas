@@ -1,0 +1,152 @@
+{# Lista de fornecedores cadastrados pros formulários de lote/produto.
+   selecionado: nome do cadastro já escolhido; sem_cadastro: texto antigo que
+   não bate com nenhum cadastro (mantido como opção pra não se perder ao salvar).
+   pode_cadastrar: mostra "+ cadastrar novo fornecedor", que abre o mesmo modal
+   da tela Fornecedores aqui mesmo (salva por fetch, sem sair da página). #}
+{% macro select_fornecedor(fornecedores, selecionado="", sem_cadastro="", pode_cadastrar=false) %}
+<select name="fornecedor" id="mnf-select" class="sel-fornecedor">
+  <option value="">Sem fornecedor</option>
+  {% for f in fornecedores %}
+  <option value="{{ f.nome }}" {% if f.nome == selecionado %}selected{% endif %}>{{ f.nome }}</option>
+  {% endfor %}
+  {% if sem_cadastro %}<option value="{{ sem_cadastro }}" selected>{{ sem_cadastro }} (não cadastrado)</option>{% endif %}
+</select>
+{% if pode_cadastrar %}
+<button type="button" class="mnf-link" onclick="mnfAbrir(document.getElementById('mnf-select'))">+ cadastrar novo fornecedor</button>
+<span class="mnf-ok" id="mnf-ok"></span>
+
+<style>
+.mnf-link{background:none;border:none;padding:0;margin-top:4px;font-size:.75rem;color:var(--accent);cursor:pointer;display:inline-block}
+.mnf-link:hover{text-decoration:underline}
+.mnf-ok{font-size:.75rem;color:#4ade80;margin-left:8px}
+.mnf-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:2000;
+  align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
+.mnf-overlay.open{display:flex}
+.mnf-modal{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;width:100%;max-width:560px;
+  box-shadow:0 24px 64px rgba(0,0,0,.6);margin:auto;text-align:left}
+.mnf-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.mnf-titulo{font-size:15px;font-weight:bold;color:var(--accent);letter-spacing:.5px}
+.mnf-close{background:#2a2a2a;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--text-muted);font-size:15px}
+.mnf-close:hover{color:var(--accent)}
+.mnf-body{padding:18px 20px 20px}
+.mnf-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.mnf-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:520px){.mnf-row{grid-template-columns:1fr}}
+.mnf-campo{margin-bottom:12px;min-width:0}
+.mnf-row .mnf-campo{margin-bottom:0}
+.mnf-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px}
+.mnf-input{width:100%;box-sizing:border-box;background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:8px;font-size:.84rem;outline:none;font-family:inherit}
+.mnf-input:focus{border-color:var(--accent)}
+textarea.mnf-input{resize:vertical;min-height:60px}
+.mnf-btn{display:inline-flex;align-items:center;padding:9px 16px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;
+  border:1px solid var(--border);background:var(--card-bg);color:var(--text)}
+.mnf-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mnf-btn-primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.mnf-btn-primary:hover{opacity:.9;color:#000}
+.mnf-btn:disabled{opacity:.5;cursor:wait}
+.mnf-erro{display:none;background:#2a0f0f;border:1px solid #f87171;color:#f87171;border-radius:8px;padding:8px 12px;font-size:.84rem;margin-bottom:12px}
+</style>
+
+{# Campos sem "name": não vão junto quando o formulário do lote é salvo. #}
+<div class="mnf-overlay" id="mnf-overlay" onclick="if(event.target===this)mnfFechar()">
+  <div class="mnf-modal" role="dialog" aria-modal="true" aria-labelledby="mnf-titulo">
+    <div class="mnf-header">
+      <span class="mnf-titulo" id="mnf-titulo">NOVO FORNECEDOR</span>
+      <button type="button" class="mnf-close" onclick="mnfFechar()">✕</button>
+    </div>
+    <div class="mnf-body">
+      <div class="mnf-erro" id="mnf-erro"></div>
+      <div class="mnf-campo">
+        <label class="mnf-label" for="mnf-nome">Nome *</label>
+        <input class="mnf-input" id="mnf-nome" data-campo="nome" maxlength="120">
+      </div>
+      <div class="mnf-row">
+        <div class="mnf-campo"><label class="mnf-label">CNPJ / CPF</label><input class="mnf-input" data-campo="cnpj"></div>
+        <div class="mnf-campo"><label class="mnf-label">Telefone / WhatsApp</label><input class="mnf-input" data-campo="telefone"></div>
+      </div>
+      <div class="mnf-row">
+        <div class="mnf-campo"><label class="mnf-label">Contato (vendedor)</label><input class="mnf-input" data-campo="contato"></div>
+        <div class="mnf-campo"><label class="mnf-label">E-mail</label><input class="mnf-input" type="email" data-campo="email"></div>
+      </div>
+      <div class="mnf-campo"><label class="mnf-label">Chave Pix</label><input class="mnf-input" data-campo="chave_pix"></div>
+      <div class="mnf-row">
+        <div class="mnf-campo">
+          <label class="mnf-label">Forma de pagamento padrão</label>
+          <select class="mnf-input" data-campo="forma_pagamento_padrao">
+            <option value="">—</option>
+            {% for k, v in FORMAS_PAGAMENTO_FORNECEDOR.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mnf-campo">
+          <label class="mnf-label">Prazo padrão (dias)</label>
+          <input class="mnf-input" type="number" min="0" max="365" data-campo="prazo_dias_padrao" placeholder="Ex: 28">
+        </div>
+      </div>
+      <div class="mnf-campo"><label class="mnf-label">Observações</label><textarea class="mnf-input" data-campo="observacoes" maxlength="500"></textarea></div>
+    </div>
+    <div class="mnf-footer">
+      <button type="button" class="mnf-btn" onclick="mnfFechar()">Cancelar</button>
+      <button type="button" class="mnf-btn mnf-btn-primary" id="mnf-salvar" onclick="mnfSalvar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // O modal fica fora do <form> do lote (form dentro de form não funciona e
+  // o Enter aqui não pode salvar o lote).
+  const overlay = document.getElementById("mnf-overlay");
+  document.body.appendChild(overlay);
+  overlay.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { e.preventDefault(); mnfSalvar(); }
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && overlay.classList.contains("open")) mnfFechar(); });
+})();
+
+// alvo: <select> que recebe o fornecedor criado (padrão: o do formulário de novo lote)
+let mnfAlvo = null;
+function mnfAbrir(alvo){
+  mnfAlvo = alvo || document.getElementById("mnf-select");
+  document.querySelectorAll("#mnf-overlay [data-campo]").forEach(i => i.value = "");
+  document.getElementById("mnf-erro").style.display = "none";
+  document.getElementById("mnf-overlay").classList.add("open");
+  setTimeout(() => document.getElementById("mnf-nome").focus(), 50);
+}
+function mnfFechar(){ document.getElementById("mnf-overlay").classList.remove("open"); }
+
+function mnfSalvar(){
+  const erro = document.getElementById("mnf-erro");
+  const nome = document.getElementById("mnf-nome").value.trim();
+  if (!nome) {
+    erro.textContent = "Informe o nome do fornecedor.";
+    erro.style.display = "block";
+    return;
+  }
+  const dados = new FormData();
+  document.querySelectorAll("#mnf-overlay [data-campo]").forEach(i => dados.append(i.dataset.campo, i.value.trim()));
+  const btn = document.getElementById("mnf-salvar");
+  btn.disabled = true; btn.textContent = "Salvando...";
+  fetch("{{ url_for('fornecedor_novo') }}", {method: "POST", body: dados, headers: {"X-Requested-With": "fetch"}})
+    .then(r => r.json().catch(() => ({erro: "Erro inesperado (" + r.status + ")."})))
+    .then(resp => {
+      if (resp.erro) { erro.textContent = resp.erro; erro.style.display = "block"; return; }
+      // Coloca o novo fornecedor em todas as listas da página (em ordem
+      // alfabética) e já seleciona na lista de onde o cadastro foi aberto.
+      document.querySelectorAll("select.sel-fornecedor").forEach(sel => {
+        const opt = new Option(resp.nome, resp.nome);
+        const depois = Array.from(sel.options).find(o => o.value && !o.text.endsWith("(não cadastrado)") && o.text.localeCompare(resp.nome, "pt-BR") > 0);
+        sel.insertBefore(opt, depois || null);
+      });
+      const sel = mnfAlvo || document.getElementById("mnf-select");
+      sel.value = resp.nome;
+      sel.dispatchEvent(new Event("change", {bubbles: true}));
+      document.getElementById("mnf-ok").textContent = "✓ " + resp.nome + " cadastrado";
+      mnfFechar();
+    })
+    .catch(() => { erro.textContent = "Sem conexão com o servidor. Tente de novo."; erro.style.display = "block"; })
+    .finally(() => { btn.disabled = false; btn.textContent = "Salvar"; });
+}
+</script>
+{% endif %}
+{% endmacro %}

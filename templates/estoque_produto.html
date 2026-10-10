@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_select_fornecedor.html" import select_fornecedor with context %}
 {% block conteudo %}
 
 {% set qtd_total    = produto.quantidade | float %}
@@ -10,7 +11,7 @@
 {% set prod_cont_unit = produto.get('conteudo_unidade') or 'ml' %}
 
 <style>
-  .lp { max-width:1200px; margin:0 auto; padding:20px 20px 48px; }
+  .lp { padding:20px 20px 48px; flex:1; display:flex; flex-direction:column; }
 
   .lp-back { display:inline-flex; align-items:center; gap:8px; color:var(--text);
     text-decoration:none; font-size:0.9rem; margin-bottom:18px; }
@@ -91,6 +92,18 @@
   .lp-btn-add-part:hover { border-color:#22c55e; color:#22c55e; }
   .lp-btn-rm-part { background:var(--card-bg); border:1px solid var(--border); color:var(--text-muted);
     border-radius:8px; padding:0 10px; cursor:pointer; }
+  /* Paginação — mesmo padrão já usado na tela de Estoque (est-pag-bar etc). */
+  .est-pag-bar{display:flex;justify-content:space-between;align-items:center;
+    padding:14px 20px;border-top:1px solid var(--border);flex-wrap:wrap;gap:10px}
+  .est-exibir{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--text-muted,#888)}
+  .est-exibir select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
+    padding:5px 8px;border-radius:6px;font-size:.85rem;cursor:pointer}
+  .est-pages{display:flex;gap:4px;align-items:center}
+  .est-pages button{background:var(--card-bg);border:1px solid var(--border);color:var(--text);
+    width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600}
+  .est-pages button.ativo{background:var(--accent);color:#000;border-color:var(--accent)}
+  .est-pages button:hover:not(.ativo){border-color:var(--accent);color:var(--accent)}
+  .est-pages .ellipsis{color:var(--text-muted,#888);padding:0 4px;line-height:34px}
 
   .alerta { color:#f87171; font-weight:bold; background:#2a0f0f;
     border:1px solid #5a1f1f; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:0.875rem; }
@@ -215,7 +228,6 @@
   <div class="lp-tabs">
     <div class="lp-tab" onclick="trocarTab('dados')">Dados do produto</div>
     <div class="lp-tab ativo" onclick="trocarTab('lotes')">Lotes / Entradas de Estoque</div>
-    <div class="lp-tab" onclick="trocarTab('saidas')">Histórico de Saídas</div>
     <div class="lp-tab" onclick="trocarTab('movimentos')">Movimentações</div>
   </div>
 
@@ -226,7 +238,10 @@
       <div class="lp-dados-grid">
         <div class="lp-dado"><label>Nome</label><div class="val">{{ produto.nome }}</div></div>
         <div class="lp-dado"><label>Categoria</label><div class="val">{{ produto.get('categoria') or '—' }}</div></div>
-        <div class="lp-dado"><label>Preço de venda</label><div class="val">R$ {{ "%.2f"|format(preco_venda) }}</div></div>
+        <div class="lp-dado"><label>Preço de venda</label><div class="val">R$ {{ "%.2f"|format(preco_venda) }}</div>
+          {%- if produto.precos_local %}{% for lid, pr in produto.precos_local.items() %}
+          <div style="font-size:.72rem;color:var(--text-muted);">{{ locais_nomes_map.get(lid, lid) }}: R$ {{ "%.2f"|format(pr|float) }}</div>
+          {%- endfor %}{% endif %}</div>
         <div class="lp-dado"><label>Custo médio</label><div class="val">R$ {{ "%.2f"|format(custo_medio) }}</div></div>
         <div class="lp-dado"><label>Tipo de controle</label><div class="val">{{ produto.get('tipo_controle') or 'UN' }}</div></div>
         <div class="lp-dado"><label>Unidade de venda</label><div class="val">{{ produto.get('unidade_venda') or 'UN' }}</div></div>
@@ -366,8 +381,8 @@
               <input type="date" name="validade">
             </div>
             <div class="lp-fg">
-              <label>Fornecedor (opcional)</label>
-              <input type="text" name="fornecedor" placeholder="Ex: Nestlé">
+              <label>Fornecedor (onde comprou)</label>
+              {{ select_fornecedor(fornecedores_sugestao, fornecedor_padrao_lote, "", pode_cadastrar_fornecedor) }}
             </div>
           </div>
 
@@ -515,6 +530,14 @@
                   <input class="edit-inp" type="number" name="quantidade" id="e-q-{{ loop.index0 }}" style="width:85px;" min="1"></div>
                 <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Custo unit.</label>
                   <input class="edit-inp" type="number" step="0.01" name="custo_unit" id="e-c-{{ loop.index0 }}" style="width:100px;" min="0.01"></div>
+                <div><label style="font-size:.72rem;color:var(--text-muted);display:block;margin-bottom:3px;">Fornecedor</label>
+                  <select class="edit-inp sel-fornecedor" name="fornecedor" style="width:200px;">
+                    <option value="">Sem fornecedor</option>
+                    {% for f in fornecedores_sugestao %}<option value="{{ f.nome }}" {% if f.nome == l._forn_sel %}selected{% endif %}>{{ f.nome }}</option>{% endfor %}
+                    {% if l._forn_extra and l._forn_extra != "None" %}<option value="{{ l._forn_extra }}" selected>{{ l._forn_extra }} (não cadastrado)</option>{% endif %}
+                  </select>
+                  {% if pode_cadastrar_fornecedor %}<button type="button" class="mnf-link" style="display:block;" onclick="mnfAbrir(this.previousElementSibling)">+ novo fornecedor</button>{% endif %}
+                </div>
                 <div style="display:flex;gap:6px;">
                   <button type="submit" class="btn-sv">Salvar</button>
                   <button type="button" class="btn-cx" data-idx="{{ loop.index0 }}" onclick="fecharEdit(this.dataset.idx)">Cancelar</button>
@@ -610,54 +633,6 @@
 
   </div><!-- /tab-lotes -->
 
-  <!-- TAB: Saídas -->
-  <div class="lp-panel" id="tab-saidas">
-    <div class="lp-card">
-      <div class="lp-card-titulo-neutral">Histórico de Saídas</div>
-      {% if not saidas %}
-        <p style="color:var(--text-muted);font-size:.875rem;">Nenhuma saída registrada para este produto.</p>
-      {% else %}
-      <div style="overflow-x:auto;">
-      <table class="lp-hist-table">
-        <thead>
-          <tr>
-            <th>Data</th><th>Código</th><th>Qtd</th><th>Preço venda</th><th>Forma Pgto</th><th>Operador</th><th>Total recebido</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% set ns = namespace(total_qtd=0, total_val=0) %}
-          {% for s in saidas %}
-          {% set ns.total_qtd = ns.total_qtd + (s.quantidade|float) %}
-          {% set ns.total_val = ns.total_val + (s.quantidade|float * s.valor_venda|float) %}
-          <tr>
-            <td>{{ s.data|br_date if s.data else '—' }}{% if s.hora %} {{ s.hora }}{% endif %}</td>
-            <td style="font-family:monospace;font-weight:700;color:var(--accent);">{{ s.codigo or '—' }}</td>
-            <td>
-              {% if prod_cont_val %}{{ "%.3f"|format(s.quantidade|float) }}{% else %}{{ s.quantidade|int }}{% endif %} un.
-              {% if prod_cont_val %}<br><span style="font-size:.75rem;color:var(--text-muted);">{{ "%.1f"|format(s.quantidade|float * prod_cont_val|float) }} {{ prod_cont_unit }}</span>{% endif %}
-            </td>
-            <td>R$ {{ "%.2f"|format(s.valor_venda|float) }}</td>
-            <td>{{ s.get('forma_pagamento') or '—' }}</td>
-            <td>{{ s.usuario or '—' }}</td>
-            <td>R$ {{ "%.2f"|format(s.quantidade|float * s.valor_venda|float) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr style="font-weight:700;border-top:2px solid var(--border);">
-            <td>Total</td>
-            <td>—</td>
-            <td>{% if prod_cont_val %}{{ "%.3f"|format(ns.total_qtd) }}{% else %}{{ ns.total_qtd|int }}{% endif %} un.</td>
-            <td>—</td><td>—</td><td>—</td>
-            <td>R$ {{ "%.2f"|format(ns.total_val) }}</td>
-          </tr>
-        </tfoot>
-      </table>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-
   <!-- TAB: Movimentações -->
   <div class="lp-panel" id="tab-movimentos">
     <div class="lp-card">
@@ -680,7 +655,7 @@
         </thead>
         <tbody>
           {% for m in mov_sorted %}
-          <tr>
+          <tr class="mov-row">
             <td>{{ m.data|br_date if m.data else '—' }}</td>
             <td>
               {% if m.tipo == 'entrada' %}
@@ -701,6 +676,20 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
+      <div class="est-pag-bar">
+        <div class="est-exibir">
+          Exibir
+          <select id="mov-por-pag" onchange="renderPaginaMov()">
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          registros
+        </div>
+        <div class="est-pages" id="mov-paginacao"></div>
       </div>
       {% endif %}
     </div>
@@ -811,13 +800,64 @@ function onContUnitChange() {
 }
 
 function trocarTab(id) {
-  ['dados','lotes','saidas','movimentos'].forEach(t => {
+  ['dados','lotes','movimentos'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('ativo', t===id);
   });
   document.querySelectorAll('.lp-tab').forEach((el,i) => {
-    el.classList.toggle('ativo', ['dados','lotes','saidas','movimentos'][i]===id);
+    el.classList.toggle('ativo', ['dados','lotes','movimentos'][i]===id);
   });
 }
+
+/* Paginação da aba Movimentações — os dados já vêm todos prontos no HTML
+   (montados em Jinja), então só mostra/esconde linhas por página em vez de
+   buscar do servidor de novo. Mesmo padrão já usado na tela de Estoque
+   (est-pag-bar / renderPag()). */
+const linhasMov = Array.from(document.querySelectorAll('#tab-movimentos .mov-row'));
+let paginaMovAtual = 1;
+
+function renderPaginaMov(){
+  if (!linhasMov.length) return;
+  const porPag = parseInt(document.getElementById('mov-por-pag').value) || 10;
+  const total = linhasMov.length;
+  const totalPags = Math.max(1, Math.ceil(total / porPag));
+  if (paginaMovAtual > totalPags) paginaMovAtual = totalPags;
+  const ini = (paginaMovAtual - 1) * porPag;
+  const fim = ini + porPag;
+  linhasMov.forEach((tr, i) => tr.style.display = (i >= ini && i < fim) ? '' : 'none');
+
+  const cont = document.getElementById('mov-paginacao');
+  cont.innerHTML = '';
+
+  function mkBtn(label, pg, ativo){
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (ativo) b.classList.add('ativo');
+    b.onclick = () => { paginaMovAtual = pg; renderPaginaMov(); };
+    return b;
+  }
+  const prev = document.createElement('button');
+  prev.innerHTML = '&#8249;';
+  prev.disabled = paginaMovAtual === 1;
+  prev.onclick = () => { if (paginaMovAtual > 1) { paginaMovAtual--; renderPaginaMov(); } };
+  cont.appendChild(prev);
+
+  const visible = new Set([1, totalPags]);
+  for (let i = Math.max(1, paginaMovAtual - 1); i <= Math.min(totalPags, paginaMovAtual + 1); i++) visible.add(i);
+  let prevP = 0;
+  Array.from({length: totalPags}, (_, i) => i + 1).forEach(p => {
+    if (!visible.has(p)) return;
+    if (prevP && p - prevP > 1) { const el = document.createElement('span'); el.textContent = '...'; el.className = 'ellipsis'; cont.appendChild(el); }
+    cont.appendChild(mkBtn(p, p, p === paginaMovAtual));
+    prevP = p;
+  });
+
+  const next = document.createElement('button');
+  next.innerHTML = '&#8250;';
+  next.disabled = paginaMovAtual === totalPags;
+  next.onclick = () => { if (paginaMovAtual < totalPags) { paginaMovAtual++; renderPaginaMov(); } };
+  cont.appendChild(next);
+}
+renderPaginaMov();
 
 function atualizarForma() {
   const isCaixa = document.getElementById('forma_entrada').value === 'caixa';

@@ -66,6 +66,12 @@
 .top-table td:not(:first-child){text-align:right}
 .top-table tr:last-child td{border-bottom:none}
 .top-lucro{color:#4ade80;font-weight:700}
+.fin-user-select{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:.85rem;cursor:pointer;max-width:100%}
+.fin-user-aviso{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.45);border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:.88rem;color:var(--text)}
+.fin-user-aviso a{margin-left:8px;color:#60a5fa;font-weight:600}
+.fin-user-row[onclick]{cursor:pointer}
+.fin-user-row[onclick]:hover td{color:var(--accent,#60a5fa)}
+.fin-user-row.ativo td{font-weight:700;color:#60a5fa}
 .ver-todos{display:inline-block;margin-top:14px;font-size:.82rem;color:var(--accent);text-decoration:none;font-weight:600}
 .ver-todos:hover{text-decoration:underline}
 
@@ -134,6 +140,10 @@
 .fin-tab-btn.ativo{color:var(--accent);border-bottom-color:var(--accent)}
 .fin-tab-content{display:none}
 .fin-tab-content.ativo{display:block}
+
+/* LOTES */
+.lotes-link{color:#60a5fa;font-weight:600;text-decoration:none}
+.lotes-link:hover{text-decoration:underline}
 
 /* DESPESAS */
 .desp-filters{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
@@ -227,10 +237,11 @@
     </div>
   </div>
 
-  {% if tipo == "admin" or "ver_despesas" in permissoes %}
+  {% set pode_ver_despesas_aba = tipo == "admin" or "ver_despesas" in permissoes %}
+  {% if pode_ver_despesas_aba %}
   <div class="fin-tabs">
     <button type="button" class="fin-tab-btn" data-tab="visao-geral" onclick="mudarAbaFin('visao-geral')">Visão Geral</button>
-    <button type="button" class="fin-tab-btn" data-tab="despesas" onclick="mudarAbaFin('despesas')">Despesas</button>
+    {% if pode_ver_despesas_aba %}<button type="button" class="fin-tab-btn" data-tab="despesas" onclick="mudarAbaFin('despesas')">Despesas</button>{% endif %}
   </div>
   {% endif %}
 
@@ -248,6 +259,14 @@
       <button type="button" onclick="setFiltro('7dias')" id="btn-7dias">Últimos 7 dias</button>
       <button type="button" onclick="setFiltro('mes')" id="btn-mes">Mês atual</button>
       <button type="button" onclick="togglePicker()" id="btn-custom">Personalizado</button>
+      {% if pode_ver_por_usuario %}
+      <select name="usuario" class="fin-user-select" onchange="this.form.submit()" title="Filtrar por usuário">
+        <option value="">👤 Todos os usuários</option>
+        {% for u_id, u_nome in usuarios_filtro %}
+        <option value="{{ u_id }}" {% if filtro_usuario == u_id %}selected{% endif %}>{{ u_nome }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
     </div>
 
     <!-- PICKER PERSONALIZADO -->
@@ -263,6 +282,13 @@
       <button type="button" class="btn-aplicar" onclick="aplicarCustom()">Aplicar</button>
     </div>
   </form>
+
+  {% if filtro_usuario %}
+  <div class="fin-user-aviso">
+    👤 Mostrando os números das vendas de <strong>{{ filtro_usuario_nome }}</strong>
+    <a href="{{ url_for('financeiro', data_ini=data_ini_raw, data_fim=data_fim_raw) }}">limpar filtro</a>
+  </div>
+  {% endif %}
 
   <!-- KPI CARDS -->
   <div class="fin-panel-title">Vendas</div>
@@ -291,7 +317,7 @@
         </svg>
       </div>
       <div class="kpi-info">
-        <div class="kpi-label">Vendas Totais</div>
+        <div class="kpi-label">Faturamento</div>
         <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido)|replace(".", ",") }}</div>
         <div class="kpi-sub">tudo que foi vendido (inclusive não recebido)</div>
       </div>
@@ -454,6 +480,21 @@
         <div class="kpi-sub">lucro realizado menos despesas — dá pra retirar</div>
       </div>
     </div>
+
+    <div class="kpi">
+      <div class="kpi-icon ciano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Média de Lucro</div>
+        <div class="kpi-valor {% if margem_media >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
+          {{ "%.1f"|format(margem_media)|replace(".", ",") }}%
+        </div>
+        <div class="kpi-sub">lucro sobre o faturamento do período</div>
+      </div>
+    </div>
   </div>
 
   <div class="fin-panel-title">Despesas &amp; Estoque</div>
@@ -468,7 +509,7 @@
       <div class="kpi-info">
         <div class="kpi-label">Investimento em Estoque</div>
         <div class="kpi-valor fin-val fin-oculto">R$ {{ "%.2f"|format(total_investimento_estoque_periodo)|replace(".", ",") }}</div>
-        <div class="kpi-sub">reinvestido em mercadoria (novos lotes) no período</div>
+        <div class="kpi-sub">reinvestido em mercadoria (novos lotes) no período{% if pode_ver_lotes %} · <a href="{{ url_for('fornecedores_home', aba='lotes', data_ini=data_ini_raw, data_fim=data_fim_raw) }}" class="lotes-link">ver lotes →</a>{% endif %}</div>
       </div>
     </div>
 
@@ -622,6 +663,44 @@
       {% endif %}
     </div>
 
+    <!-- VENDAS POR USUÁRIO -->
+    {% if pode_ver_por_usuario %}
+    <div class="fin-panel" style="grid-column:1/-1">
+      <div class="fin-panel-title">Vendas por usuário</div>
+      {% if vendas_por_usuario %}
+      <div style="overflow-x:auto;">
+      <table class="top-table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Vendas</th>
+            {% if tipo == "admin" or "ver_faturamento_diario" in permissoes %}<th>Faturamento</th>{% endif %}
+            {% if tipo == "admin" or "ver_lucro_periodo" in permissoes %}<th>Lucro</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in vendas_por_usuario %}
+          <tr class="fin-user-row {% if filtro_usuario and filtro_usuario == u.usuario %}ativo{% endif %}"
+              onclick="location.href='{{ url_for('financeiro', data_ini=data_ini_raw, data_fim=data_fim_raw, usuario=('' if filtro_usuario == u.usuario else u.usuario)) }}'" title="{{ 'Remover filtro' if filtro_usuario == u.usuario else 'Filtrar por este usuário' }}">
+            <td>{{ u.nome }}</td>
+            <td>{{ u.qtd }}</td>
+            {% if tipo == "admin" or "ver_faturamento_diario" in permissoes %}
+            <td class="fin-val fin-oculto">R$ {{ "%.2f"|format(u.faturamento)|replace(".", ",") }}</td>
+            {% endif %}
+            {% if tipo == "admin" or "ver_lucro_periodo" in permissoes %}
+            <td class="top-lucro fin-val fin-oculto">R$ {{ "%.2f"|format(u.lucro)|replace(".", ",") }}</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <p style="color:var(--text-muted,#888);font-size:.88rem">Nenhuma venda no período.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
   </div>
 
   <!-- VENDAS DETALHADAS -->
@@ -666,7 +745,7 @@
             <td class="fin-val fin-oculto">R$ {{ "%.2f"|format(v.valor_investido)|replace(".", ",") }}</td>
             {% endif %}
             <td>{{ v.quantidade }}</td>
-            <td>{{ v.forma_pagamento }}</td>
+            <td>{{ v.forma_pagamento|forma_pagamento }}</td>
             {% if tipo == "admin" or "ver_lucro_venda" in permissoes %}
             <td class="td-lucro fin-val fin-oculto">R$ {{ "%.2f"|format((v.valor_venda - v.valor_investido) * v.quantidade)|replace(".", ",") }}</td>
             {% endif %}
@@ -858,6 +937,7 @@
       <input type="hidden" name="data_ini" value="{{ data_ini_raw }}">
       <input type="hidden" name="data_fim" value="{{ data_fim_raw }}">
       <input type="hidden" name="aba" value="despesas">
+      {% if filtro_usuario %}<input type="hidden" name="usuario" value="{{ filtro_usuario }}">{% endif %}
       <div class="desp-filters">
         <span style="font-size:.82rem;color:var(--text-muted);">Período: {{ data_ini_br }} até {{ data_fim_br }} (ajuste na Visão Geral)</span>
         <select class="desp-select" name="categoria_id" onchange="this.form.submit()">
