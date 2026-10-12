@@ -1146,7 +1146,7 @@ window.fecharVisualizar = function() {
 };
 
 // ── Visualizar venda (grupo) ──
-const FORMA_LABEL_G = { pix: 'Pix', credito: 'Cartão', debito: 'Débito', dinheiro: 'Dinheiro', fiado: 'Faturado' };
+const FORMA_LABEL_G = { pix: 'Pix', credito: 'Cartão', debito: 'Débito', dinheiro: 'Dinheiro', fiado: 'Faturado', assumido: 'Assumido (prejuízo)' };
 function preencherVisualizarGrupo(g) {
   if (!g) return;
   document.getElementById('vvg-id').textContent = g.id_display || '—';

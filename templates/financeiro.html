@@ -477,9 +477,24 @@
         <div class="kpi-valor fin-val fin-oculto {% if lucro_disponivel >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
           R$ {{ "%.2f"|format(lucro_disponivel)|replace(".", ",") }}
         </div>
-        <div class="kpi-sub">lucro realizado menos despesas — dá pra retirar</div>
+        <div class="kpi-sub">lucro realizado menos despesas{% if prejuizo_assumido %} e prejuízo assumido{% endif %} — dá pra retirar</div>
       </div>
     </div>
+
+    {% if prejuizo_assumido %}
+    <div class="kpi">
+      <div class="kpi-icon vermelho">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Prejuízo assumido (comandas)</div>
+        <div class="kpi-valor fin-val fin-oculto lucro-neg">R$ {{ "%.2f"|format(prejuizo_assumido)|replace(".", ",") }}</div>
+        <div class="kpi-sub">custo do que clientes não pagaram e a casa assumiu</div>
+      </div>
+    </div>
+    {% endif %}
 
     <div class="kpi">
       <div class="kpi-icon ciano">

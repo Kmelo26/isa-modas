@@ -199,6 +199,8 @@
             </span>
             <span class="perm-dot {{ 'dot-ativo' if info.ativo else 'dot-inativo' }}">● {{ 'Ativo' if info.ativo else 'Inativo' }}</span>
           </div>
+          <button type="button" class="btn-mini" style="margin-left:auto;padding:4px 8px;" title="Trocar senha de {{ nome }}"
+                  onclick="event.stopPropagation();selectUser('{{ nome }}');abrirTrocarSenha();">🔑</button>
         </div>
         {% endfor %}
       </div>
@@ -220,6 +222,9 @@
 
         {% if request.args.get('salvo') %}
         <div class="perm-success">✓ Alterações salvas com sucesso.</div>
+        {% endif %}
+        {% if request.args.get('msg') %}
+        <div class="perm-success">✓ {{ request.args.get('msg') }}</div>
         {% endif %}
         {% if request.args.get('erro') %}
         <div class="perm-erro">{{ request.args.get('erro') }}</div>
@@ -315,11 +320,21 @@
 <div class="pm-overlay g-hidden" id="pm-trocar-senha">
   <div class="pm-box">
     <div class="pm-title">Trocar senha</div>
-    <div class="pm-msg">A senha atual não é exibida — defina uma nova para <b id="pm-senha-nome">—</b>.</div>
-    <form method="post">
+    <div class="pm-msg">A senha atual não é exibida — defina uma nova para <b id="pm-senha-nome">—</b>.
+      Se ele estiver conectado, será desconectado e entra com a senha nova.</div>
+    <form method="post" onsubmit="return validarNovaSenha(this)">
       <input type="hidden" name="acao" value="trocar_senha">
       <input type="hidden" name="usuario_alvo" id="pm-senha-alvo">
-      <div class="pm-field"><label>Nova senha</label><input type="password" name="nova_senha" required placeholder="nova senha"></div>
+      <div class="pm-field"><label>Nova senha</label>
+        <div style="display:flex;gap:6px;">
+          <input type="password" name="nova_senha" id="pm-senha-nova" required minlength="4" placeholder="mínimo 4 caracteres" autocomplete="new-password" style="flex:1;">
+          <button type="button" class="btn-mini" onclick="mostrarSenhas(this)" title="Mostrar/ocultar">👁</button>
+        </div>
+      </div>
+      <div class="pm-field"><label>Confirmar nova senha</label>
+        <input type="password" name="confirmar_senha" id="pm-senha-confirma" required minlength="4" placeholder="digite de novo" autocomplete="new-password">
+      </div>
+      <div id="pm-senha-erro" style="display:none;color:#f87171;font-size:.82rem;margin-bottom:8px;"></div>
       <div class="pm-btns">
         <button type="button" class="pm-btn-cancel" onclick="document.getElementById('pm-trocar-senha').classList.add('g-hidden')">Cancelar</button>
         <button type="submit" class="pm-btn-ok">Salvar</button>
@@ -376,9 +391,27 @@ const SESSOES_ATIVAS = {{ sessoes_ativas | list | tojson }};
 const CARGO_PADRAO = {{ cargo_permissoes_padrao | tojson }};
 
 function abrirNovoUsuario() { document.getElementById('pm-novo-usuario').classList.remove('g-hidden'); }
+function mostrarSenhas(btn) {
+  ['pm-senha-nova', 'pm-senha-confirma'].forEach(id => {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+  });
+}
+function validarNovaSenha(form) {
+  const a = document.getElementById('pm-senha-nova').value, b = document.getElementById('pm-senha-confirma').value;
+  const erro = document.getElementById('pm-senha-erro');
+  let msg = '';
+  if (a.length < 4) msg = 'A senha precisa ter pelo menos 4 caracteres.';
+  else if (a !== b) msg = 'As duas senhas não são iguais.';
+  erro.textContent = msg; erro.style.display = msg ? 'block' : 'none';
+  return !msg;
+}
 function abrirTrocarSenha() {
   const nome = document.getElementById('usuario_alvo_input').value;
   if (!nome) return;
+  document.getElementById('pm-senha-nova').value = '';
+  document.getElementById('pm-senha-confirma').value = '';
+  document.getElementById('pm-senha-erro').style.display = 'none';
   document.getElementById('pm-senha-nome').textContent = nome;
   document.getElementById('pm-senha-alvo').value = nome;
   document.getElementById('pm-trocar-senha').classList.remove('g-hidden');
@@ -492,6 +525,7 @@ const CATEGORIAS = [
       { v: "excluir_vendas",           l: "Excluir vendas definitivamente" },
       { v: "ver_vendas_canceladas",    l: "Ver vendas canceladas" },
       { v: "alterar_preco_venda",      l: "Alterar preço de venda" },
+      { v: "assumir_prejuizo_comanda", l: "Assumir o restante de comanda não paga (prejuízo)" },
       { v: "alterar_custo_produto",    l: "Alterar custo do produto" },
       { v: "gerenciar_usuarios",       l: "Gerenciar usuários" },
       { v: "alterar_permissoes",       l: "Alterar permissões" },

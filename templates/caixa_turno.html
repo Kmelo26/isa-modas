@@ -203,7 +203,7 @@
       {% for p in pagamentos_comanda_caixa %}
       <div class="cx-row">
         <span class="cx-label">📋 {{ p.comanda_nome or 'Comanda' }}
-          <span style="color:var(--text-muted);">· {{ p.hora }} · {{ 'Pix' if p.forma == 'pix' else 'Cartão' if p.forma == 'cartao' else 'Dinheiro' }}</span>
+          <span style="color:var(--text-muted);">· {{ p.hora }} · {{ 'Assumido (prejuízo)' if p.forma == 'assumido' else 'Pix' if p.forma == 'pix' else 'Cartão' if p.forma == 'cartao' else 'Dinheiro' }}</span>
         </span>
         <span style="display:flex;align-items:center;gap:8px;">
           R$ {{ "%.2f"|format(p.valor) }}
@@ -340,7 +340,7 @@ function fecharConferir() {
 }
 
 const VENDAS_POR_USUARIO = JSON.parse(document.getElementById('json-vendas-por-usuario').textContent);
-const VU_FORMA_LABEL = { pix: '⚡ Pix', credito: '💳 Crédito', debito: '💳 Débito', dinheiro: '💵 Dinheiro', fiado: '📒 Faturado' };
+const VU_FORMA_LABEL = { pix: '⚡ Pix', credito: '💳 Crédito', debito: '💳 Débito', dinheiro: '💵 Dinheiro', fiado: '📒 Faturado', assumido: '🤝 Assumido (prejuízo)' };
 const VU_STATUS_LABEL = { pendente: '🟡 Pendente', parcial: '🟠 Parcial', quitada: '🟢 Quitada', cancelada: '🔴 Cancelada' };
 
 function vuFmtData(d) {

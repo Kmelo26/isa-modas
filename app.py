@@ -83,7 +83,7 @@ app.jinja_env.filters["qtd_br"] = qtd_br
 
 _NOMES_FORMA_PAGAMENTO = {
     "pix": "Pix", "dinheiro": "Dinheiro", "cartao": "Cartão", "credito": "Cartão",
-    "debito": "Débito", "fiado": "Faturado",
+    "debito": "Débito", "fiado": "Faturado", "assumido": "Assumido (prejuízo)",
 }
 
 
@@ -164,7 +164,7 @@ PERMISSOES_TODAS = [
     # Fornecedores
     "ver_fornecedores", "gerenciar_fornecedores",
     # Críticas
-    "excluir_vendas", "alterar_preco_venda", "alterar_custo_produto",
+    "excluir_vendas", "alterar_preco_venda", "alterar_custo_produto", "assumir_prejuizo_comanda",
     "gerenciar_usuarios", "alterar_permissoes",
     "ver_vendas_canceladas", "editar_pagamento_comanda",
     # Investidores
@@ -247,6 +247,8 @@ def normalizar_data_str(s):
 
 def normalizar_pagamento(forma):
     f = (forma or "").strip().lower()
+    if "assumid" in f:
+        return "assumido"  # restante de comanda assumido pela casa — não é dinheiro que entrou
     if "pix" in f:
         return "pix"
     if "dinheiro" in f or "dinhei" in f:
@@ -4585,6 +4587,114 @@ def _sincronizar_status_vendas_comanda(comanda: dict):
             pass
 
 
+def _e_assumido(pagamento: dict) -> bool:
+    return normalizar_pagamento(pagamento.get("forma")) == "assumido"
+
+
+def _pago_pelo_cliente(comanda: dict) -> float:
+    """Só o que o cliente pagou de verdade (sem o restante assumido pela casa)."""
+    return sum(to_float(p.get("valor", 0)) for p in comanda.get("pagamentos") or [] if not _e_assumido(p))
+
+
+@app.route("/comandas/<cid>/assumir", methods=["POST"])
+def comanda_assumir(cid):
+    """Cliente não vai pagar (ou pagou só uma parte): a casa assume o
+    restante como prejuízo. Opcionalmente reprecifica os itens a preço de
+    custo antes (sem lucro). O restante vira um pagamento "assumido" — sem
+    caixa, não conta como dinheiro recebido — e a comanda fica quitada."""
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("assumir_prejuizo_comanda"):
+        session["erro_caixa"] = "⚠️ Você não tem permissão para assumir o prejuízo de uma comanda."
+        return redirect(url_for("comandas"))
+
+    comanda = db.get_command(cid)
+    PAGAVEIS = ("aberta", "aguardando_pagamento", "pagamento_parcial", "agendado", "atrasada", "em_pagamento")
+    if not comanda or comanda.get("status") not in PAGAVEIS:
+        session["erro_caixa"] = "⚠️ Essa comanda não está em aberto."
+        return redirect(url_for("comandas"))
+
+    a_custo = request.form.get("a_custo") == "1"
+    motivo = (request.form.get("motivo") or "").strip()[:200]
+    usuario = session.get("usuario", "")
+    hoje = now_brt().strftime("%Y-%m-%d")
+    hora = now_brt().strftime("%H:%M")
+
+    total_antes = _total_comanda(comanda)
+    if a_custo:
+        # mesma regra de "margem 0%" (comanda_margem): item vale o custo
+        for item in comanda.get("itens", []):
+            venda = db.get_sale(item.get("sale_uid", "")) if item.get("sale_uid") else None
+            if venda and venda.get("fechado"):
+                continue  # já está num caixa fechado: mantém o preço
+            novo_valor = round(to_float(item.get("valor_investido", 0)), 4)
+            item["valor_venda"] = novo_valor
+            if venda:
+                venda["valor_venda"] = novo_valor
+                db.update_sale(venda)
+        comanda["margem_customizada"] = 0
+
+    total = _total_comanda(comanda)
+    pago = sum(to_float(p.get("valor", 0)) for p in comanda.get("pagamentos") or [])
+    restante = round(total - pago, 2)
+
+    if restante > 0.005:
+        comanda.setdefault("pagamentos", []).append({
+            "uid": uuid.uuid4().hex, "valor": restante, "forma": "assumido",
+            "data": hoje, "hora": hora, "usuario": usuario,
+            "obs": motivo or "Restante assumido pela casa",
+            "caixa_id": None, "assumido_por": usuario,
+        })
+    status_anterior = comanda.get("status", "aberta")
+    comanda["status"] = "quitada"
+    comanda["data_quitada"] = hoje
+    _registrar_historico(comanda, status_anterior)
+    try:
+        db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
+        detalhe = (f" (itens a preço de custo: R$ {total_antes:.2f} → R$ {total:.2f})" if a_custo else "")
+        db.registrar_log(
+            usuario, "comanda_prejuizo_assumido",
+            f"Assumiu R$ {max(restante, 0):.2f} da comanda {comanda.get('nome', '')}{detalhe}"
+            + (f" — {motivo}" if motivo else ""),
+            hoje, hora,
+            detalhes={"cid": cid, "assumido": max(restante, 0), "a_custo": a_custo,
+                      "total_antes": round(total_antes, 2), "total": round(total, 2), "pago_cliente": round(pago, 2)},
+        )
+    except RuntimeError as e:
+        session["erro_caixa"] = f"⚠️ Não foi possível assumir a comanda: {e}"
+    return redirect(url_for("comandas"))
+
+
+@app.route("/comandas/<cid>/desfazer_assumido", methods=["POST"])
+def comanda_desfazer_assumido(cid):
+    """Tira o pagamento "assumido": a comanda volta a dever o restante.
+    (Os preços continuam como estão — se foi a custo, ajuste a margem.)"""
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if session.get("tipo") != "admin" and not tem_permissao("assumir_prejuizo_comanda"):
+        session["erro_caixa"] = "⚠️ Você não tem permissão para isso."
+        return redirect(url_for("comandas"))
+    comanda = db.get_command(cid)
+    if not comanda or not any(_e_assumido(p) for p in comanda.get("pagamentos") or []):
+        return redirect(url_for("comandas"))
+    valor = sum(to_float(p.get("valor", 0)) for p in comanda["pagamentos"] if _e_assumido(p))
+    comanda["pagamentos"] = [p for p in comanda["pagamentos"] if not _e_assumido(p)]
+    status_anterior = comanda.get("status")
+    comanda["status"] = "pagamento_parcial" if comanda["pagamentos"] else "aberta"
+    comanda["data_quitada"] = None
+    _registrar_historico(comanda, status_anterior)
+    try:
+        db.update_command(comanda)
+        _sincronizar_status_vendas_comanda(comanda)
+        db.registrar_log(session.get("usuario", ""), "comanda_prejuizo_desfeito",
+                         f"Desfez o prejuízo assumido (R$ {valor:.2f}) da comanda {comanda.get('nome', '')}",
+                         now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M"))
+    except RuntimeError as e:
+        session["erro_caixa"] = f"⚠️ Não foi possível desfazer: {e}"
+    return redirect(url_for("comandas"))
+
+
 @app.route("/comandas/<cid>/aguardar", methods=["POST"])
 def comanda_aguardar(cid):
     if not usuario_logado():
@@ -4877,7 +4987,7 @@ def _fracao_paga_por_comanda() -> dict:
         if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
             continue
         total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
-        pago_c = sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
+        pago_c = _pago_pelo_cliente(c)  # restante "assumido" pela casa não é receita
         fracoes[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
     return fracoes
 
@@ -4940,7 +5050,7 @@ def _calcular_resultados_lotes_todos(data_ini: str | None = None, data_fim: str 
         if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
             continue
         total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
-        pago_c = sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
+        pago_c = _pago_pelo_cliente(c)  # restante "assumido" pela casa não é receita
         fracao_paga_comanda[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
 
     resultado = {lid: {**_RESULTADO_LOTE_VAZIO, "vendas": []} for lid in lote_ids}
@@ -5045,6 +5155,8 @@ def _calcular_resultados_lotes_todos(data_ini: str | None = None, data_fim: str 
         margem_comanda = (receita_total_comanda - custo_total_comanda) / receita_total_comanda
 
         for p in pagamentos_c:
+            if _e_assumido(p):
+                continue  # prejuízo assumido: não é dinheiro que entrou
             d = str(p.get("data") or "")
             if data_ini and d < data_ini:
                 continue
@@ -6389,7 +6501,7 @@ def financeiro():
         if not isinstance(c, dict) or c.get("status") != "pagamento_parcial":
             continue
         total_c = sum(to_float(i.get("valor_venda", 0)) * to_int(i.get("quantidade", 0)) for i in c.get("itens", []))
-        pago_c = sum(to_float(p.get("valor", 0)) for p in c.get("pagamentos", []))
+        pago_c = _pago_pelo_cliente(c)  # restante "assumido" pela casa não é receita
         fracao_paga_comanda[c["cid"]] = min(pago_c / total_c, 1.0) if total_c > 0 else 0.0
 
     total_vendido = 0.0
@@ -6506,6 +6618,9 @@ def financeiro():
     valor_recebido_vendas = 0.0
     valor_recebido_comandas = 0.0
     lucro_realizado = 0.0
+    # Restante de comanda assumido pela casa (cliente não pagou): não é
+    # dinheiro que entrou — vira prejuízo = custo da parte assumida.
+    prejuizo_assumido = 0.0
     pag_totais = defaultdict(float)
     for v in vendas_filtradas:
         if v.get("comanda_id"):
@@ -6541,6 +6656,9 @@ def financeiro():
             if not d or (data_de and d < data_de) or (data_ate and d > data_ate):
                 continue
             valor_p = to_float(p.get("valor", 0)) * fracao_usuario_c
+            if _e_assumido(p):
+                prejuizo_assumido += valor_p * (custo_c / receita_c if receita_c > 0 else 1.0)
+                continue
             valor_recebido_comandas += valor_p
             lucro_realizado += valor_p * margem_c
             forma = normalizar_pagamento(p.get("forma", ""))
@@ -6549,6 +6667,7 @@ def financeiro():
     valor_recebido_vendas = round(valor_recebido_vendas, 2)
     valor_recebido_comandas = round(valor_recebido_comandas, 2)
     lucro_realizado = round(lucro_realizado, 2)
+    prejuizo_assumido = round(prejuizo_assumido, 2)
     pagamentos = []
     for forma, total in sorted(pag_totais.items(), key=lambda x: x[1], reverse=True):
         pct = round(total / valor_recebido * 100) if valor_recebido > 0 else 0
@@ -6662,7 +6781,7 @@ def financeiro():
     pode_ver_lotes = session.get("tipo") == "admin" or (
         tem_permissao("ver_lotes_periodo") and tem_permissao("ver_fornecedores"))
 
-    lucro_disponivel = round(lucro_realizado - total_despesas_periodo, 2)
+    lucro_disponivel = round(lucro_realizado - total_despesas_periodo - prejuizo_assumido, 2)
 
     return render_template(
         "financeiro.html",
@@ -6705,6 +6824,7 @@ def financeiro():
         categoria_maior_gasto=categoria_maior_gasto,
         total_investimento_estoque_periodo=total_investimento_estoque_periodo,
         lucro_disponivel=lucro_disponivel,
+        prejuizo_assumido=prejuizo_assumido,
         pode_ver_por_usuario=pode_ver_por_usuario,
         pode_ver_lotes=pode_ver_lotes,
         vendas_por_usuario=vendas_por_usuario if pode_ver_por_usuario else [],
@@ -7414,13 +7534,22 @@ def permissoes():
             return redirect(url_for("permissoes") + "?erro=" + erro_criar)
 
         if acao == "trocar_senha":
+            from urllib.parse import quote
             usuario_alvo = (request.form.get("usuario_alvo") or "").strip()
             nova_senha = request.form.get("nova_senha") or ""
-            if usuario_alvo in usuarios and nova_senha:
-                db.update_user_senha(usuario_alvo, db.hash_senha(nova_senha))
-                db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
-                _log("senha_alterada", f"Senha redefinida para: {usuario_alvo}", usuario_alvo)
-            return redirect(url_for("permissoes") + "?salvo=1")
+            confirmar = request.form.get("confirmar_senha")
+            if usuario_alvo not in usuarios:
+                return redirect(url_for("permissoes") + "?erro=" + quote("Usuário não encontrado."))
+            volta = url_for("permissoes") + "?usuario=" + quote(usuario_alvo)
+            if len(nova_senha) < 4:
+                return redirect(volta + "&erro=" + quote("A senha precisa ter pelo menos 4 caracteres. Nada foi alterado."))
+            if confirmar is not None and confirmar != nova_senha:
+                return redirect(volta + "&erro=" + quote("As duas senhas não são iguais. Nada foi alterado."))
+            db.update_user_senha(usuario_alvo, db.hash_senha(nova_senha))
+            db.encerrar_sessoes_usuario(usuario_alvo, session.get("usuario", ""), quando=now_brt().strftime("%Y-%m-%d %H:%M:%S"))
+            _log("senha_alterada", f"Senha redefinida para: {usuario_alvo}", usuario_alvo)
+            return redirect(volta + "&msg=" + quote(
+                f"Senha de {usuario_alvo} alterada. Se estava conectado, foi desconectado e entra com a senha nova."))
 
         if acao == "trocar_pin":
             usuario_alvo = (request.form.get("usuario_alvo") or "").strip()
@@ -7456,9 +7585,16 @@ def permissoes():
 
     sessoes_ativas = {s["username"] for s in db.listar_sessoes_ativas()}
 
+    # Nunca mandar senha/PIN (mesmo criptografados) pro navegador.
+    usuarios_tela = {
+        nome: {**{k: v for k, v in info.items() if k not in ("senha", "pin_hash")},
+               "tem_pin": bool(info.get("pin_hash"))}
+        for nome, info in usuarios.items()
+    }
+
     return render_template(
         "permissoes.html",
-        usuarios=usuarios,
+        usuarios=usuarios_tela,
         sessoes_ativas=sessoes_ativas,
         permissoes_disponiveis=PERMISSOES_TODAS,
         cargos=CARGOS,
