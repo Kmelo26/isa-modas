@@ -192,10 +192,10 @@ tr:nth-child(even) { background:var(--table-even); }
         {% set custo = costs.get(p.id, 0) %}
         {% set preco = p.sale_price or 0 %}
         <td style="text-align:center">
-          {% if custo > 0 and preco > 0 %}
-            {% set margem = ((preco - custo) / custo * 100) %}
-            {% if margem >= 40 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
-            {% elif margem >= 20 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
+          {% if preco > 0 %}
+            {% set margem = ((preco - custo) / preco * 100) %}
+            {% if margem >= 28.5 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
+            {% elif margem >= 16.5 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
             {% elif margem >= 0 %}<span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
             {% else %}<span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>{% endif %}
           {% else %}

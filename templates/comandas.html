@@ -946,7 +946,7 @@
         <button class="cmd-panel-tab ativo" data-tab="itens" onclick="trocarTab(this)">Itens da Comanda</button>
         <button class="cmd-panel-tab" data-tab="pagamentos" onclick="trocarTab(this)">Pagamentos</button>
         <button class="cmd-panel-tab" data-tab="historico" onclick="trocarTab(this)">Histórico</button>
-        <button class="cmd-panel-tab" data-tab="emprestimos" onclick="trocarTab(this)">Empréstimos</button>
+        <button class="cmd-panel-tab" data-tab="emprestimos" onclick="trocarTab(this)" style="display:none">Empréstimos</button>
       </div>
 
       <!-- Tab: Itens -->
@@ -1409,8 +1409,14 @@ function abrirPainel(cid) {
       /* Tab histórico */
       renderHistorico(c);
 
-      /* Tab empréstimos */
+      /* Tab empréstimos — só aparece em comanda que já tem empréstimo
+         lançado (não dá mais pra lançar novo) */
       const emprestimosCmd = c.emprestimos || [];
+      const tabEmp = document.querySelector('.cmd-panel-tab[data-tab="emprestimos"]');
+      tabEmp.style.display = emprestimosCmd.length ? '' : 'none';
+      if (!emprestimosCmd.length && tabEmp.classList.contains('ativo')) {
+        trocarTab(document.querySelector('.cmd-panel-tab[data-tab="itens"]'));
+      }
       if (!emprestimosCmd.length) {
         empEmpty.style.display = '';
       } else {

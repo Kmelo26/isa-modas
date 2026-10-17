@@ -598,8 +598,8 @@
   function calcularMargem() {
     const custo = parseFloat(campoCusto.value) || 0;
     const venda = parseFloat(campoVenda.value) || 0;
-    if (custo > 0 && venda > 0) {
-      const m = ((venda - custo) / custo) * 100;
+    if (venda > 0) {
+      const m = ((venda - custo) / venda) * 100;
       campoMargem.value = m.toFixed(2) + '%';
       campoMargem.style.color = m >= 0 ? 'var(--accent)' : '#f87171';
     } else {

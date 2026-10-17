@@ -108,7 +108,7 @@
     </div>
     <div class="cx-info-item">
       <div class="cx-ibadge cx-ibadge-gray">💵</div>
-      <div><div class="cx-info-label">Total Vendido</div><strong>R$ {{ "%.2f"|format(totais.total) }}</strong></div>
+      <div><div class="cx-info-label">Total Recebido</div><strong>R$ {{ "%.2f"|format(totais.recebido) }}</strong></div>
     </div>
     <div class="cx-info-item">
       <div class="cx-ibadge cx-ibadge-green">💵</div>
@@ -131,8 +131,8 @@
       <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
       <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
       <div class="cx-row"><span class="cx-label">💳 Cartão</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
-      <div class="cx-row"><span class="cx-label">📒 Faturado</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
-      <div class="cx-total"><span>Total</span><span>R$ {{ "%.2f"|format(totais.total) }}</span></div>
+      <div class="cx-total"><span>Total Recebido</span><span>R$ {{ "%.2f"|format(totais.recebido) }}</span></div>
+      <div class="cx-row"><span class="cx-label">📒 Faturado (não recebido)</span><span class="cx-val amber">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
     </div>
 
     <!-- Movimentações -->
@@ -290,7 +290,8 @@
       <div class="cx-card-title">Valores do Caixa</div>
       <div class="cx-row"><span class="cx-label">Valor Inicial</span><span class="cx-val">R$ {{ "%.2f"|format(caixa.valor_abertura) }}</span></div>
       <div class="cx-row"><span class="cx-label">Vendas</span><span class="cx-val">{{ totais.qtd }}</span></div>
-      <div class="cx-row"><span class="cx-label">Total Vendido</span><span class="cx-val">R$ {{ "%.2f"|format(totais.total) }}</span></div>
+      <div class="cx-row"><span class="cx-label">Total Recebido</span><span class="cx-val">R$ {{ "%.2f"|format(totais.recebido) }}</span></div>
+      <div class="cx-row"><span class="cx-label">📒 Faturado (não recebido)</span><span class="cx-val">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
       <div class="cx-card-title" style="margin-top:16px;">Valores Esperados</div>
       <div class="cx-row"><span class="cx-label">💵 Dinheiro Esperado</span><span class="cx-val green">R$ {{ "%.2f"|format(dinheiro_esperado) }}</span></div>
       <div class="cx-row"><span class="cx-label">⚡ PIX Esperado</span><span class="cx-val blue">R$ {{ "%.2f"|format(totais.pix) }}</span></div>

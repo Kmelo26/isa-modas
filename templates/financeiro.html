@@ -503,11 +503,26 @@
         </svg>
       </div>
       <div class="kpi-info">
-        <div class="kpi-label">Média de Lucro</div>
+        <div class="kpi-label">Margem de Lucro</div>
         <div class="kpi-valor {% if margem_media >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
           {{ "%.1f"|format(margem_media)|replace(".", ",") }}%
         </div>
         <div class="kpi-sub">lucro sobre o faturamento do período</div>
+      </div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-icon ciano">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+        </svg>
+      </div>
+      <div class="kpi-info">
+        <div class="kpi-label">Margem sobre Investimento</div>
+        <div class="kpi-valor {% if margem_investimento >= 0 %}lucro-pos{% else %}lucro-neg{% endif %}">
+          {{ "%.1f"|format(margem_investimento)|replace(".", ",") }}%
+        </div>
+        <div class="kpi-sub">lucro sobre o custo do que foi vendido no período</div>
       </div>
     </div>
   </div>
@@ -668,7 +683,7 @@
           {% if tipo == "admin" or "ver_caixa" in permissoes %}
           <div class="pag-total-row">
             <span>Total</span>
-            <span class="fin-val fin-oculto">R$ {{ "%.2f"|format(total_vendido)|replace(".", ",") }}</span>
+            <span class="fin-val fin-oculto">R$ {{ "%.2f"|format(total_pagamentos)|replace(".", ",") }}</span>
           </div>
           {% endif %}
         </div>

@@ -496,10 +496,10 @@
             {% endif %}
             {% if tipo == "admin" or "ver_margem_estoque" in permissoes %}
             <td style="text-align:center">
-              {% if p.valor_venda and p.valor_venda > 0 and p.valor_investido and p.valor_investido > 0 %}
-                {% set margem = ((p.valor_venda - p.valor_investido) / p.valor_investido * 100) %}
-                {% if margem >= 40 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
-                {% elif margem >= 20 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
+              {% if p.valor_venda and p.valor_venda > 0 %}
+                {% set margem = ((p.valor_venda - (p.valor_investido or 0)) / p.valor_venda * 100) %}
+                {% if margem >= 28.5 %}<span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
+                {% elif margem >= 16.5 %}<span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
                 {% elif margem >= 0 %}<span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
                 {% else %}<span class="margem-badge mb-neg">{{ "%.0f"|format(margem) }}%</span>{% endif %}
               {% else %}
@@ -719,7 +719,7 @@ renderPag();
     const fmtR=v=>"R$ "+parseFloat(v||0).toFixed(2).replace(".",",");
     const custo=parseFloat(p.valor_investido||0);
     const venda=parseFloat(p.valor_venda||0);
-    const margem=(custo>0&&venda>0)?(((venda-custo)/custo)*100).toFixed(2)+"%":"—";
+    const margem=(venda>0)?(((venda-custo)/venda)*100).toFixed(2)+"%":"—";
     set("v-data",          p.data);
     set("v-nome",          p.nome);
     set("v-categoria",     p.categoria);

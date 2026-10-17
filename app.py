@@ -265,12 +265,15 @@ def normalizar_pagamento(forma):
 
 
 def _distribuir_pagamentos(total_venda, valor_dinheiro, valor_pix, valor_cartao):
-    """Divide o total da venda entre as formas informadas, na ordem
-    dinheiro/pix/cartao, nunca somando mais do que o total (protege contra
-    troco em dinheiro ou valores adulterados nos campos ocultos)."""
+    """Divide o total da venda entre as formas informadas, nunca somando mais
+    do que o total (protege contra troco ou valores adulterados nos campos
+    ocultos). Pix e cartão entram primeiro com o valor exato e o dinheiro
+    fica com o que sobra — troco sempre sai do dinheiro. Antes o dinheiro
+    entrava primeiro: pagou R$30 no Pix + R$50 em dinheiro numa venda de R$50
+    e gravava R$50 em dinheiro / R$0 no Pix."""
     restante = round(total_venda, 2)
     pagamentos = []
-    for forma, valor in (("dinheiro", valor_dinheiro), ("pix", valor_pix), ("cartao", valor_cartao)):
+    for forma, valor in (("pix", valor_pix), ("cartao", valor_cartao), ("dinheiro", valor_dinheiro)):
         if valor <= 0 or restante <= 0:
             continue
         usado = round(min(valor, restante), 2)
@@ -559,15 +562,15 @@ def entrada_estoque_lote(produto, data, qtd, custo_unit, usuario="", local_id=No
 
 
 def calcular_margem(venda, custo) -> float:
-    """Markup %: quanto o preço de venda está acima do custo —
-    (venda-custo)/custo*100. Sem limite superior (pode passar de 100%) nem
-    inferior (negativo = vendeu no prejuízo). Usada em toda exibição/filtro
-    de margem (Vendas, Estoque, Pacotes, Comandas) — não usar pra rateio
-    proporcional de lucro (isso é fração da receita, não markup sobre custo)."""
-    custo = to_float(custo)
-    if custo <= 0:
+    """Margem % sobre o preço de venda — (venda-custo)/venda*100, mesma
+    fórmula da margem média do Financeiro. Custo 0 = 100% (todo o valor é
+    lucro); nunca passa de 100%; negativo = vendeu no prejuízo. Usada em toda
+    exibição/filtro de margem (Vendas, Estoque, Pacotes, Comandas). Antes era
+    markup sobre o custo e custo 0 caía em 0%."""
+    venda = to_float(venda)
+    if venda <= 0:
         return 0.0
-    return ((to_float(venda) - custo) / custo) * 100
+    return ((venda - to_float(custo)) / venda) * 100
 
 
 def consumir_fifo(produto, qtd_vender):
@@ -582,6 +585,17 @@ def devolver_fifo(produto, consumo_lotes):
     mesma regra da versão por local, pra manter o saldo por local certo e
     não duplicar lote."""
     devolver_fifo_local(produto, consumo_lotes, LOCAL_PADRAO)
+
+
+def _custo_ultimo_lote(produto, lotes_ordenados) -> float:
+    """Custo unitário usado na parte vendida sem estoque: o do lote mais
+    recente; sem lote nenhum, o último custo médio guardado no produto
+    (atualizar_campos_derivados_estoque mantém ele quando o estoque zera)."""
+    if lotes_ordenados:
+        custo = to_float(lotes_ordenados[-1].get("custo_unit", 0))
+        if custo > 0:
+            return custo
+    return to_float(produto.get("valor_investido", 0))
 
 
 def consumir_fifo_local(produto, qtd_vender, local_id, ignorar_falta=False):
@@ -618,6 +632,8 @@ def consumir_fifo_local(produto, qtd_vender, local_id, ignorar_falta=False):
     restante = qtd_vender
     custo_total = 0.0
     consumo = []
+    # Calculado antes do loop porque lotes zerados são removidos dele
+    custo_sem_estoque = _custo_ultimo_lote(produto, lotes)
 
     i = 0
     while restante > 0 and i < len(lotes):
@@ -647,6 +663,13 @@ def consumir_fifo_local(produto, qtd_vender, local_id, ignorar_falta=False):
             lotes.pop(i)
         else:
             i += 1
+
+    # Vendeu além do estoque ("continuar mesmo assim"): a parte que faltou
+    # entra com o custo do último lote (antes entrava com custo 0). Não vai
+    # pro consumo — não saiu de lote nenhum, então não volta pro estoque se
+    # a venda for excluída.
+    if restante > 0:
+        custo_total += restante * custo_sem_estoque
 
     atualizar_campos_derivados_estoque(produto)
     return custo_total, consumo
@@ -1861,19 +1884,33 @@ def _cancelar_venda_individual(uid: str, usuario: str):
         caixa = db.get_caixa_sessao(caixa_id)
         if caixa:
             caixa["vendas_uids"] = [u for u in (caixa.get("vendas_uids") or []) if u != uid]
-            valor = to_float(venda.get("valor_venda", 0))
-            forma = normalizar_pagamento(venda.get("forma_pagamento", ""))
+            # Valor da linha inteira (antes descontava só 1 unidade).
+            valor = to_float(venda.get("valor_venda", 0)) * to_int(venda.get("quantidade", 1))
             campo_map = {
                 "dinheiro": "total_dinheiro",
                 "pix":      "total_pix",
+                # o fechamento grava crédito+débito juntos em total_cartao_cred
                 "credito":  "total_cartao_cred",
-                "debito":   "total_cartao_deb",
+                "debito":   "total_cartao_cred",
                 "fiado":    "total_fiado",
             }
-            campo = campo_map.get(forma)
-            if campo:
-                caixa[campo] = max(0.0, to_float(caixa.get(campo, 0)) - valor)
-            caixa["total_vendas"] = max(0.0, to_float(caixa.get("total_vendas", 0)) - valor)
+            # Pagamento dividido: desconta de cada forma na mesma proporção
+            # em que a venda foi paga (antes ia tudo pra forma gravada na
+            # venda, ex.: "Dinheiro+Pix" saía inteiro do Pix).
+            pags = db.get_pagamentos_venda(venda.get("id_venda")) if venda.get("id_venda") else []
+            pago_total = sum(to_float(p.get("valor", 0)) for p in pags)
+            if pago_total > 0:
+                fracao = min(1.0, valor / pago_total)
+                descontos = defaultdict(float)
+                for p in pags:
+                    descontos[normalizar_pagamento(p.get("forma", ""))] += to_float(p.get("valor", 0)) * fracao
+            else:
+                descontos = {normalizar_pagamento(venda.get("forma_pagamento", "")): valor}
+            for forma, desc in descontos.items():
+                campo = campo_map.get(forma)
+                if campo:
+                    caixa[campo] = round(max(0.0, to_float(caixa.get(campo, 0)) - desc), 2)
+            caixa["total_vendas"] = round(max(0.0, to_float(caixa.get("total_vendas", 0)) - valor), 2)
             caixa["qtd_vendas"]   = max(0, int(caixa.get("qtd_vendas", 0)) - 1)
             db.update_caixa(caixa)
 
@@ -3449,7 +3486,7 @@ def _total_comanda(comanda: dict) -> float:
 
 
 def _margem_comanda(comanda: dict) -> float:
-    """Margem % atual da comanda, só sobre itens (mesma fórmula markup usada
+    """Margem % atual da comanda, só sobre itens (mesma fórmula usada
     em Vendas/Estoque/Pacotes: calcular_margem). Empréstimo não entra aqui,
     igual não entra no cálculo de lucro do Financeiro."""
     total_venda = sum(
@@ -3465,10 +3502,11 @@ def _margem_comanda(comanda: dict) -> float:
 
 def _preco_por_margem(custo: float, margem_pct: float) -> float:
     """Preço de venda necessário pra bater a margem % desejada sobre esse
-    custo, invertendo calcular_margem: margem% = (venda-custo)/custo*100."""
-    if custo <= 0:
+    custo, invertendo calcular_margem: margem% = (venda-custo)/venda*100,
+    logo venda = custo / (1 - margem/100). Margem precisa ser < 100%."""
+    if custo <= 0 or margem_pct >= 100:
         return 0.0
-    return custo * (1 + margem_pct / 100)
+    return custo / (1 - margem_pct / 100)
 
 
 @app.route("/comandas")
@@ -4321,8 +4359,8 @@ def comanda_margem(cid):
         session["_erro_autorizacao"] = "Margem inválida."
         return redirect(url_for("comanda_detalhe", cid=cid))
 
-    if margem <= -100:
-        session["_erro_autorizacao"] = "Margem inválida (precisa ser maior que -100%)."
+    if margem >= 100:
+        session["_erro_autorizacao"] = "Margem inválida (precisa ser menor que 100%)."
         return redirect(url_for("comanda_detalhe", cid=cid))
 
     comanda["margem_customizada"] = margem
@@ -4392,48 +4430,9 @@ def comanda_remover_item(cid, item_id):
     return redirect(url_for("comanda_detalhe", cid=cid))
 
 
-@app.route("/comandas/<cid>/emprestimo", methods=["POST"])
-def comanda_emprestimo(cid):
-    if not usuario_logado():
-        return redirect(url_for("login"))
-    if session.get("tipo") != "admin" and not tem_permissao("ver_vendas"):
-        return redirect(url_for("vendas"))
-
-    comanda = db.get_command(cid)
-    if not comanda or comanda.get("status") != "aberta":
-        return redirect(url_for("comandas"))
-
-    motivo = (request.form.get("motivo") or "").strip()
-    valor = to_float(request.form.get("valor"))
-    vencimento = (request.form.get("vencimento") or "").strip()
-
-    if not motivo or valor <= 0:
-        session["erro_comanda"] = "Informe o motivo e um valor válido para o empréstimo."
-        return redirect(url_for("comanda_detalhe", cid=cid))
-
-    hoje = now_brt().strftime("%Y-%m-%d")
-    hora = now_brt().strftime("%H:%M")
-    usuario = session.get("usuario", "")
-
-    emprestimos = comanda.get("emprestimos") or []
-    emprestimos.append({
-        "id": uuid.uuid4().hex,
-        "motivo": motivo,
-        "valor": round(valor, 2),
-        "vencimento": vencimento,
-        "data": hoje,
-        "hora": hora,
-        "criado_por": usuario,
-    })
-    comanda["emprestimos"] = emprestimos
-    db.update_command(comanda)
-    venc_txt = f" (devolução prevista: {vencimento})" if vencimento else ""
-    db.registrar_log(
-        usuario, "emprestimo_comanda",
-        f"Lançou empréstimo de R$ {valor:.2f} na comanda {comanda.get('nome', '')}: {motivo}{venc_txt}",
-        hoje, hora,
-    )
-    return redirect(url_for("comanda_detalhe", cid=cid))
+# Lançar empréstimo em comanda foi removido do sistema. Os empréstimos já
+# lançados continuam valendo (somam no total da comanda até ela ser paga) e
+# ainda podem ser removidos pela rota abaixo.
 
 
 @app.route("/comandas/<cid>/emprestimo/<emp_id>/remover", methods=["POST"])
@@ -5600,6 +5599,10 @@ def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None, todas_
         pagamentos_map[p["id_venda"]].append(p)
 
     totais = {"dinheiro": 0.0, "pix": 0.0, "credito": 0.0, "debito": 0.0, "fiado": 0.0, "total": 0.0, "qtd": 0}
+    total_por_id_venda = defaultdict(float)
+    for v in vendas:
+        if v.get("id_venda"):
+            total_por_id_venda[v["id_venda"]] += to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 1))
     vendas_ja_contadas = set()  # evita somar 2x quando vários itens da mesma id_venda têm pagamentos na tabela nova
     for v in vendas:
         valor = to_float(v.get("valor_venda", 0)) * to_int(v.get("quantidade", 1))
@@ -5609,9 +5612,14 @@ def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None, todas_
         if id_venda and id_venda in pagamentos_map:
             if id_venda not in vendas_ja_contadas:
                 vendas_ja_contadas.add(id_venda)
+                # Item cancelado de uma venda com vários itens: os pagamentos
+                # continuam gravados com o valor cheio — reduz na proporção
+                # pra contar só o valor dos itens que sobraram.
+                pago_venda = sum(to_float(p.get("valor", 0)) for p in pagamentos_map[id_venda])
+                fator = min(1.0, total_por_id_venda[id_venda] / pago_venda) if pago_venda > 0 else 1.0
                 for p in pagamentos_map[id_venda]:
                     forma = normalizar_pagamento(p.get("forma", ""))
-                    totais[forma] = totais.get(forma, 0.0) + to_float(p.get("valor", 0))
+                    totais[forma] = totais.get(forma, 0.0) + to_float(p.get("valor", 0)) * fator
         else:
             forma = normalizar_pagamento(v.get("forma_pagamento", ""))  # fallback: dado antigo, sem venda_pagamentos
             totais[forma] = totais.get(forma, 0.0) + valor
@@ -5623,6 +5631,9 @@ def _calcular_totais_caixa(caixa_id: str, vendas_ids: list | None = None, todas_
         totais["total"] += valor
         totais["qtd"] += 1
 
+    # "total" mistura dinheiro que entrou com consumo lançado em comanda
+    # (fiado); "recebido" é só o que de fato entrou no caixa.
+    totais["recebido"] = round(sum(totais.get(f, 0.0) for f in ("dinheiro", "pix", "credito", "debito")), 2)
     return totais
 
 
@@ -5890,33 +5901,20 @@ def caixa_fechar():
     total_suprimentos = round(sum(to_float(m["valor"]) for m in movs if m["tipo"] == "suprimento"), 2)
     total_despesas    = round(sum(to_float(m["valor"]) for m in movs if m["tipo"] == "despesa"), 2)
 
-    # vendas diretas abertas deste caixa
+    # vendas diretas abertas deste caixa + pagamentos de comanda registrados
+    # enquanto ele estava aberto. Mesma conta da tela do turno
+    # (_calcular_totais_caixa): pagamento dividido usa os valores reais de
+    # cada forma (venda_pagamentos) — antes o fechamento lia só a forma
+    # gravada na venda e "Dinheiro+Pix" caía inteiro no Pix.
     rows = db.get_sales_open_by_caixa(caixa["id"])
-    totais = {"dinheiro": 0.0, "pix": 0.0, "credito": 0.0, "debito": 0.0, "fiado": 0.0, "total": 0.0, "qtd": 0}
-    uids = []
-    produtos_vendidos = 0
-    for v in rows:
-        qtd_item = to_int(v.get("quantidade", 1))
-        valor = to_float(v.get("valor_venda", 0)) * qtd_item
-        forma = normalizar_pagamento(v.get("forma_pagamento", ""))
-        totais[forma] = totais.get(forma, 0.0) + valor
-        totais["total"] += valor
-        totais["qtd"] += 1
-        produtos_vendidos += qtd_item
-        uids.append(v["uid"])
-
-    # + pagamentos de comanda registrados enquanto este caixa estava aberto
+    uids = [v["uid"] for v in rows]
+    produtos_vendidos = sum(to_int(v.get("quantidade", 1)) for v in rows)
     pagamentos_comanda_caixa = sorted(
         db.get_pagamentos_comanda_por_caixa(caixa["id"]),
         key=lambda p: (p.get("data") or "", p.get("hora") or ""),
         reverse=True,
     )
-    for p in pagamentos_comanda_caixa:
-        valor = to_float(p.get("valor", 0))
-        forma = normalizar_pagamento(p.get("forma", ""))
-        totais[forma] = totais.get(forma, 0.0) + valor
-        totais["total"] += valor
-        totais["qtd"] += 1
+    totais = _calcular_totais_caixa(caixa["id"], vendas=rows)
 
     dinheiro_esperado = round(
         to_float(caixa["valor_abertura"]) + totais["dinheiro"]
@@ -5930,7 +5928,7 @@ def caixa_fechar():
     }
     pagamentos = []
     for forma, total_forma in sorted(totais.items(), key=lambda x: x[1], reverse=True):
-        if forma in ("total", "qtd") or total_forma <= 0:
+        if forma in ("total", "qtd", "recebido") or total_forma <= 0:
             continue
         pct = round(total_forma / totais["total"] * 100) if totais["total"] > 0 else 0
         pagamentos.append({
@@ -6563,6 +6561,9 @@ def financeiro():
     lucro_pendente = round(lucro_pendente, 2)
     investimento_pendente_periodo = round(investimento_pendente_periodo, 2)
     margem_media = round((lucro_total / total_vendido * 100), 1) if total_vendido > 0 else 0.0
+    # Margem sobre o investimento: quanto o lucro rendeu em cima do custo
+    # das mercadorias vendidas no período (lucro ÷ total investido).
+    margem_investimento = round((lucro_total / total_investido * 100), 1) if total_investido > 0 else 0.0
 
     # Top produtos por lucro já efetivamente realizado (não conta lucro sobre
     # venda ainda não recebida no ranking).
@@ -6587,6 +6588,7 @@ def financeiro():
         "credito": "Cartão",
         "debito": "Débito",
         "fiado": "Faturado",
+        "a_receber": "Faturado (não pago)",
     }
     # valor_recebido_vendas/valor_recebido_comandas separados porque são de
     # natureza diferente: venda avulsa é sempre paga na hora (mesma data do
@@ -6668,9 +6670,15 @@ def financeiro():
     valor_recebido_comandas = round(valor_recebido_comandas, 2)
     lucro_realizado = round(lucro_realizado, 2)
     prejuizo_assumido = round(prejuizo_assumido, 2)
+    # Faturado ainda não pago: o que foi consumido no período e continua em
+    # aberto (mesmo valor do "Valor a Receber"). Entra junto das formas de
+    # pagamento pra mostrar tudo que foi vendido no período, pago ou não.
+    if total_a_receber > 0:
+        pag_totais["a_receber"] += total_a_receber
+    total_pagamentos = round(sum(pag_totais.values()), 2)
     pagamentos = []
     for forma, total in sorted(pag_totais.items(), key=lambda x: x[1], reverse=True):
-        pct = round(total / valor_recebido * 100) if valor_recebido > 0 else 0
+        pct = round(total / total_pagamentos * 100) if total_pagamentos > 0 else 0
         pagamentos.append({"forma": LABEL_FORMA_PAGAMENTO.get(forma, forma.capitalize()), "total": round(total, 2), "pct": pct})
 
     # Contagem de comandas por status, no mesmo período (por data de abertura)
@@ -6795,6 +6803,8 @@ def financeiro():
         lucro_realizado=lucro_realizado,
         lucro_pendente=lucro_pendente,
         margem_media=margem_media,
+        margem_investimento=margem_investimento,
+        total_pagamentos=total_pagamentos,
         num_vendas_geral=num_vendas_geral,
         total_a_receber=total_a_receber,
         num_comandas_abertas=num_comandas_abertas,
@@ -7164,6 +7174,7 @@ def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = F
         remaining = qty_needed
         total_cost = 0.0
         log = []
+        custo_sem_estoque = _custo_ultimo_lote(produto, lotes)
         i = 0
         while remaining > 0 and i < len(lotes):
             lote = lotes[i]
@@ -7188,6 +7199,10 @@ def bar_fifo_consume(product_id: str, qty_needed: float, ignorar_falta: bool = F
             else:
                 i += 1
             remaining = round(remaining - consume, 6)
+        # Mesma regra de consumir_fifo_local: o que faltou entra com o custo
+        # do último lote, e não no log (não volta pro estoque na devolução).
+        if remaining > 0:
+            total_cost += remaining * custo_sem_estoque
         atualizar_campos_derivados_estoque(produto)
         if salvar:
             db.update_product(produto)

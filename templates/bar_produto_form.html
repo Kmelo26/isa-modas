@@ -607,7 +607,7 @@ function calcular() {
 
   const venda  = parseFloat(document.getElementById('sale_price').value || 0);
   const lucro  = venda - custo;
-  const margem = custo > 0 ? (lucro / custo) * 100 : 0;
+  const margem = venda > 0 ? (lucro / venda) * 100 : 0;
 
   document.getElementById('sum-custo').textContent  = fmt(custo);
   document.getElementById('sum-lucro').textContent  = fmtV(lucro);

@@ -417,7 +417,7 @@
     if (temCusto) {
       document.getElementById('tr-info-custo').textContent = 'R$ ' + fmt2(p.valor_investido);
       document.getElementById('tr-info-venda').textContent = 'R$ ' + fmt2(p.valor_venda);
-      const margem = p.valor_investido > 0 ? ((p.valor_venda - p.valor_investido) / p.valor_investido * 100) : 0;
+      const margem = p.valor_venda > 0 ? ((p.valor_venda - p.valor_investido) / p.valor_venda * 100) : 0;
       document.getElementById('tr-info-margem').textContent = fmt2(margem) + '%';
     }
 

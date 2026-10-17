@@ -33,7 +33,8 @@
     <div class="cx-row"><span class="cx-label">💵 Dinheiro</span><span class="cx-val">R$ {{ "%.2f"|format(totais.dinheiro) }}</span></div>
     <div class="cx-row"><span class="cx-label">PIX</span><span class="cx-val">R$ {{ "%.2f"|format(totais.pix) }}</span></div>
     <div class="cx-row"><span class="cx-label">💳 Cartão</span><span class="cx-val">R$ {{ "%.2f"|format(totais.credito + totais.debito) }}</span></div>
-    <div class="cx-row"><span class="cx-label">📒 Faturado</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
+    <div class="cx-row"><span class="cx-label"><strong>Total Recebido</strong></span><span class="cx-val"><strong>R$ {{ "%.2f"|format(totais.recebido) }}</strong></span></div>
+    <div class="cx-row"><span class="cx-label">📒 Faturado (não recebido)</span><span class="cx-val" style="color:#fbbf24;">R$ {{ "%.2f"|format(totais.fiado) }}</span></div>
   </div>
 
   <!-- Diferenças -->

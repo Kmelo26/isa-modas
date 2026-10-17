@@ -106,9 +106,9 @@ label { font-weight:bold; color:var(--accent); font-size:13px; }
       <div class="campo">
         <label>Margem de Lucro</label>
         <div class="valor">
-          {% if margem >= 40 %}
+          {% if margem >= 28.5 %}
             <span class="badge-margem badge-verde">{{ '%.1f'|format(margem) }}%</span>
-          {% elif margem >= 20 %}
+          {% elif margem >= 16.5 %}
             <span class="badge-margem badge-amarelo">{{ '%.1f'|format(margem) }}%</span>
           {% elif margem >= 0 %}
             <span class="badge-margem badge-laranja">{{ '%.1f'|format(margem) }}%</span>

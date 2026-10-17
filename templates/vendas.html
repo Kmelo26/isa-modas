@@ -504,7 +504,7 @@
           <tbody>
             {% for v in g.itens %}
               {% set custo  = v.valor_investido if v.valor_investido else 0 %}
-              {% set margem = ((v.valor_venda - custo) / custo * 100) if custo and custo > 0 else 0 %}
+              {% set margem = ((v.valor_venda - custo) / v.valor_venda * 100) if v.valor_venda and v.valor_venda > 0 else 0 %}
               {% set is_bar = v.produto_tipo == 'bar' %}
               {% set pgto   = (v.forma_pagamento or '')|lower %}
               <tr>
@@ -554,9 +554,9 @@
                 <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(v.valor_venda * v.quantidade) }}</td>
                 {% if tipo == "admin" or "ver_margem_lucro" in permissoes %}
                 <td style="text-align:center;">
-                  {% if margem >= 40 %}
+                  {% if margem >= 28.5 %}
                     <span class="margem-badge mb-alta">{{ "%.0f"|format(margem) }}%</span>
-                  {% elif margem >= 20 %}
+                  {% elif margem >= 16.5 %}
                     <span class="margem-badge mb-media">{{ "%.0f"|format(margem) }}%</span>
                   {% elif margem >= 0 %}
                     <span class="margem-badge mb-baixa">{{ "%.0f"|format(margem) }}%</span>
@@ -822,9 +822,9 @@
             <td style="text-align:right;" class="total-cell">R$ {{ "%.2f"|format(g.valor_total) }}</td>
             {% if tem_margem %}
             <td style="text-align:center;">
-              {% if margem_g >= 40 %}
+              {% if margem_g >= 28.5 %}
                 <span class="margem-badge mb-alta">{{ "%.0f"|format(margem_g) }}%</span>
-              {% elif margem_g >= 20 %}
+              {% elif margem_g >= 16.5 %}
                 <span class="margem-badge mb-media">{{ "%.0f"|format(margem_g) }}%</span>
               {% elif margem_g >= 0 %}
                 <span class="margem-badge mb-baixa">{{ "%.0f"|format(margem_g) }}%</span>
@@ -1084,7 +1084,7 @@ function preencherVisualizar(v) {
   const custo = parseFloat(v.valor_investido) || 0;
   const total = preco * qtd;
   const lucro = (preco - custo) * qtd;
-  const margem = custo > 0 ? ((preco - custo) / custo * 100) : 0;
+  const margem = preco > 0 ? ((preco - custo) / preco * 100) : 0;
   const tipo  = v.produto_tipo === 'bar' ? 'bar' : 'estoque';
 
   document.getElementById('vv-nome').textContent  = v.nome || '—';

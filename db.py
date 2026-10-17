@@ -874,10 +874,13 @@ def get_all_caixas() -> list:
 
 
 def get_sales_open_by_caixa(caixa_id: str) -> list:
+    # excluida=False: venda cancelada com o caixa aberto não pode continuar
+    # somando no turno/fechamento (antes somava e o caixa acusava falta).
     rows = (
         _sb().table("sales").select("*")
         .eq("caixa_id", caixa_id)
         .eq("fechado", False)
+        .eq("excluida", False)
         .execute().data or []
     )
     return [_fix_sale(s) for s in rows]

@@ -409,33 +409,6 @@ input[name="produto_pid"] { display: none; }
         </form>
       </div>
 
-      <!-- Adicionar empréstimo -->
-      <div class="cd-card">
-        <div class="cd-card-title">Adicionar Empréstimo</div>
-        <form method="post" action="/comandas/{{ comanda.cid }}/emprestimo">
-          <div class="cd-add-grid" style="grid-template-columns: 1fr 140px 160px auto;">
-            <div class="cd-field">
-              <label>Motivo</label>
-              <input type="text" name="motivo" class="cd-text-inp" required
-                placeholder="Ex: Emprestei R$50 pro João, ele paga semana que vem" autocomplete="off">
-            </div>
-            <div class="cd-field">
-              <label>Valor (R$)</label>
-              <input type="number" name="valor" class="cd-text-inp" step="0.01" min="0.01" required placeholder="0,00">
-            </div>
-            <div class="cd-field">
-              <label>Devolução prevista</label>
-              <input type="date" name="vencimento" class="cd-text-inp">
-            </div>
-            <div class="cd-field">
-              <label>&nbsp;</label>
-              <button type="submit" class="cd-btn-add">
-                💰 Lançar
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
       {% endif %}
 
       <!-- Itens consumidos -->
@@ -493,10 +466,10 @@ input[name="produto_pid"] { display: none; }
         {% endif %}
       </div>
 
-      <!-- Empréstimos -->
+      <!-- Empréstimos (só os já lançados — não dá mais pra lançar novo) -->
+      {% if comanda.emprestimos %}
       <div class="cd-card">
         <div class="cd-card-title">Empréstimos</div>
-        {% if comanda.emprestimos %}
         <div style="overflow-x:auto;">
         <table class="cd-table">
           <thead>
@@ -531,10 +504,8 @@ input[name="produto_pid"] { display: none; }
           </tbody>
         </table>
         </div>
-        {% else %}
-        <div class="cd-empty">Nenhum empréstimo lançado.</div>
-        {% endif %}
       </div>
+      {% endif %}
     </div>
 
     <!-- Sidebar -->
@@ -573,7 +544,7 @@ input[name="produto_pid"] { display: none; }
         {% if permite_margem and comanda.status == "aberta" %}
         <div class="cd-margem-box" id="margem-box" style="display:none;">
           <form method="post" action="{{ url_for('comanda_margem', cid=comanda.cid) }}" class="cd-margem-form">
-            <input type="number" step="0.1" min="-99" name="margem" value="{{ margem_atual }}" class="cd-text-inp" required>
+            <input type="number" step="0.1" max="99.9" name="margem" value="{{ margem_atual }}" class="cd-text-inp" required>
             <span>%</span>
             <button type="submit" class="cd-margem-apply">Aplicar</button>
           </form>
