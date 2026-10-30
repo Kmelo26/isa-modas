@@ -252,6 +252,27 @@ def get_ajustes_estoque(pid: str) -> list:
         return []
 
 
+def get_log(log_id: str) -> dict | None:
+    """Um registro do audit_log pelo id (usado pra desfazer um ajuste)."""
+    try:
+        rows = (_sb().table("audit_log").select("*")
+                .eq("id", log_id).limit(1).execute().data or [])
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
+
+def atualizar_detalhes_log(log_id: str, detalhes: dict) -> bool:
+    """Regrava os detalhes de um log (ex.: marcar um ajuste como desfeito).
+    Diferente de registrar_log, aqui o erro importa: quem chama precisa
+    saber se a marcação pegou antes de mexer no estoque."""
+    try:
+        _sb().table("audit_log").update({"detalhes": detalhes or {}}).eq("id", log_id).execute()
+        return True
+    except Exception:
+        return False
+
+
 def get_logs(data_ini: str = "", data_fim: str = "", usuario: str = "", tipo_evento: str = "", resultado: str = "") -> list:
     q = _sb().table("audit_log").select("*")
     if data_ini:

@@ -718,6 +718,32 @@ def _devolver_ao_lote(produto: dict, lote_id, data_lote, qtd: float, custo_unit:
     })
 
 
+def _retirar_do_lote(produto: dict, lote_id, qtd: float, local_id: str) -> float:
+    """Tira até qtd de um lote específico (não é PEPS) — usado pra desfazer o
+    lote que um ajuste de contagem criou. Tira o que o lote tiver naquele
+    local e devolve quanto saiu de verdade (0 se o lote já nem existe):
+    quem chama completa o resto por PEPS. Remove o lote quando zera."""
+    if qtd <= 0:
+        return 0.0
+    local_id = local_id or LOCAL_PADRAO
+    lotes = produto.setdefault("lotes", [])
+    for i, lote in enumerate(lotes):
+        if not lote_id or lote.get("id") != lote_id:
+            continue
+        dist = dict(_dist_lote(lote))
+        disponivel = to_float(dist.get(local_id, 0))
+        usar = min(qtd, disponivel)
+        if usar <= 0:
+            return 0.0
+        dist[local_id] = round(disponivel - usar, 4)
+        lote["distribuicao"] = dist
+        lote["qtd"] = round(to_float(lote.get("qtd", 0)) - usar, 4)
+        if lote["qtd"] < RESTO_LOTE_MINIMO:
+            lotes.pop(i)
+        return usar
+    return 0.0
+
+
 def _aplicar_devolucao_bar_componente(produto: dict, consumo: list):
     """Lógica pura (sem acesso a banco) de devolver 1 componente ao estoque.
     Extraída de devolver_bar_componentes pra poder ser reaproveitada em lote
@@ -2858,6 +2884,78 @@ def _custo_medio_produto(produto: dict) -> float:
     return to_float(produto.get("valor_investido"), 0.0)
 
 
+def _lote_do_produto(produto: dict, lote_id):
+    return next((l for l in produto.get("lotes") or [] if lote_id and l.get("id") == lote_id), None)
+
+
+def _dados_originais_lote(lote_id) -> dict:
+    """O que ainda dá pra recuperar de um lote que zerou e saiu da lista: o
+    registro de entrada em lote_investimentos tem a mesma chave do lote e
+    não é apagado quando o lote zera."""
+    if not lote_id:
+        return {}
+    try:
+        return db.get_lote_investimento(lote_id) or {}
+    except Exception:
+        return {}
+
+
+def _custos_originais_ajuste(produto: dict, lotes_log: list, custo_total: float) -> dict:
+    """Custo unitário de cada lote que o ajuste consumiu, da melhor fonte pra
+    pior: o que o próprio ajuste gravou, o lote que ainda está no produto, o
+    registro de entrada do lote e, por último, o rateio do custo total do
+    ajuste entre o que sobrou sem custo (assim o valor do estoque volta
+    exato). Sem nada disso, custo médio do produto."""
+    custos, sem_custo = {}, []
+    explicado = 0.0
+    for item in lotes_log:
+        lote_id = item.get("lote_id")
+        qtd = to_float(item.get("qtd"))
+        custo = to_float(item.get("custo_unit"))
+        if custo <= 0:
+            lote = _lote_do_produto(produto, lote_id)
+            custo = to_float(lote.get("custo_unit")) if lote else 0.0
+        if custo <= 0:
+            custo = to_float(_dados_originais_lote(lote_id).get("custo_unit"))
+        if custo > 0:
+            custos[lote_id] = custo
+            explicado += qtd * custo
+        else:
+            sem_custo.append((lote_id, qtd))
+
+    if sem_custo:
+        qtd_sem_custo = sum(q for _, q in sem_custo)
+        sobra = round(to_float(custo_total) - explicado, 4)
+        rateio = round(sobra / qtd_sem_custo, 4) if qtd_sem_custo > 0 and sobra > 0 else 0.0
+        if rateio <= 0:
+            rateio = _custo_medio_produto(produto) or 0.01
+        for lote_id, _ in sem_custo:
+            custos[lote_id] = rateio
+    return custos
+
+
+def _devolver_lote_do_ajuste(produto: dict, item: dict, custo_unit: float, local_id: str):
+    """Devolve ao lote o que o ajuste tirou dele. Reusa a devolução de venda;
+    a diferença é que, quando o lote tinha zerado e saído da lista, ela o
+    recria com o esqueleto mínimo — aqui a gente completa de volta o que
+    ainda dá pra saber dele (fornecedor, nome), sem tocar em lote vivo.
+    Devolve True se o lote precisou ser recriado."""
+    lote_id = item.get("lote_id")
+    qtd = to_float(item.get("qtd"))
+    recriado = _lote_do_produto(produto, lote_id) is None
+    _devolver_ao_lote(produto, lote_id, item.get("data_lote"), qtd, custo_unit, local_id)
+    if recriado:
+        lote = _lote_do_produto(produto, lote_id)
+        if lote:
+            entrada = _dados_originais_lote(lote_id)
+            for campo, valor in (("fornecedor", item.get("fornecedor") or entrada.get("fornecedor")),
+                                 ("nome_lote", item.get("nome_lote")),
+                                 ("validade", item.get("validade"))):
+                if valor and not lote.get(campo):
+                    lote[campo] = valor
+    return recriado
+
+
 @app.route("/estoque/produto/<pid>/ajuste", methods=["POST"])
 def estoque_ajuste_contagem(pid):
     """Acerta o estoque com a contagem física, local por local. Contou menos:
@@ -2896,7 +2994,8 @@ def estoque_ajuste_contagem(pid):
             custo_total, lotes_afetados = 0.0, []
             if diferenca < 0:
                 custo_total, consumo = consumir_fifo_local(produto, -diferenca, l["id"])
-                lotes_afetados = [{"lote_id": c.get("lote_id"), "data_lote": c.get("data_lote"), "qtd": c.get("qtd")} for c in consumo]
+                lotes_afetados = [{"lote_id": c.get("lote_id"), "data_lote": c.get("data_lote"),
+                                   "qtd": c.get("qtd"), "custo_unit": c.get("custo_unit")} for c in consumo]
             else:
                 custo_unit = _custo_medio_produto(produto) or 0.01
                 lote_id = uuid.uuid4().hex
@@ -2907,7 +3006,7 @@ def estoque_ajuste_contagem(pid):
                     "distribuicao": {l["id"]: diferenca}, "nome_lote": "Ajuste de contagem", "ajuste": True,
                 })
                 custo_total = round(diferenca * custo_unit, 2)
-                lotes_afetados = [{"lote_id": lote_id, "data_lote": hoje, "qtd": diferenca}]
+                lotes_afetados = [{"lote_id": lote_id, "data_lote": hoje, "qtd": diferenca, "custo_unit": custo_unit}]
             ajustes.append({"local": l, "antes": antes, "contado": contado, "diferenca": diferenca,
                             "custo": round(custo_total, 2), "lotes": lotes_afetados})
     except ValueError as e:
@@ -2932,6 +3031,118 @@ def estoque_ajuste_contagem(pid):
         )
     resumo = "; ".join(f"{a['local']['nome']}: {a['antes']:g} → {a['contado']:g}" for a in ajustes)
     return redirect(url_for("estoque_produto", pid=pid, msg=f"Estoque ajustado ({resumo})."))
+
+
+@app.route("/estoque/produto/<pid>/ajuste/<log_id>/desfazer", methods=["POST"])
+def estoque_ajuste_desfazer(pid, log_id):
+    """Desfaz um ajuste de contagem. Nunca trava: o que saiu volta pros
+    mesmos lotes (recriando lote que já tinha zerado, com o custo original) e
+    o que entrou é retirado do lote do ajuste, completando pelo PEPS do local
+    se parte já saiu. O que não der pra desfazer vira aviso, não erro. O
+    ajuste continua no histórico, marcado como desfeito — e ajuste já
+    desfeito não desfaz de novo."""
+    if not usuario_logado():
+        return redirect(url_for("login"))
+    if not tem_permissao("editar_estoque"):
+        return redirect(url_for("estoque_produto", pid=pid, erro="Você não tem permissão para ajustar o estoque."))
+    log = db.get_log(log_id)
+    d = (log or {}).get("detalhes") or {}
+    if not log or log.get("tipo_evento") != "estoque_ajuste" or d.get("pid") != pid:
+        return redirect(url_for("estoque_produto", pid=pid, erro="Ajuste não encontrado."))
+    if d.get("desfeito_em"):
+        return redirect(url_for("estoque_produto", pid=pid,
+                                erro=f"Esse ajuste já foi desfeito por {d.get('desfeito_por') or 'alguém'}."))
+    produto = db.get_product(pid)
+    if not produto:
+        return redirect(url_for("estoque"))
+
+    local_id  = d.get("local_id") or LOCAL_PADRAO
+    diferenca = to_float(d.get("diferenca"))
+    lotes_ajuste = [x for x in (d.get("lotes") or []) if to_float(x.get("qtd")) > 0]
+    nome_local = next((l["nome"] for l in db.get_all_locais_estoque() if l["id"] == local_id), local_id)
+    if abs(diferenca) < 0.0005:
+        return redirect(url_for("estoque_produto", pid=pid,
+                                erro="Esse ajuste não mexeu no estoque — não há o que desfazer."))
+
+    usuario = session.get("usuario", "")
+    data_hoje, hora_agora = now_brt().strftime("%Y-%m-%d"), now_brt().strftime("%H:%M")
+    faltou, resumo = 0.0, ""
+
+    if diferenca < 0:
+        # Tinha menos na contagem: a diferença saiu por PEPS, então volta
+        # pros mesmos lotes de onde saiu (mesma regra da devolução de venda).
+        # Lote que já tinha zerado e saído da lista é recriado com o custo e
+        # o fornecedor originais — ele reaparece no histórico como era.
+        custos = _custos_originais_ajuste(produto, lotes_ajuste, to_float(d.get("custo")))
+        devolvido, recriados = 0.0, 0
+        for item in lotes_ajuste:
+            if _devolver_lote_do_ajuste(produto, item, custos.get(item.get("lote_id"), 0.0), local_id):
+                recriados += 1
+            devolvido += to_float(item.get("qtd"))
+        # Ajuste antigo que não guardou de quais lotes saiu (ou guardou menos
+        # do que a diferença): o resto volta num lote de compensação, pelo
+        # custo médio do próprio ajuste.
+        resto = round(abs(diferenca) - devolvido, 4)
+        if resto > 0.0005:
+            modo = "compensacao" if devolvido <= 0.0005 else "parcial"
+            custo_unit = round(to_float(d.get("custo")) / abs(diferenca), 4) or _custo_medio_produto(produto) or 0.01
+            produto.setdefault("lotes", []).append({
+                "id": uuid.uuid4().hex, "data": data_hoje, "qtd": resto, "qtd_entrada": resto,
+                "custo_unit": custo_unit, "criado_por": usuario,
+                "criado_em": now_brt().isoformat(timespec="seconds"),
+                "distribuicao": {local_id: resto}, "nome_lote": "Desfazer ajuste", "ajuste": True,
+            })
+            devolvido += resto
+        else:
+            modo = "lotes_originais"
+        atualizar_campos_derivados_estoque(produto)
+        resumo = f"{devolvido:g} un. voltaram para o(a) {nome_local}"
+        if recriados:
+            resumo += f" ({recriados} lote(s) restaurado(s) com o custo original)"
+    else:
+        # Tinha mais: entrou um lote de ajuste. Tira o que ainda está nele e,
+        # se parte já saiu, completa pelo PEPS do mesmo local. O que nem o
+        # local tem mais (já vendido) só é avisado — não trava o desfazer.
+        retirado = 0.0
+        for item in lotes_ajuste:
+            retirado += _retirar_do_lote(produto, item.get("lote_id"), to_float(item.get("qtd")), local_id)
+        modo = "lote_do_ajuste"
+        resto = round(diferenca - retirado, 4)
+        if resto > 0.0005:
+            usar = min(resto, to_float(_qtd_por_local(produto).get(local_id, 0)))
+            if usar > 0.0005:
+                consumir_fifo_local(produto, usar, local_id)
+                retirado += usar
+                modo = "peps"
+            faltou = round(resto - max(usar, 0.0), 4)
+            if faltou > 0.0005:
+                modo = "parcial"
+        atualizar_campos_derivados_estoque(produto)
+        resumo = f"{retirado:g} un. retiradas do(a) {nome_local}"
+        if faltou > 0.0005:
+            resumo += f" — faltaram {faltou:g} un., que já saíram em venda"
+
+    # Marca antes de gravar o estoque: se a marcação falhar, nada é mexido
+    # (melhor não desfazer do que correr o risco de desfazer duas vezes).
+    marca = {**d, "desfeito_em": f"{data_hoje} {hora_agora}", "desfeito_por": usuario,
+             "desfeito_modo": modo, "desfeito_qtd": abs(diferenca)}
+    if faltou > 0.0005:
+        marca["desfeito_faltou"] = faltou
+    if not db.atualizar_detalhes_log(log_id, marca):
+        return redirect(url_for("estoque_produto", pid=pid,
+                                erro="Não foi possível registrar o desfazer — nada foi alterado. Tente de novo."))
+    db.update_product(produto)
+
+    db.registrar_log(
+        usuario, "estoque_ajuste_desfeito",
+        f"{produto.get('nome', '')}: desfez o ajuste no(a) {nome_local} "
+        f"({to_float(d.get('antes')):g} → {to_float(d.get('contado')):g}) — {resumo}",
+        data_hoje, hora_agora,
+        detalhes={"pid": pid, "ajuste_log_id": log_id, "local_id": local_id, "diferenca": -diferenca,
+                  "custo": to_float(d.get("custo")), "motivo": d.get("motivo"), "lotes": lotes_ajuste,
+                  "modo": modo, "faltou": faltou},
+    )
+    return redirect(url_for("estoque_produto", pid=pid, msg=f"Ajuste desfeito: {resumo}."))
 
 
 @app.route("/estoque/reparar-lotes", methods=["POST"])

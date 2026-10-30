@@ -147,6 +147,10 @@
     color:#fff; font-weight:600; font-size:0.78rem; cursor:pointer; }
   .btn-cx { padding:5px 10px; border-radius:5px; border:1px solid var(--border);
     background:var(--card-bg); color:var(--text); font-size:0.78rem; cursor:pointer; }
+  .btn-undo { padding:4px 10px; border-radius:5px; border:1px solid var(--border);
+    background:transparent; color:var(--text-muted); font-size:0.72rem; font-weight:600;
+    cursor:pointer; white-space:nowrap; }
+  .btn-undo:hover { background:#2a0f0f; color:#f87171; border-color:#5a1f1f; }
 
   /* dados tab */
   .lp-dados-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -504,7 +508,7 @@
       {% if ajustes_estoque %}
       <div style="margin-top:16px;overflow-x:auto;">
         <table class="lp-hist-table">
-          <thead><tr><th>Data</th><th>Usuário</th><th>Local</th><th>Sistema → Contado</th><th>Diferença</th><th>Custo</th><th>Motivo</th></tr></thead>
+          <thead><tr><th>Data</th><th>Usuário</th><th>Local</th><th>Sistema → Contado</th><th>Diferença</th><th>Custo</th><th>Motivo</th><th></th></tr></thead>
           <tbody>
             {% for a in ajustes_estoque %}{% set d = a.detalhes or {} %}
             <tr>
@@ -515,6 +519,18 @@
               <td style="color:{{ '#f87171' if (d.diferenca or 0) < 0 else '#4ade80' }};font-weight:700;">{{ '+' if (d.diferenca or 0) > 0 else '' }}{{ d.diferenca|qtd_br }}</td>
               <td>R$ {{ "%.2f"|format(d.custo or 0) }}</td>
               <td>{{ motivos_ajuste.get(d.motivo, d.motivo) }}{% if d.observacao %}<div style="font-size:.72rem;color:var(--text-muted);">{{ d.observacao }}</div>{% endif %}</td>
+              <td style="text-align:right;">
+                {% if d.desfeito_em %}
+                  <span style="font-size:.72rem;color:var(--text-muted);">desfeito{% if d.desfeito_por %} por {{ d.desfeito_por }}{% endif %}<br>{{ d.desfeito_em }}{% if d.desfeito_faltou %}<br>faltaram {{ d.desfeito_faltou|qtd_br }} un.{% endif %}</span>
+                {% elif pode_ajustar %}
+                {% set atual = saldo_por_local.get(d.local_id, 0) %}
+                <form method="POST" action="{{ url_for('estoque_ajuste_desfazer', pid=produto.pid, log_id=a.id) }}" style="display:inline;">
+                  <button type="button" class="btn-undo"
+                    data-msg="Desfazer este ajuste ({{ d.antes|qtd_br }} → {{ d.contado|qtd_br }})? O estoque no(a) {{ locais_nomes_map.get(d.local_id, d.local_id) }} vai de {{ atual|qtd_br }} para {{ (atual - (d.diferenca or 0))|qtd_br }} un."
+                    onclick="showConfirm('Desfazer ajuste',this.dataset.msg,()=>this.closest('form').submit(),'warn')">↩ Desfazer</button>
+                </form>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
